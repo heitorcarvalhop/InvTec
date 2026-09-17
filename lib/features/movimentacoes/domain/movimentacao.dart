@@ -62,6 +62,8 @@ class Movimentacao {
     required this.tipo,
     this.origemId,
     this.destinoId,
+    this.localizacaoOrigemId,
+    this.localizacaoDestinoId,
     this.responsavelOrigem,
     this.responsavelDestino,
     this.motivo,
@@ -80,6 +82,8 @@ class Movimentacao {
       tipo: MovimentacaoTipo.fromValue(json['tipo'] as String),
       origemId: json['origem_id'] as String?,
       destinoId: json['destino_id'] as String?,
+      localizacaoOrigemId: json['localizacao_origem_id'] as String?,
+      localizacaoDestinoId: json['localizacao_destino_id'] as String?,
       responsavelOrigem: json['responsavel_origem'] as String?,
       responsavelDestino: json['responsavel_destino'] as String?,
       motivo: json['motivo'] as String?,
@@ -97,6 +101,8 @@ class Movimentacao {
   final MovimentacaoTipo tipo;
   final String? origemId;
   final String? destinoId;
+  final String? localizacaoOrigemId;
+  final String? localizacaoDestinoId;
   final String? responsavelOrigem;
   final String? responsavelDestino;
   final String? motivo;

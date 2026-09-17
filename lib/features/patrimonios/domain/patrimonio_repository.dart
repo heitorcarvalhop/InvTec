@@ -1,5 +1,6 @@
 import 'patrimonio.dart';
 import 'patrimonio_detalhe.dart';
+import 'patrimonio_search_field.dart';
 import 'patrimonios_resultado.dart';
 
 abstract class PatrimonioRepository {
@@ -12,16 +13,62 @@ abstract class PatrimonioRepository {
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio);
 
   /// Página de patrimônios com tipo/setor já resolvidos (embed, sem N+1).
-  /// [busca] filtra por número de patrimônio/série/marca/modelo (server-side,
-  /// nunca carrega a tabela inteira); [tipoId], [status] e [setorId] são
-  /// filtros opcionais combináveis com a busca.
+  /// [tipoId], [status], [setorId], [localizacaoId]/[semLocalizacao],
+  /// [marca], [modelo], [responsavel] e os intervalos de data são filtros
+  /// opcionais, todos combináveis entre si e com a busca por AND (PROMPT
+  /// 9.2). Sempre resolvidos no servidor: nunca carrega a página inteira
+  /// para filtrar/paginar em memória.
+  ///
+  /// [busca] é interpretado de acordo com [campoBusca] (PROMPT 9.1):
+  /// - [PatrimonioSearchField.patrimonio]: correspondência EXATA contra
+  ///   `numero_patrimonio` (nunca `ilike`/substring/similaridade — um
+  ///   número de patrimônio incorreto não pode aparecer como se fosse o
+  ///   patrimônio pesquisado).
+  /// - [PatrimonioSearchField.numeroSerie]: busca textual controlada
+  ///   (`ilike`) em `numero_serie`.
+  /// - [PatrimonioSearchField.equipamentoDescricao]: `ilike` em `descricao`.
+  /// - [PatrimonioSearchField.marcaModelo]: `ilike` em `marca` OU `modelo`.
+  /// - [PatrimonioSearchField.responsavel]: `ilike` em `responsavel_atual`.
+  /// - [PatrimonioSearchField.localizacao]: pelo nome da localização
+  ///   relacionada (`localizacoes.nome`), nunca pelo setor/gerência.
+  /// - [PatrimonioSearchField.tudo] (padrão): se [busca] contém só dígitos,
+  ///   trata como identificador — `numero_patrimonio` OU `numero_serie`
+  ///   EXATOS, nunca fuzzy/"número mais próximo"; se contém letras, busca
+  ///   textual nos campos textuais (mantendo `numero_patrimonio` exato
+  ///   quando aplicável).
+  ///
+  /// [localizacaoId] filtra por `localizacao_atual_id` exato (nunca texto).
+  /// [semLocalizacao] filtra `localizacao_atual_id IS NULL` — mutuamente
+  /// exclusivo com [localizacaoId] (a UI nunca envia os dois juntos).
+  ///
+  /// [marca], [modelo] e [responsavel] (PROMPT 9.2, seção 4) usam `ilike`
+  /// case-insensitive, independentes do [campoBusca]/[busca] da busca
+  /// principal — vazio (após trim) significa "filtro não aplicado".
+  ///
+  /// [dataCadastroDe]/[dataCadastroAte] filtram `data_cadastro`
+  /// (timestamptz) por intervalo INCLUSIVO nos dois limites — a
+  /// implementação decide como tratar início/fim do dia local do
+  /// dispositivo (seção 5: preferir `>= início do dia` e `< início do dia
+  /// seguinte`, nunca depender de `23:59:59.999`).
+  /// [dataAquisicaoDe]/[dataAquisicaoAte] filtram `data_aquisicao` (date)
+  /// também por intervalo inclusivo, sem ambiguidade de fuso (é só data).
   Future<PatrimoniosResultado> listar({
     int limit = 25,
     int offset = 0,
     String? busca,
+    PatrimonioSearchField campoBusca = PatrimonioSearchField.tudo,
     String? tipoId,
     PatrimonioStatus? status,
     String? setorId,
+    String? localizacaoId,
+    bool semLocalizacao = false,
+    String? marca,
+    String? modelo,
+    String? responsavel,
+    DateTime? dataCadastroDe,
+    DateTime? dataCadastroAte,
+    DateTime? dataAquisicaoDe,
+    DateTime? dataAquisicaoAte,
   });
 
   /// Cadastra um patrimônio novo e sua movimentação inicial (ENTRADA) via
@@ -38,6 +85,8 @@ abstract class PatrimonioRepository {
     String? observacao,
     DateTime? dataAquisicao,
     String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
     String? responsavelOrigem,
     String? responsavelDestino,
     String? motivo,

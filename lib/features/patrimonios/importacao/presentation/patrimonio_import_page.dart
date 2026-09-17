@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/empty_state.dart';
 import 'patrimonio_import_controller.dart';
 import 'patrimonio_import_state.dart';
@@ -12,6 +13,7 @@ import 'widgets/import_mapping_step.dart';
 import 'widgets/import_progress_step.dart';
 import 'widgets/import_result_step.dart';
 import 'widgets/import_review_step.dart';
+import 'widgets/import_tipos_pendentes_step.dart';
 
 /// Assistente de importação de patrimônios via planilha (rota
 /// `/patrimonios/importar`). Nunca importa automaticamente — cada passo
@@ -33,6 +35,8 @@ class PatrimonioImportPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _Cabecalho(step: state.step),
+              const SizedBox(height: AppSpacing.md),
+              _StepIndicator(step: state.step),
               const SizedBox(height: AppSpacing.lg),
               if (state.mensagemErro != null) ...[
                 _ErroBanner(mensagem: state.mensagemErro!),
@@ -78,7 +82,10 @@ class _Cabecalho extends StatelessWidget {
       case ImportStep.configurarPadroes:
         return 'Passo 5 de 7 — Configure os valores padrão da importação.';
       case ImportStep.resolverLocalizacoes:
-        return 'Perfil GETEC — Mapeie as localizações encontradas para setores.';
+        return 'Perfil GETEC — Mapeie as localizações encontradas para as '
+            'localizações cadastradas da gerência GETEC.';
+      case ImportStep.resolverTipos:
+        return 'Tipos pendentes — associe um tipo a cada patrimônio bloqueado.';
       case ImportStep.revisar:
         return 'Passo 6 de 7 — Revise os dados antes de importar.';
       case ImportStep.importando:
@@ -86,6 +93,114 @@ class _Cabecalho extends StatelessWidget {
       case ImportStep.resultado:
         return 'Importação concluída.';
     }
+  }
+}
+
+/// Posição (0-based) de [step] entre os 7 marcos visuais do assistente —
+/// PROMPT 9.3: indicador de progresso puramente visual, nunca controla
+/// navegação. Os passos condicionais (Localizações/Tipos pendentes, hoje
+/// só do perfil GETEC) ficam agrupados dentro de "Padrões", já que só
+/// existem entre "Padrões" e "Revisão"; "Importando" fica agrupado com
+/// "Resultado" (é uma transição rápida, não um marco à parte).
+int _posicaoDoPasso(ImportStep step) {
+  switch (step) {
+    case ImportStep.selecionarArquivo:
+      return 0;
+    case ImportStep.selecionarAba:
+      return 1;
+    case ImportStep.selecionarCabecalho:
+      return 2;
+    case ImportStep.mapearColunas:
+      return 3;
+    case ImportStep.configurarPadroes:
+    case ImportStep.resolverLocalizacoes:
+    case ImportStep.resolverTipos:
+      return 4;
+    case ImportStep.revisar:
+      return 5;
+    case ImportStep.importando:
+    case ImportStep.resultado:
+      return 6;
+  }
+}
+
+const _rotulosPassos = ['Arquivo', 'Aba', 'Cabeçalho', 'Colunas', 'Padrões', 'Revisão', 'Resultado'];
+
+class _StepIndicator extends StatelessWidget {
+  const _StepIndicator({required this.step});
+
+  final ImportStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    final atual = _posicaoDoPasso(step);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (var i = 0; i < _rotulosPassos.length; i++) ...[
+            _StepDot(numero: i + 1, label: _rotulosPassos[i], estado: _estadoDoPasso(i, atual)),
+            if (i < _rotulosPassos.length - 1)
+              Container(
+                width: 24,
+                height: 2,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                color: i < atual ? colorScheme.primary : colorScheme.outlineVariant,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  _StepDotEstado _estadoDoPasso(int indice, int atual) {
+    if (indice < atual) return _StepDotEstado.concluido;
+    if (indice == atual) return _StepDotEstado.atual;
+    return _StepDotEstado.pendente;
+  }
+}
+
+enum _StepDotEstado { concluido, atual, pendente }
+
+class _StepDot extends StatelessWidget {
+  const _StepDot({required this.numero, required this.label, required this.estado});
+
+  final int numero;
+  final String label;
+  final _StepDotEstado estado;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (background, foreground, border) = switch (estado) {
+      _StepDotEstado.concluido => (colorScheme.primary, colorScheme.onPrimary, colorScheme.primary),
+      _StepDotEstado.atual => (colorScheme.primaryContainer, colorScheme.onPrimaryContainer, colorScheme.primary),
+      _StepDotEstado.pendente => (Colors.transparent, colorScheme.onSurfaceVariant, colorScheme.outlineVariant),
+    };
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: background, shape: BoxShape.circle, border: Border.all(color: border)),
+          child: estado == _StepDotEstado.concluido
+              ? Icon(Icons.check, size: 16, color: foreground)
+              : Text('$numero', style: TextStyle(color: foreground, fontSize: 12, fontWeight: FontWeight.w600)),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: AppTypography.caption(
+            context,
+          )?.copyWith(fontWeight: estado == _StepDotEstado.atual ? FontWeight.w700 : null),
+        ),
+      ],
+    );
   }
 }
 
@@ -135,6 +250,8 @@ class _Conteudo extends ConsumerWidget {
         return ImportDefaultsStep(state: state);
       case ImportStep.resolverLocalizacoes:
         return ImportLocationsStep(state: state);
+      case ImportStep.resolverTipos:
+        return ImportTiposPendentesStep(state: state);
       case ImportStep.revisar:
         return ImportReviewStep(state: state);
       case ImportStep.importando:

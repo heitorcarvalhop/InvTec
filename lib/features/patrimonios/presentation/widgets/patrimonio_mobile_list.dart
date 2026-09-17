@@ -82,7 +82,12 @@ class _PatrimonioCard extends StatelessWidget {
                 spacing: AppSpacing.md,
                 runSpacing: AppSpacing.xs,
                 children: [
-                  _InfoChip(icon: Icons.apartment_outlined, texto: detalhe.setorNome),
+                  _InfoChip(
+                    icon: Icons.place_outlined,
+                    texto: detalhe.localizacaoNome ?? 'Sem localização',
+                  ),
+                  if (patrimonio.numeroSerie != null && patrimonio.numeroSerie!.isNotEmpty)
+                    _InfoChip(icon: Icons.qr_code_2_outlined, texto: 'Série: ${patrimonio.numeroSerie}'),
                   if (patrimonio.responsavelAtual != null)
                     _InfoChip(
                       icon: Icons.person_outline,

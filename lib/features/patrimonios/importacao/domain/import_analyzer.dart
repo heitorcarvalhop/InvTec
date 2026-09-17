@@ -179,13 +179,15 @@ class ImportAnalyzer {
     final temTextoDeOrigem = linha.origemTexto != null && linha.origemTexto!.trim().isNotEmpty;
     if (linha.origemIdResolvido == null) {
       if (temTextoDeOrigem) {
+        // texto de origem presente mas não resolvido é sempre um problema
+        // real — nunca mascarado por origemDispensada.
         linha.issues.add(
           ImportIssue(
             ImportIssueSeverity.erro,
             "Setor de origem não encontrado: '${linha.origemTexto}' e nenhuma origem padrão foi configurada.",
           ),
         );
-      } else {
+      } else if (!linha.origemDispensada) {
         linha.issues.add(
           const ImportIssue(
             ImportIssueSeverity.erro,
@@ -193,6 +195,9 @@ class ImportAnalyzer {
           ),
         );
       }
+      // else: origem genuinamente desconhecida (sem texto, sem padrão) E o
+      // perfil marcou essa ausência como aceitável (ex.: carga inicial
+      // GETEC, cuja planilha não tem coluna de origem) — não é erro.
     } else if (temTextoDeOrigem && linha.usouOrigemPadrao) {
       linha.issues.add(
         ImportIssue(
@@ -213,10 +218,45 @@ class ImportAnalyzer {
     }
 
     if (linha.possivelDuplicidadeSerial) {
+      // PROMPT 8.14, seção 3: número de série NÃO é chave única (ex.: um
+      // notebook e a licença de software vendidos juntos podem
+      // compartilhar o mesmo serial na planilha) — deixa explícito que
+      // isto nunca bloqueia o envio, só avisa.
       linha.issues.add(
         ImportIssue(
           ImportIssueSeverity.aviso,
-          "Número de série '${linha.numeroSerie}' já aparece em outro patrimônio.",
+          "Número de série '${linha.numeroSerie}' já aparece em outro patrimônio. "
+              'Isso não impede a importação.',
+        ),
+      );
+    }
+
+    if (linha.localizacaoOficialAusente) {
+      linha.issues.add(
+        ImportIssue(
+          ImportIssueSeverity.erro,
+          "Localização '${linha.localizacaoTexto}' é um nome oficial conhecido da GETEC, mas não está "
+              'cadastrada/ativa no Supabase para esta gerência — verifique se ela foi renomeada ou '
+              'desativada antes de continuar.',
+        ),
+      );
+    }
+
+    if (linha.localizacaoPendente) {
+      // PROMPT 8.9.1: um texto de localização genuinamente desconhecido
+      // (não é um dos 15 nomes oficiais, nem um dos 3 valores sem
+      // localização) NUNCA pode ser enviado sem decisão explícita do
+      // usuário — por isso ERRO (bloqueia), não aviso. Não é um erro
+      // permanente: assim que o usuário mapear o texto para uma localização
+      // existente (definirMapeamentoLocalizacao) ou confirmar "importar sem
+      // localização" (definirImportarSemLocalizacao), `analisar()`
+      // reclassifica a linha e este erro desaparece.
+      linha.issues.add(
+        ImportIssue(
+          ImportIssueSeverity.erro,
+          "Localização '${linha.localizacaoTexto}' ainda não foi resolvida — "
+              'escolha uma localização existente ou confirme importar sem localização '
+              'antes de importar esta linha.',
         ),
       );
     }

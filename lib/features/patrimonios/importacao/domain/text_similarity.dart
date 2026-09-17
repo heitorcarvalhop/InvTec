@@ -52,6 +52,35 @@ int distanciaLevenshtein(String a, String b) {
 /// [distanciaLevenshtein] sobre o texto normalizado), ou `null` se nenhum
 /// estiver dentro de [distanciaMaxima]. Só gera sugestão — nunca resolve
 /// sozinho uma ambiguidade.
+/// `true` quando [frase] aparece em [texto] como palavra(s) inteira(s) — não
+/// como parte de outra palavra (ex.: "rack" não deve bater dentro de
+/// "trackpad", nem "cpu" dentro de "ocupado"). [texto] já deve estar
+/// normalizado (ver [normalizarTextoComparacao]). Compartilhado entre
+/// módulos que precisam desse casamento determinístico (classificador de
+/// tipo em `tipo_inference.dart`, sugestões não vinculantes em
+/// `getec_tipo_pendente_sugestoes.dart`) — implementado sem lookbehind para
+/// não depender de suporte a regex avançado.
+bool contemFraseComoPalavra(String texto, String frase) {
+  if (frase.isEmpty) return false;
+  var inicioBusca = 0;
+  while (true) {
+    final indice = texto.indexOf(frase, inicioBusca);
+    if (indice == -1) return false;
+
+    final antes = indice == 0 ? null : texto[indice - 1];
+    final indiceDepois = indice + frase.length;
+    final depois = indiceDepois >= texto.length ? null : texto[indiceDepois];
+
+    final antesOk = antes == null || !_ehAlfanumerico(antes);
+    final depoisOk = depois == null || !_ehAlfanumerico(depois);
+    if (antesOk && depoisOk) return true;
+
+    inicioBusca = indice + 1;
+  }
+}
+
+bool _ehAlfanumerico(String caractere) => RegExp(r'[a-z0-9]').hasMatch(caractere);
+
 T? sugerirMaisParecido<T>({
   required String valor,
   required List<T> candidatos,

@@ -55,6 +55,7 @@ class Patrimonio {
     this.observacao,
     required this.status,
     required this.setorAtualId,
+    this.localizacaoAtualId,
     this.responsavelAtual,
     this.dataAquisicao,
     required this.dataCadastro,
@@ -74,6 +75,7 @@ class Patrimonio {
       observacao: json['observacao'] as String?,
       status: PatrimonioStatus.fromValue(json['status'] as String),
       setorAtualId: json['setor_atual_id'] as String,
+      localizacaoAtualId: json['localizacao_atual_id'] as String?,
       responsavelAtual: json['responsavel_atual'] as String?,
       dataAquisicao: json['data_aquisicao'] == null
           ? null
@@ -94,6 +96,7 @@ class Patrimonio {
   final String? observacao;
   final PatrimonioStatus status;
   final String setorAtualId;
+  final String? localizacaoAtualId;
   final String? responsavelAtual;
   final DateTime? dataAquisicao;
   final DateTime dataCadastro;
@@ -123,6 +126,7 @@ class Patrimonio {
       observacao: observacao ?? this.observacao,
       status: status,
       setorAtualId: setorAtualId,
+      localizacaoAtualId: localizacaoAtualId,
       responsavelAtual: responsavelAtual,
       dataAquisicao: dataAquisicao ?? this.dataAquisicao,
       dataCadastro: dataCadastro,

@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/page_header.dart';
 import '../../auth/domain/profile.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../setores/domain/setor.dart';
 import '../domain/tipo_patrimonio.dart';
 import 'patrimonio_reference_data.dart';
@@ -31,13 +33,9 @@ class PatrimonioFormPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Novo patrimônio', style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Cadastre um novo equipamento e registre sua entrada inicial.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            const InvTecPageHeader(
+              title: 'Novo patrimônio',
+              subtitle: 'Cadastre um novo equipamento e registre sua entrada inicial.',
             ),
             const SizedBox(height: AppSpacing.lg),
             _Conteudo(tiposAsync: tiposAsync, setoresAsync: setoresAsync),
@@ -176,7 +174,9 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
 
   String? _tipoId;
   String? _origemId;
+  String? _localizacaoOrigemId;
   String? _destinoId;
+  String? _localizacaoDestinoId;
   DateTime? _dataAquisicao;
   DateTime _dataMovimentacao = DateTime.now();
 
@@ -254,6 +254,8 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
             observacao: _observacaoController.text,
             dataAquisicao: _dataAquisicao,
             origemId: _origemId,
+            localizacaoOrigemId: _localizacaoOrigemId,
+            localizacaoDestinoId: _localizacaoDestinoId,
             responsavelOrigem: _responsavelOrigemController.text,
             responsavelDestino: _responsavelDestinoController.text,
             motivo: _motivoController.text,
@@ -390,8 +392,25 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                     ],
                     onChanged: _isSubmitting
                         ? null
-                        : (value) => setState(() => _origemId = value),
+                        : (value) => setState(() {
+                            _origemId = value;
+                            // localização é sempre da MESMA gerência — trocar
+                            // a gerência invalida a localização escolhida
+                            // (seção 26: nunca mostrar localização de outra
+                            // gerência).
+                            _localizacaoOrigemId = null;
+                          }),
                   ),
+                  if (_origemId != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _LocalizacaoSelector(
+                      setorId: _origemId!,
+                      label: 'Localização de origem',
+                      value: _localizacaoOrigemId,
+                      enabled: !_isSubmitting,
+                      onChanged: (value) => setState(() => _localizacaoOrigemId = value),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
                     initialValue: _destinoId,
@@ -408,10 +427,23 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                     ],
                     onChanged: _isSubmitting
                         ? null
-                        : (value) => setState(() => _destinoId = value),
+                        : (value) => setState(() {
+                            _destinoId = value;
+                            _localizacaoDestinoId = null;
+                          }),
                     validator: (value) =>
                         value == null ? 'Selecione o destino' : null,
                   ),
+                  if (_destinoId != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _LocalizacaoSelector(
+                      setorId: _destinoId!,
+                      label: 'Localização',
+                      value: _localizacaoDestinoId,
+                      enabled: !_isSubmitting,
+                      onChanged: (value) => setState(() => _localizacaoDestinoId = value),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: _responsavelOrigemController,
@@ -477,19 +509,85 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
           const SizedBox(height: AppSpacing.lg),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: _isSubmitting ? null : _submit,
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Cadastrar patrimônio'),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton(
+                  onPressed: _isSubmitting ? null : () => context.pop(),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Cadastrar patrimônio'),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
+      ),
+    );
+  }
+}
+
+/// Localizações ATIVAS de [setorId] — nunca mostra localização de outra
+/// gerência (seção 26). Quando a gerência não tem nenhuma, mostra a
+/// mensagem explícita em vez de um seletor vazio confuso.
+class _LocalizacaoSelector extends ConsumerWidget {
+  const _LocalizacaoSelector({
+    required this.setorId,
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String setorId;
+  final String label;
+  final String? value;
+  final bool enabled;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final localizacoesAsync = ref.watch(localizacoesAtivasPorSetorProvider(setorId));
+
+    return localizacoesAsync.when(
+      data: (localizacoes) {
+        if (localizacoes.isEmpty) {
+          return InputDecorator(
+            decoration: InputDecoration(labelText: label),
+            child: Text(
+              'Esta gerência não possui localizações cadastradas.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          );
+        }
+        return DropdownButtonFormField<String>(
+          initialValue: value,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: label, helperText: 'Opcional'),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('Sem localização')),
+            for (final localizacao in localizacoes)
+              DropdownMenuItem(value: localizacao.id, child: Text(localizacao.nome)),
+          ],
+          onChanged: enabled ? onChanged : null,
+        );
+      },
+      loading: () => const LinearProgressIndicator(),
+      error: (_, _) => Text(
+        'Não foi possível carregar as localizações.',
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
       ),
     );
   }

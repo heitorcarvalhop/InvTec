@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../localizacoes/domain/localizacao.dart';
+import '../../../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../../../setores/domain/setor.dart';
+import '../../../domain/patrimonio.dart';
 import '../../../presentation/patrimonio_reference_data.dart';
 import '../../domain/import_column_field.dart';
 import '../../domain/import_row.dart';
@@ -39,6 +43,8 @@ class ImportReviewStep extends ConsumerWidget {
         Text('Arquivo: ${state.nomeArquivo ?? ''}', style: Theme.of(context).textTheme.bodyMedium),
         Text('Linhas lidas: ${resumo.total}', style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.md),
+        _ResumoFinalPanel(resumo: resumo),
+        const SizedBox(height: AppSpacing.md),
         _ResumoChips(resumo: resumo, filtroAtual: state.filtroRevisao, onFiltrar: controller.filtrar),
         if (state.perfilAtivo == ImportProfileId.getecLegado) ...[
           const SizedBox(height: AppSpacing.md),
@@ -64,7 +70,7 @@ class ImportReviewStep extends ConsumerWidget {
             FilledButton(
               onPressed: resumo.totalParaEnviar == 0
                   ? null
-                  : () => _confirmarImportacao(context, controller, resumo),
+                  : () => _iniciarConfirmacao(context, ref, controller),
               child: Text('Importar (${resumo.totalParaEnviar})'),
             ),
           ],
@@ -73,11 +79,42 @@ class ImportReviewStep extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmarImportacao(
-    BuildContext context,
-    PatrimonioImportController controller,
-    ImportSummary resumo,
-  ) async {
+  /// PROMPT 8.14, seção 7/9: a confirmação NUNCA fica disponível sem antes
+  /// revalidar contra o Supabase real — a análise pode ter sido feita
+  /// minutos antes, e outra pessoa pode ter cadastrado um dos mesmos
+  /// números nesse intervalo. `revalidarAntesDeConfirmar` é sempre chamado
+  /// aqui, no início deste fluxo, antes de mostrar o diálogo de
+  /// confirmação — é assim, estruturalmente, que a "permissão de
+  /// confirmar" fica condicionada à revalidação (nunca uma escrita: só
+  /// leitura em lote).
+  Future<void> _iniciarConfirmacao(BuildContext context, WidgetRef ref, PatrimonioImportController controller) async {
+    await controller.revalidarAntesDeConfirmar();
+    if (!context.mounted) return;
+
+    final estadoAtual = ref.read(patrimonioImportControllerProvider);
+    final resumoAtual = estadoAtual.resumo;
+    final alterados = estadoAtual.revalidacaoNumerosQueViraramExistentes;
+
+    if (resumoAtual.totalParaEnviar == 0) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Nada a importar'),
+          content: Text(
+            alterados.isEmpty
+                ? 'Não há mais nenhuma linha pronta para envio.'
+                : 'A revalidação encontrou ${alterados.length} patrimônio(s) que já existem no '
+                    'banco (${alterados.join(', ')}) — não há mais nenhuma linha nova para enviar.',
+          ),
+          actions: [
+            FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -86,12 +123,33 @@ class ImportReviewStep extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Prontos: ${resumo.prontos}'),
-            Text('Avisos: ${resumo.avisos}'),
-            Text('Existentes (mantidos): ${resumo.existentes}'),
-            Text('Atualizações: ${resumo.atualizar}'),
-            Text('Ignorados: ${resumo.ignorados}'),
-            Text('Erros (não serão importados): ${resumo.erros + resumo.duplicados}'),
+            if (alterados.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Revalidação: ${alterados.length} patrimônio(s) passaram a existir no banco '
+                  'desde a análise (${alterados.join(', ')}) — foram movidos para "Já existente" '
+                  'e NÃO serão enviados.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            Text('Novos: ${resumoAtual.prontos}'),
+            Text('Avisos: ${resumoAtual.avisos}'),
+            Text('Existentes (mantidos): ${resumoAtual.existentes}'),
+            Text('Atualizações: ${resumoAtual.atualizar}'),
+            Text('Ignorados: ${resumoAtual.ignorados}'),
+            Text('Erros (não serão importados): ${resumoAtual.erros + resumoAtual.duplicados}'),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Serão enviados: ${resumoAtual.totalParaEnviar}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         actions: [
@@ -106,6 +164,58 @@ class ImportReviewStep extends ConsumerWidget {
     if (confirmar == true) {
       await controller.confirmarImportacao();
     }
+  }
+}
+
+/// Resumo final da revisão (PROMPT 8.14, seção 4) — cada linha deste painel
+/// vem de [ImportSummary] (calculado do estado EFETIVO das linhas, nunca de
+/// uma fórmula separada), então nunca pode divergir do que os filtros abaixo
+/// mostram. "Serão enviados" é sempre [ImportSummary.totalParaEnviar]: só
+/// conta o que efetivamente vai para `cadastrar`/`atualizar`.
+class _ResumoFinalPanel extends StatelessWidget {
+  const _ResumoFinalPanel({required this.resumo});
+
+  final ImportSummary resumo;
+
+  @override
+  Widget build(BuildContext context) {
+    final linhas = <(String, int)>[
+      ('Total no arquivo', resumo.total),
+      ('Novos', resumo.novos),
+      ('Já existentes', resumo.existentes),
+      ('Duplicados no arquivo', resumo.duplicados),
+      ('Avisos', resumo.avisos),
+      ('Erros', resumo.erros),
+      ('Ignorados', resumo.ignorados),
+      ('Atualizações selecionadas', resumo.atualizar),
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (rotulo, valor) in linhas)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [Text(rotulo), Text('$valor')],
+                ),
+              ),
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('SERÃO ENVIADOS', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('${resumo.totalParaEnviar}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -272,7 +382,7 @@ class _StatusDot extends StatelessWidget {
   Widget build(BuildContext context) {
     final cor = switch (status) {
       ImportRowStatus.pronto => colorScheme.primary,
-      ImportRowStatus.aviso => Colors.orange,
+      ImportRowStatus.aviso => Theme.of(context).statusColors.warningForeground,
       ImportRowStatus.erro => colorScheme.error,
       ImportRowStatus.ignorado => colorScheme.onSurfaceVariant,
       ImportRowStatus.existente => colorScheme.tertiary,
@@ -295,6 +405,10 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
     final controller = ref.read(patrimonioImportControllerProvider.notifier);
     final tiposAsync = ref.watch(tiposAtivosProvider);
     final setoresAsync = ref.watch(setoresAtivosParaPatrimonioProvider);
+    final todasAsLinhas = ref.watch(patrimonioImportControllerProvider).linhas;
+    final localizacoesAsync = linha.destinoIdResolvido == null
+        ? null
+        : ref.watch(localizacoesAtivasPorSetorProvider(linha.destinoIdResolvido!));
 
     return Padding(
       padding: EdgeInsets.only(
@@ -309,8 +423,21 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Linha ${linha.numeroLinha}', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            // PROMPT 8.14, seção 6: decisão de importação sempre visível e
+            // explícita — nunca deixar o usuário adivinhar pelo status.
+            Text(
+              _decisaoImportacaoLabel(linha),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: linha.seraEnviada
+                    ? Theme.of(context).statusColors.successForeground
+                    : Theme.of(context).colorScheme.error,
+              ),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text('Patrimônio: ${linha.numeroPatrimonio ?? '(sem número)'}'),
+            if (linha.descricao != null) Text('Descrição: ${linha.descricao}'),
             if (linha.numeroSerie != null) Text('Série: ${linha.numeroSerie}'),
             if (linha.marca != null || linha.modelo != null)
               Text('Marca/Modelo: ${linha.marca ?? ''} ${linha.modelo ?? ''}'),
@@ -328,10 +455,19 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
               ),
             const SizedBox(height: AppSpacing.sm),
             _CampoComOrigem(
-              rotulo: 'Destino',
+              rotulo: 'Gerência destino',
               valor: _nomeSetor(setoresAsync, linha.destinoIdResolvido),
               usouPadrao: linha.usouDestinoPadrao,
             ),
+            // Localização (seção 6): distinta da gerência acima — só
+            // preenchida quando o perfil resolve uma (hoje, só GETEC).
+            // "Sem localização" cobre tanto texto vazio quanto uma decisão
+            // CONHECIDA (INTANGÍVEIS/TI - SOFTWARE/BAIXAS LOCALIZADAS —
+            // nunca um erro, ver `GetecImportProfile`).
+            if (linha.localizacaoTexto != null)
+              Text(
+                'Localização destino: ${_nomeLocalizacao(localizacoesAsync, linha.localizacaoIdResolvida) ?? 'Sem localização'}',
+              ),
             _CampoComOrigem(
               rotulo: 'Origem',
               valor: _nomeSetor(setoresAsync, linha.origemIdResolvido),
@@ -352,6 +488,11 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
               valor: linha.motivo,
               usouPadrao: linha.usouMotivoPadrao,
             ),
+            if (linha.observacao != null && linha.observacao!.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text('Observação: ${linha.observacao}'),
+              ),
             const SizedBox(height: AppSpacing.md),
             for (final issue in linha.issues)
               Padding(
@@ -364,7 +505,7 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
                       size: 18,
                       color: issue.severity == ImportIssueSeverity.erro
                           ? Theme.of(context).colorScheme.error
-                          : Colors.orange,
+                          : Theme.of(context).statusColors.warningForeground,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(child: Text(issue.message)),
@@ -374,7 +515,28 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
 
             if (linha.duplicadoNoArquivo && linha.numeroPatrimonioNormalizado != null) ...[
-              Text('Duplicidade dentro da planilha', style: Theme.of(context).textTheme.titleSmall),
+              Text('DUPLICADO NO ARQUIVO', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Motivo: número patrimonial repetido no próprio arquivo — '
+                'nenhuma ocorrência será enviada enquanto o conflito não for resolvido.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text('Patrimônio ${linha.numeroPatrimonio}', style: Theme.of(context).textTheme.bodySmall),
+              // PROMPT 8.14, seção 1: mostra explicitamente QUAIS linhas do
+              // arquivo têm o mesmo número — nunca escolhe "a primeira" ou
+              // "a última" sozinho, só lista para o usuário decidir.
+              for (final outra in todasAsLinhas.where(
+                (l) => l.numeroPatrimonioNormalizado == linha.numeroPatrimonioNormalizado,
+              ))
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm),
+                  child: Text(
+                    'Linha ${outra.numeroLinha}${identical(outra, linha) ? ' (esta)' : ''}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
               const SizedBox(height: AppSpacing.sm),
               Wrap(
                 spacing: AppSpacing.sm,
@@ -520,12 +682,21 @@ class _ComparacaoExistente extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final existente = linha.existenteNoBanco!.patrimonio;
+    final detalhe = linha.existenteNoBanco!;
+    final existente = detalhe.patrimonio;
+    // PROMPT 8.14, seção 2: comparação completa o suficiente para o
+    // usuário decidir com segurança — número patrimonial (título do painel,
+    // já mostrado acima), descrição, tipo, setor atual, localização atual e
+    // status atual, além dos campos que já existiam.
     final linhas = <(String, String?, String?)>[
+      ('Descrição', existente.descricao, linha.descricao),
       ('Marca', existente.marca, linha.marca),
       ('Modelo', existente.modelo, linha.modelo),
       ('Série', existente.numeroSerie, linha.numeroSerie),
-      ('Setor atual', linha.existenteNoBanco!.setorNome, null),
+      ('Tipo atual', detalhe.tipoNome, null),
+      ('Setor atual', detalhe.setorNome, null),
+      ('Localização atual', detalhe.localizacaoNome ?? '(sem localização)', null),
+      ('Status atual', existente.status.label, null),
     ];
 
     return Table(
@@ -628,4 +799,42 @@ String _formatarDataHora(DateTime data) {
   final local = data.toLocal();
   String pad(int n) => n.toString().padLeft(2, '0');
   return '${pad(local.day)}/${pad(local.month)}/${local.year} ${pad(local.hour)}:${pad(local.minute)}';
+}
+
+/// Nome da localização resolvida, quando a lista já carregou — evita
+/// mostrar o UUID cru. `null` quando não há id resolvido (localização
+/// pendente/sem localização/ainda carregando), distinto de "carregou e não
+/// achou" (que devolve o próprio id como último recurso).
+String? _nomeLocalizacao(AsyncValue<List<Localizacao>>? localizacoesAsync, String? localizacaoId) {
+  if (localizacaoId == null || localizacoesAsync == null) return null;
+  return localizacoesAsync.maybeWhen(
+    data: (localizacoes) {
+      for (final localizacao in localizacoes) {
+        if (localizacao.id == localizacaoId) return localizacao.nome;
+      }
+      return localizacaoId;
+    },
+    orElse: () => localizacaoId,
+  );
+}
+
+/// Decisão de importação em uma frase (PROMPT 8.14, seção 6) — nunca deixa
+/// o usuário adivinhar pelo status técnico sozinho.
+String _decisaoImportacaoLabel(ImportRow linha) {
+  if (linha.ignoradaManualmente) return 'Ignorado manualmente — não será enviado.';
+  if (linha.duplicadoNoArquivo) return 'DUPLICADO NO ARQUIVO — bloqueado até decisão do usuário.';
+  switch (linha.status) {
+    case ImportRowStatus.pronto:
+      return 'Será cadastrado como novo patrimônio.';
+    case ImportRowStatus.aviso:
+      return 'Será cadastrado como novo patrimônio (com aviso — não bloqueia).';
+    case ImportRowStatus.erro:
+      return 'NÃO será enviado — bloqueado por erro (ver detalhes abaixo).';
+    case ImportRowStatus.existente:
+      return 'Já existe no InvTec — será mantido como está, nenhuma escrita nesta linha.';
+    case ImportRowStatus.atualizar:
+      return 'Patrimônio já existente — metadados serão atualizados.';
+    case ImportRowStatus.ignorado:
+      return 'Ignorado — não será enviado.';
+  }
 }

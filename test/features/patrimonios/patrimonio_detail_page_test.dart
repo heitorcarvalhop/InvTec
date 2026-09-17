@@ -8,11 +8,15 @@ import 'package:invtec/features/patrimonios/data/tipo_patrimonio_repository_supa
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/tipo_patrimonio.dart';
+import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supabase.dart';
+import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
+import 'package:invtec/features/movimentacoes/domain/movimentacao_historico_item.dart';
 import 'package:invtec/features/patrimonios/presentation/patrimonio_detail_page.dart';
 import 'package:invtec/features/setores/data/setor_repository_supabase.dart';
 import 'package:invtec/features/setores/domain/setor.dart';
 
 import '../auth/fake_auth_repository.dart';
+import '../movimentacoes/fake_movimentacao_repository.dart';
 import '../setores/fake_setor_repository.dart';
 import 'fake_patrimonio_repository.dart';
 import 'fake_tipo_patrimonio_repository.dart';
@@ -37,6 +41,7 @@ Future<void> _pumpDetailPage(
   WidgetTester tester, {
   required PatrimonioDetalhe detalhe,
   ProfilePerfil perfil = ProfilePerfil.admin,
+  List<MovimentacaoHistoricoItem> historico = const [],
 }) async {
   final fakeAuth = FakeAuthRepository(
     initialUserId: 'fake-user-id',
@@ -56,6 +61,9 @@ Future<void> _pumpDetailPage(
         ),
         setorRepositoryProvider.overrideWithValue(
           FakeSetorRepository(setores: _setores),
+        ),
+        movimentacaoRepositoryProvider.overrideWithValue(
+          FakeMovimentacaoRepository(historico: historico),
         ),
       ],
       child: MaterialApp(
@@ -90,8 +98,10 @@ void main() {
 
     await _pumpDetailPage(tester, detalhe: detalhe);
 
-    // Aparece duas vezes: no título e no campo "Número patrimonial".
-    expect(find.text('00045872'), findsNWidgets(2));
+    // Título combina "Patrimônio" + número (PROMPT 9.3); o campo
+    // "Número patrimonial" mostra o número sozinho.
+    expect(find.text('Patrimônio 00045872'), findsOneWidget);
+    expect(find.text('00045872'), findsOneWidget);
     expect(find.text('ABC123'), findsOneWidget);
     expect(find.text('Dell'), findsOneWidget);
     expect(find.text('Latitude 5440'), findsOneWidget);
@@ -101,8 +111,56 @@ void main() {
     expect(find.text('Em uso'), findsOneWidget);
     expect(find.text('Heitor Pereira'), findsOneWidget);
     expect(
-      find.textContaining('histórico completo de movimentações'),
+      find.text('Nenhuma movimentação registrada para este patrimônio.'),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('histórico de movimentações aparece como timeline, sem opção de editar', (
+    tester,
+  ) async {
+    final detalhe = PatrimonioDetalhe(
+      patrimonio: Patrimonio(
+        id: '1',
+        numeroPatrimonio: '00045872',
+        tipoId: 'tipo-1',
+        status: PatrimonioStatus.emUso,
+        setorAtualId: 'setor-1',
+        dataCadastro: DateTime.utc(2026, 1, 10),
+        atualizadoEm: DateTime.utc(2026, 1, 10),
+      ),
+      tipoNome: 'Notebook',
+      setorNome: 'GETEC',
+    );
+
+    await _pumpDetailPage(
+      tester,
+      detalhe: detalhe,
+      historico: [
+        MovimentacaoHistoricoItem(
+          id: 'mov-1',
+          tipo: MovimentacaoTipo.entrada,
+          setorDestinoNome: 'Gerência de Tecnologia',
+          localizacaoDestinoNome: 'GETEC - UNIVERSITÁRIO',
+          responsavelDestino: 'João Silva',
+          dataMovimentacao: DateTime.utc(2026, 1, 10, 14, 30),
+        ),
+      ],
+    );
+
+    expect(find.text('ENTRADA'), findsOneWidget);
+    expect(find.text('— → Gerência de Tecnologia'), findsOneWidget);
+    expect(find.text('Localização: GETEC - UNIVERSITÁRIO'), findsOneWidget);
+    expect(find.text('Responsável: João Silva'), findsOneWidget);
+    expect(find.textContaining('10/01/2026'), findsOneWidget);
+
+    // Histórico é imutável: nenhum ícone de editar/excluir dentro dele.
+    expect(
+      find.descendant(
+        of: find.byType(Card).last,
+        matching: find.byIcon(Icons.edit_outlined),
+      ),
+      findsNothing,
     );
   });
 

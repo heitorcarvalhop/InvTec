@@ -15,18 +15,23 @@ class PatrimonioDetalhe {
     required this.patrimonio,
     required this.tipoNome,
     required this.setorNome,
+    this.localizacaoNome,
     this.criadoPorNome,
   });
 
   factory PatrimonioDetalhe.fromJson(Map<String, dynamic> json) {
     final tipo = json['tipos_patrimonio'] as Map<String, dynamic>?;
     final setor = json['setores'] as Map<String, dynamic>?;
+    final localizacao = json['localizacoes'] as Map<String, dynamic>?;
     final criador = json['criado_por_profile'] as Map<String, dynamic>?;
 
     return PatrimonioDetalhe(
       patrimonio: Patrimonio.fromJson(json),
       tipoNome: (tipo?['nome'] as String?) ?? 'Tipo não encontrado',
       setorNome: (setor?['nome'] as String?) ?? 'Setor não encontrado',
+      // null é um estado válido (localização é opcional) — só vira "Não
+      // encontrada" quando havia um id mas o embed não resolveu (ex.: RLS).
+      localizacaoNome: localizacao?['nome'] as String?,
       criadoPorNome: criador?['nome'] as String?,
     );
   }
@@ -34,5 +39,6 @@ class PatrimonioDetalhe {
   final Patrimonio patrimonio;
   final String tipoNome;
   final String setorNome;
+  final String? localizacaoNome;
   final String? criadoPorNome;
 }

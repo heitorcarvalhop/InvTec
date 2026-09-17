@@ -16,6 +16,7 @@ enum ImportStep {
   mapearColunas,
   configurarPadroes,
   resolverLocalizacoes,
+  resolverTipos,
   revisar,
   importando,
   resultado,
@@ -32,7 +33,12 @@ extension ImportFiltroRevisaoLabel on ImportFiltroRevisao {
       case ImportFiltroRevisao.todos:
         return 'Todos';
       case ImportFiltroRevisao.prontos:
-        return 'Prontos';
+        // PROMPT 8.14: rótulo "Novos" (a linguagem que o usuário reconhece —
+        // "será cadastrado como novo patrimônio"), sem renomear o valor do
+        // enum nem mudar seu predicado (continua só `status == pronto`;
+        // linhas com aviso têm seu próprio filtro "Avisos", já que também
+        // seriam enviadas mas merecem inspeção separada).
+        return 'Novos';
       case ImportFiltroRevisao.avisos:
         return 'Avisos';
       case ImportFiltroRevisao.erros:
@@ -96,6 +102,12 @@ class PatrimonioImportState {
     this.perfilDetectado,
     this.perfilAtivo = ImportProfileId.generico,
     this.mapeamentoLocalizacoes = const {},
+    this.localizacoesSemMapeamento = const {},
+    this.mapeamentoTiposPendentes = const {},
+    this.numerosLinhaTipoPendenteOriginal = const {},
+    this.revalidando = false,
+    this.revalidacaoConcluidaNaRevisao,
+    this.revalidacaoNumerosQueViraramExistentes = const [],
   }) : padroes = padroes ?? ImportDefaults();
 
   final ImportStep step;
@@ -124,11 +136,68 @@ class PatrimonioImportState {
   /// (seção 27: "não esconder do usuário que um perfil foi ativado").
   final ImportProfileId perfilAtivo;
 
-  /// Localização da planilha (texto normalizado) → nome do setor escolhido
-  /// pelo usuário no passo de localizações (seção 15/16) — vazio significa
-  /// "usar destino padrão ou deixar pendente", nunca criação automática de
-  /// setor (seção 16).
+  /// Localização da planilha (texto normalizado) → id da `Localizacao`
+  /// escolhida pelo usuário no passo de localizações, dentro da gerência
+  /// fixa da carga (seção 15/16/33) — nunca criação automática de
+  /// localização.
   final Map<String, String> mapeamentoLocalizacoes;
+
+  /// Localizações da planilha (texto normalizado) para as quais o usuário
+  /// decidiu explicitamente "importar sem localização" (seção 32) —
+  /// distinto de "ainda não decidido" (que fica pendente/aviso).
+  final Set<String> localizacoesSemMapeamento;
+
+  /// Decisões manuais de tipo tomadas na tela de pendências (PROMPT 8.13) —
+  /// número da linha original (estável dentro da mesma sessão/arquivo,
+  /// diferente do texto de localização) → id do tipo escolhido. Reaplicada a
+  /// cada `analisar()` para sobreviver a uma reanálise completa, já que
+  /// [ImportRow] é recriado do zero a cada chamada. Nunca vira regra do
+  /// classificador — só afeta linhas desta sessão.
+  final Map<int, String> mapeamentoTiposPendentes;
+
+  /// Fotografia (número da linha) de quais linhas estavam bloqueadas
+  /// especificamente por "tipo vazio" na análise que abriu a tela de
+  /// pendências — usada para calcular o progresso (seção 9) e para o
+  /// agrupamento de "Aplicar aos semelhantes" (seção 4), sem incluir linhas
+  /// que nunca estiveram pendentes.
+  final Set<int> numerosLinhaTipoPendenteOriginal;
+
+  /// Linhas que fazem parte da fotografia de pendências de tipo desta
+  /// análise — a lista mostrada na tela de resolução manual.
+  List<ImportRow> get linhasTipoPendente =>
+      linhas.where((l) => numerosLinhaTipoPendenteOriginal.contains(l.numeroLinha)).toList();
+
+  int get totalTipoPendente => numerosLinhaTipoPendenteOriginal.length;
+
+  int get tipoPendenteRestantes =>
+      linhasTipoPendente.where((l) => l.tipoIdResolvido == null).length;
+
+  int get tipoPendenteResolvidos => totalTipoPendente - tipoPendenteRestantes;
+
+  /// `true` enquanto uma revalidação contra o Supabase real está em
+  /// andamento (PROMPT 8.14, seção 7) — usado para mostrar um spinner e
+  /// evitar clique duplo no botão de importar.
+  final bool revalidando;
+
+  /// Valor de [revisao] no momento em que a última revalidação terminou —
+  /// `null` antes da primeira revalidação. Comparar com [revisao] atual diz
+  /// se a revalidação ainda é válida para o estado ATUAL das linhas: como
+  /// [revisao] é incrementado a cada mutação (inclusive pela própria
+  /// revalidação), qualquer decisão manual tomada DEPOIS invalida a
+  /// revalidação automaticamente, sem precisar de um flag separado para
+  /// "ficou desatualizada".
+  final int? revalidacaoConcluidaNaRevisao;
+
+  /// `true` quando a revalidação mais recente está atualizada em relação ao
+  /// estado atual das linhas (seção 9: "revalidação contra banco
+  /// concluída" é uma das condições da barreira de importação).
+  bool get revalidacaoValidaParaEstadoAtual => revalidacaoConcluidaNaRevisao == revisao;
+
+  /// Números patrimoniais que a última revalidação encontrou já existindo
+  /// no banco — eram "novos" na análise original mas, entre a análise e a
+  /// confirmação, alguém cadastrou o mesmo número (PROMPT 8.14, seção 7).
+  /// Vazio quando a revalidação não encontrou nenhuma mudança.
+  final List<String> revalidacaoNumerosQueViraramExistentes;
 
   ImportParsedSheet? get abaSelecionada =>
       abaSelecionadaIndice == null ? null : abas[abaSelecionadaIndice!];
@@ -163,6 +232,12 @@ class PatrimonioImportState {
     ImportProfileId? Function()? perfilDetectado,
     ImportProfileId? perfilAtivo,
     Map<String, String>? mapeamentoLocalizacoes,
+    Set<String>? localizacoesSemMapeamento,
+    Map<int, String>? mapeamentoTiposPendentes,
+    Set<int>? numerosLinhaTipoPendenteOriginal,
+    bool? revalidando,
+    int? Function()? revalidacaoConcluidaNaRevisao,
+    List<String>? revalidacaoNumerosQueViraramExistentes,
   }) {
     return PatrimonioImportState(
       step: step ?? this.step,
@@ -185,6 +260,16 @@ class PatrimonioImportState {
       perfilDetectado: perfilDetectado != null ? perfilDetectado() : this.perfilDetectado,
       perfilAtivo: perfilAtivo ?? this.perfilAtivo,
       mapeamentoLocalizacoes: mapeamentoLocalizacoes ?? this.mapeamentoLocalizacoes,
+      localizacoesSemMapeamento: localizacoesSemMapeamento ?? this.localizacoesSemMapeamento,
+      mapeamentoTiposPendentes: mapeamentoTiposPendentes ?? this.mapeamentoTiposPendentes,
+      numerosLinhaTipoPendenteOriginal:
+          numerosLinhaTipoPendenteOriginal ?? this.numerosLinhaTipoPendenteOriginal,
+      revalidando: revalidando ?? this.revalidando,
+      revalidacaoConcluidaNaRevisao: revalidacaoConcluidaNaRevisao != null
+          ? revalidacaoConcluidaNaRevisao()
+          : this.revalidacaoConcluidaNaRevisao,
+      revalidacaoNumerosQueViraramExistentes:
+          revalidacaoNumerosQueViraramExistentes ?? this.revalidacaoNumerosQueViraramExistentes,
     );
   }
 }

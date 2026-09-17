@@ -38,7 +38,8 @@ void main() {
       stats: const DashboardStats(
         total: 10,
         ativos: 8,
-        emUso: 5,
+        disponiveis: 5,
+        emUso: 4,
         emprestados: 1,
         emManutencao: 2,
         baixados: 2,
@@ -64,7 +65,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('10'), findsOneWidget);
-    expect(find.text('8'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget);
     expect(find.textContaining('00045872'), findsOneWidget);
     expect(find.textContaining('GETEC'), findsOneWidget);
   });

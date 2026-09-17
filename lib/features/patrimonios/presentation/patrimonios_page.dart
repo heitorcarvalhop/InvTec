@@ -5,11 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/page_header.dart';
 import '../../../core/widgets/pagination_controls.dart';
 import '../../auth/domain/profile.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../domain/patrimonio_detalhe.dart';
+import '../domain/patrimonio_search_field.dart';
 import 'patrimonios_controller.dart';
+import 'patrimonios_filtro.dart';
 import 'widgets/patrimonio_desktop_table.dart';
 import 'widgets/patrimonio_edit_dialog.dart';
 import 'widgets/patrimonio_filters.dart';
@@ -24,6 +27,7 @@ class PatrimoniosPage extends ConsumerStatefulWidget {
 
 class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
   final _searchController = TextEditingController();
+  PatrimonioSearchField _campoBusca = PatrimonioSearchField.tudo;
 
   @override
   void initState() {
@@ -37,6 +41,20 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _alterarCampoBusca(PatrimonioSearchField campo) {
+    setState(() => _campoBusca = campo);
+    ref.read(patrimoniosControllerProvider.notifier).definirCampoBusca(campo);
+  }
+
+  /// Seção 9: limpar filtros limpa texto + campo de busca (-> Tudo) + Tipo +
+  /// Status + Setor — nunca só o lado do controller, senão o texto digitado
+  /// e o seletor ficariam visualmente "presos" no valor antigo.
+  void _limparFiltros() {
+    _searchController.clear();
+    setState(() => _campoBusca = PatrimonioSearchField.tudo);
+    ref.read(patrimoniosControllerProvider.notifier).limparFiltros();
   }
 
   void _novoPatrimonio() => context.push('/patrimonios/novo');
@@ -75,21 +93,40 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(
-              canManage: canManage,
-              onNovoPatrimonio: _novoPatrimonio,
-              onImportarPlanilha: _importarPlanilha,
+            InvTecPageHeader(
+              title: 'Patrimônios',
+              subtitle: 'Consulte e gerencie os equipamentos cadastrados no InvTec.',
+              compact: context.screenSize == ScreenSize.mobile,
+              actions: canManage
+                  ? [
+                      OutlinedButton.icon(
+                        onPressed: _importarPlanilha,
+                        icon: const Icon(Icons.upload_file_outlined),
+                        label: const Text('Importar planilha'),
+                      ),
+                      FilledButton.icon(
+                        onPressed: _novoPatrimonio,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Novo patrimônio'),
+                      ),
+                    ]
+                  : const [],
             ),
             const SizedBox(height: AppSpacing.md),
-            _SearchField(
+            _SearchBar(
               controller: _searchController,
+              campoBusca: _campoBusca,
+              onCampoBuscaChanged: _alterarCampoBusca,
               onChanged: (value) => ref
                   .read(patrimoniosControllerProvider.notifier)
                   .buscar(value),
             ),
             const SizedBox(height: AppSpacing.md),
             stateAsync.maybeWhen(
-              data: (state) => PatrimonioFilters(filtro: state.filtro),
+              data: (state) => PatrimonioFilters(
+                filtro: state.filtro,
+                onLimparFiltros: _limparFiltros,
+              ),
               orElse: () => const SizedBox.shrink(),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -100,6 +137,11 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
                   return _EmptyList(
                     temFiltroOuBusca:
                         state.filtro.temFiltroAtivo || termoBusca.isNotEmpty,
+                    termoBusca: termoBusca,
+                    correspondenciasPorNumeroSerie:
+                        state.resultado.correspondenciasPorNumeroSerie.length,
+                    onVerCorrespondenciaSerie: () =>
+                        _alterarCampoBusca(PatrimonioSearchField.numeroSerie),
                     canManage: canManage,
                     onNovoPatrimonio: _novoPatrimonio,
                   );
@@ -121,16 +163,20 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
                                 _abrirDetalhe(item.patrimonio.id),
                             onEdit: _editar,
                           ),
-                    if (state.totalPaginas > 1) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      PaginationControls(
-                        paginaAtual: state.filtro.pagina,
-                        totalPaginas: state.totalPaginas,
-                        onChanged: (pagina) => ref
-                            .read(patrimoniosControllerProvider.notifier)
-                            .irParaPagina(pagina),
-                      ),
-                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    PaginationControls(
+                      paginaAtual: state.filtro.pagina,
+                      totalPaginas: state.totalPaginas,
+                      totalItens: state.resultado.total,
+                      tamanhoPagina: state.filtro.tamanhoPagina,
+                      tamanhosPaginaPermitidos: patrimoniosTamanhosPaginaPermitidos,
+                      onChanged: (pagina) => ref
+                          .read(patrimoniosControllerProvider.notifier)
+                          .irParaPagina(pagina),
+                      onTamanhoPaginaChanged: (tamanho) => ref
+                          .read(patrimoniosControllerProvider.notifier)
+                          .definirTamanhoPagina(tamanho),
+                    ),
                   ],
                 );
               },
@@ -157,97 +203,64 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.canManage,
-    required this.onNovoPatrimonio,
-    required this.onImportarPlanilha,
+/// Barra de busca (PROMPT 9.1, seção 2): seletor de campo + texto livre,
+/// lado a lado — `[ Tudo ▼ ] [ Buscar... ]`. O seletor nunca dispara
+/// consulta sozinho pelo `TextField` (que continua com debounce): a
+/// mudança de campo é imediata, via [onCampoBuscaChanged].
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({
+    required this.controller,
+    required this.campoBusca,
+    required this.onCampoBuscaChanged,
+    required this.onChanged,
   });
 
-  final bool canManage;
-  final VoidCallback onNovoPatrimonio;
-  final VoidCallback onImportarPlanilha;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final titulo = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('Patrimônios', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Consulte e gerencie os equipamentos cadastrados no InvTec.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
-    );
-
-    final botoes = Wrap(
-      spacing: AppSpacing.md,
-      runSpacing: AppSpacing.sm,
-      children: [
-        OutlinedButton.icon(
-          onPressed: onImportarPlanilha,
-          icon: const Icon(Icons.upload_file_outlined),
-          label: const Text('Importar planilha'),
-        ),
-        FilledButton.icon(
-          onPressed: onNovoPatrimonio,
-          icon: const Icon(Icons.add),
-          label: const Text('Novo patrimônio'),
-        ),
-      ],
-    );
-
-    if (!canManage) return titulo;
-
-    if (context.screenSize == ScreenSize.mobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [titulo, const SizedBox(height: AppSpacing.md), botoes],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: titulo),
-        const SizedBox(width: AppSpacing.md),
-        botoes,
-      ],
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.onChanged});
-
   final TextEditingController controller;
+  final PatrimonioSearchField campoBusca;
+  final ValueChanged<PatrimonioSearchField> onCampoBuscaChanged;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        hintText: 'Buscar por número, série, marca ou modelo',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  controller.clear();
-                  onChanged('');
-                },
-              ),
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 200,
+          child: DropdownButtonFormField<PatrimonioSearchField>(
+            initialValue: campoBusca,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Buscar em'),
+            items: [
+              for (final campo in PatrimonioSearchField.values)
+                DropdownMenuItem(value: campo, child: Text(campo.label)),
+            ],
+            onChanged: (campo) {
+              if (campo != null) onCampoBuscaChanged(campo);
+            },
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: campoBusca.dica,
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: controller.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        controller.clear();
+                        onChanged('');
+                      },
+                    ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -255,21 +268,80 @@ class _SearchField extends StatelessWidget {
 class _EmptyList extends StatelessWidget {
   const _EmptyList({
     required this.temFiltroOuBusca,
+    required this.termoBusca,
+    required this.correspondenciasPorNumeroSerie,
+    required this.onVerCorrespondenciaSerie,
     required this.canManage,
     required this.onNovoPatrimonio,
   });
 
   final bool temFiltroOuBusca;
+  final String termoBusca;
+
+  /// PROMPT 9.1.1: quantidade de patrimônios cujo NÚMERO DE SÉRIE (nunca o
+  /// número de patrimônio) coincide com [termoBusca] — só populado quando
+  /// não há nenhum patrimônio com esse número exato. Nunca aparece
+  /// misturado com a listagem principal, nem é apresentado como se fosse
+  /// "o patrimônio pesquisado".
+  final int correspondenciasPorNumeroSerie;
+  final VoidCallback onVerCorrespondenciaSerie;
   final bool canManage;
   final VoidCallback onNovoPatrimonio;
 
   @override
   Widget build(BuildContext context) {
     if (temFiltroOuBusca) {
-      return const Card(
-        child: EmptyState(
-          icon: Icons.search_off,
-          message: 'Nenhum patrimônio encontrado para os critérios informados.',
+      // Seção 7 (PROMPT 9.1): mensagem específica com o termo digitado,
+      // quando houver — nunca uma mensagem genérica que esconda o que foi
+      // pesquisado.
+      final mensagem = termoBusca.isEmpty
+          ? 'Nenhum patrimônio encontrado.'
+          : correspondenciasPorNumeroSerie > 0
+          // PROMPT 9.1.1: deixa explícito que o termo NÃO é o número de um
+          // patrimônio encontrado — nunca silenciosamente mostrar outro
+          // patrimônio como se fosse a resposta.
+          ? 'Nenhum patrimônio nº "$termoBusca" encontrado.'
+          : 'Nenhum patrimônio encontrado para "$termoBusca".';
+      return Card(
+        child: Column(
+          children: [
+            EmptyState(icon: Icons.search_off, message: mensagem),
+            if (correspondenciasPorNumeroSerie > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                child: Card(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            correspondenciasPorNumeroSerie == 1
+                                ? '1 equipamento possui "$termoBusca" como número de série.'
+                                : '$correspondenciasPorNumeroSerie equipamentos possuem "$termoBusca" como número de série.',
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: onVerCorrespondenciaSerie,
+                          child: const Text('Ver resultado'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       );
     }

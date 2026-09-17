@@ -7,11 +7,13 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/configuracoes/presentation/configuracoes_page.dart';
 import '../../features/dashboard/presentation/dashboard_page.dart';
+import '../../features/localizacoes/presentation/localizacoes_page.dart';
 import '../../features/movimentacoes/presentation/movimentacoes_page.dart';
 import '../../features/patrimonios/importacao/presentation/patrimonio_import_page.dart';
 import '../../features/patrimonios/presentation/patrimonio_detail_page.dart';
 import '../../features/patrimonios/presentation/patrimonio_form_page.dart';
 import '../../features/patrimonios/presentation/patrimonios_page.dart';
+import '../../features/setores/domain/setor.dart';
 import '../../features/setores/presentation/setores_page.dart';
 import '../shell/app_shell.dart';
 
@@ -89,6 +91,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/setores',
             name: 'setores',
             builder: (context, state) => const SetoresPage(),
+            routes: [
+              GoRoute(
+                path: ':setorId/localizacoes',
+                name: 'setor-localizacoes',
+                builder: (context, state) {
+                  final setor = state.extra as Setor?;
+                  if (setor == null) {
+                    // navegação direta por URL (sem passar pela lista de
+                    // Setores) não é suportada nesta etapa — volta para a
+                    // lista em vez de quebrar a tela.
+                    return const SetoresPage();
+                  }
+                  return LocalizacoesPage(setor: setor);
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: '/configuracoes',

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../setores/domain/setor.dart';
 import '../../../presentation/patrimonio_reference_data.dart';
 import '../../domain/import_defaults.dart';
+import '../../domain/profiles/getec_import_profile.dart';
 import '../../domain/profiles/import_profile_id.dart';
 import '../patrimonio_import_controller.dart';
 import '../patrimonio_import_state.dart';
@@ -91,21 +93,32 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
               data: (setores) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DropdownButtonFormField<String?>(
-                    initialValue: padroes.destinoPadraoId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Destino padrão',
-                      helperText: 'Usado quando a linha não informa o setor',
+                  // PROMPT 8.13.1: para o perfil GETEC, o destino NUNCA é
+                  // escolhido pelo usuário aqui — a planilha nem tem coluna
+                  // de setor, e todos os bens desta carga pertencem à
+                  // gerência GETEC por definição. Mostrar o dropdown
+                  // genérico "Destino padrão: Nenhum" seria enganoso (dá a
+                  // entender que falta configurar algo que na verdade é
+                  // automático). O id real é resolvido em
+                  // `avancarAposPadroes` (nunca hardcoded).
+                  if (widget.state.perfilAtivo == ImportProfileId.getecLegado)
+                    _GerenciaGetecInfo(setores: setores)
+                  else
+                    DropdownButtonFormField<String?>(
+                      initialValue: padroes.destinoPadraoId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Destino padrão',
+                        helperText: 'Usado quando a linha não informa o setor',
+                      ),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Nenhum')),
+                        for (final setor in setores)
+                          DropdownMenuItem(value: setor.id, child: Text(setor.nome)),
+                      ],
+                      onChanged: (valor) =>
+                          _atualizar(controller, (p) => p.copyWith(destinoPadraoId: () => valor)),
                     ),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('Nenhum')),
-                      for (final setor in setores)
-                        DropdownMenuItem(value: setor.id, child: Text(setor.nome)),
-                    ],
-                    onChanged: (valor) =>
-                        _atualizar(controller, (p) => p.copyWith(destinoPadraoId: () => valor)),
-                  ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String?>(
                     initialValue: padroes.origemPadraoId,
@@ -198,4 +211,45 @@ String _formatarDataHora(DateTime data) {
   final local = data.toLocal();
   String pad(int n) => n.toString().padLeft(2, '0');
   return '${pad(local.day)}/${pad(local.month)}/${local.year} ${pad(local.hour)}:${pad(local.minute)}';
+}
+
+/// Painel informativo (PROMPT 8.13.1) que substitui o dropdown genérico
+/// "Destino padrão" quando o perfil GETEC está ativo: o destino não é uma
+/// escolha do usuário aqui — é sempre a gerência GETEC, encontrada pelo
+/// nome/sigla real entre os setores ativos carregados (nunca um UUID
+/// hardcoded). Deixa claro, sem ambiguidade, que "Nenhum" não se aplica a
+/// este perfil.
+class _GerenciaGetecInfo extends StatelessWidget {
+  const _GerenciaGetecInfo({required this.setores});
+
+  final List<Setor> setores;
+
+  @override
+  Widget build(BuildContext context) {
+    final gerencia = GetecImportProfile.encontrarGerenciaGetec(setores);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return InputDecorator(
+      decoration: const InputDecoration(labelText: 'Gerência de destino'),
+      child: gerencia != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(gerencia.nome),
+                Text(
+                  'Definida automaticamente pelo perfil GETEC',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            )
+          : Text(
+              "Gerência '${GetecImportProfile.siglaGerencia}' não encontrada (ou ambígua/inativa) "
+              'entre os setores ativos do Supabase — não será possível continuar.',
+              style: TextStyle(color: colorScheme.error),
+            ),
+    );
+  }
 }

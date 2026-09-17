@@ -69,7 +69,10 @@ void main() {
   ) async {
     await _pumpAuthenticated(tester, windowSize: const Size(1280, 800));
 
-    expect(find.text('InvTec'), findsOneWidget);
+    // "InvTec" aparece duas vezes nesta largura: o título do AppBar e a
+    // marca no topo da sidebar (PROMPT 9.3) — ambos legítimos.
+    expect(find.text('InvTec'), findsWidgets);
+    expect(find.text('Gestão de Patrimônio'), findsOneWidget);
     expect(find.text('Dashboard'), findsWidgets);
     expect(find.text('Patrimônios'), findsOneWidget);
     expect(find.text('Movimentações'), findsOneWidget);

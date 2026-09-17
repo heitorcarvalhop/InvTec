@@ -13,12 +13,14 @@ class SetorDesktopTable extends StatelessWidget {
     required this.canManage,
     required this.onEdit,
     required this.onToggleAtivo,
+    required this.onLocalizacoes,
   });
 
   final List<Setor> setores;
   final bool canManage;
   final ValueChanged<Setor> onEdit;
   final ValueChanged<Setor> onToggleAtivo;
+  final ValueChanged<Setor> onLocalizacoes;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +36,7 @@ class SetorDesktopTable extends StatelessWidget {
               canManage: canManage,
               onEdit: () => onEdit(setores[i]),
               onToggleAtivo: () => onToggleAtivo(setores[i]),
+              onLocalizacoes: () => onLocalizacoes(setores[i]),
             ),
             if (i < setores.length - 1) const Divider(height: 1),
           ],
@@ -58,9 +61,9 @@ class _HeaderRow extends StatelessWidget {
         children: [
           Expanded(flex: 2, child: Text('Sigla', style: style)),
           Expanded(flex: 4, child: Text('Nome', style: style)),
-          Expanded(flex: 5, child: Text('Descrição', style: style)),
+          Expanded(flex: 4, child: Text('Descrição', style: style)),
           Expanded(flex: 2, child: Text('Status', style: style)),
-          Expanded(flex: 3, child: Text('Ações', style: style)),
+          Expanded(flex: 4, child: Text('Ações', style: style)),
         ],
       ),
     );
@@ -73,12 +76,14 @@ class _DataRow extends StatelessWidget {
     required this.canManage,
     required this.onEdit,
     required this.onToggleAtivo,
+    required this.onLocalizacoes,
   });
 
   final Setor setor;
   final bool canManage;
   final VoidCallback onEdit;
   final VoidCallback onToggleAtivo;
+  final VoidCallback onLocalizacoes;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +103,7 @@ class _DataRow extends StatelessWidget {
             child: Text(setor.nome, overflow: TextOverflow.ellipsis),
           ),
           Expanded(
-            flex: 5,
+            flex: 4,
             child: Text(
               (setor.descricao == null || setor.descricao!.isEmpty)
                   ? '—'
@@ -106,29 +111,43 @@ class _DataRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Expanded(flex: 2, child: SetorStatusChip(ativo: setor.ativo)),
           Expanded(
-            flex: 3,
-            child: canManage
-                ? Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Editar',
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: onEdit,
-                      ),
-                      IconButton(
-                        tooltip: setor.ativo ? 'Desativar' : 'Reativar',
-                        icon: Icon(
-                          setor.ativo
-                              ? Icons.block_outlined
-                              : Icons.check_circle_outline,
-                        ),
-                        onPressed: onToggleAtivo,
-                      ),
-                    ],
-                  )
-                : const SizedBox.shrink(),
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SetorStatusChip(ativo: setor.ativo),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Row(
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Localizações',
+                  icon: const Icon(Icons.place_outlined),
+                  onPressed: onLocalizacoes,
+                ),
+                if (canManage) ...[
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Editar',
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: onEdit,
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: setor.ativo ? 'Desativar' : 'Reativar',
+                    icon: Icon(
+                      setor.ativo
+                          ? Icons.block_outlined
+                          : Icons.check_circle_outline,
+                    ),
+                    onPressed: onToggleAtivo,
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/page_header.dart';
+import '../../../core/widgets/status_chip.dart';
+import '../../../core/widgets/stat_card.dart';
 import '../domain/movimentacao_resumo.dart';
 import '../../movimentacoes/domain/movimentacao.dart';
 import 'dashboard_providers.dart';
-import 'widgets/dashboard_stat_card.dart';
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
@@ -40,35 +43,41 @@ class _DashboardContent extends StatelessWidget {
     final stats = data.stats;
 
     final cards = [
-      DashboardStatCard(
+      InvTecStatCard(
         label: 'Total de patrimônios',
         value: stats.total,
         icon: Icons.inventory_2_outlined,
+        kind: AppStatusKind.neutral,
       ),
-      DashboardStatCard(
-        label: 'Patrimônios ativos',
-        value: stats.ativos,
+      InvTecStatCard(
+        label: 'Disponíveis',
+        value: stats.disponiveis,
         icon: Icons.check_circle_outline,
+        kind: AppStatusKind.success,
       ),
-      DashboardStatCard(
+      InvTecStatCard(
         label: 'Em uso',
         value: stats.emUso,
         icon: Icons.person_outline,
+        kind: AppStatusKind.info,
       ),
-      DashboardStatCard(
+      InvTecStatCard(
         label: 'Emprestados',
         value: stats.emprestados,
         icon: Icons.handshake_outlined,
+        kind: AppStatusKind.warning,
       ),
-      DashboardStatCard(
+      InvTecStatCard(
         label: 'Em manutenção',
         value: stats.emManutencao,
         icon: Icons.build_outlined,
+        kind: AppStatusKind.warning,
       ),
-      DashboardStatCard(
+      InvTecStatCard(
         label: 'Baixados',
         value: stats.baixados,
         icon: Icons.remove_circle_outline,
+        kind: AppStatusKind.neutral,
       ),
     ];
 
@@ -79,20 +88,15 @@ class _DashboardContent extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Dashboard', style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: AppSpacing.md),
+            const InvTecPageHeader(title: 'Dashboard', subtitle: 'Visão geral do patrimônio.'),
+            const SizedBox(height: AppSpacing.lg),
             Wrap(
               spacing: AppSpacing.md,
               runSpacing: AppSpacing.md,
-              children: [
-                for (final card in cards) SizedBox(width: 200, child: card),
-              ],
+              children: [for (final card in cards) SizedBox(width: 200, child: card)],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Movimentações recentes',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text('Movimentações recentes', style: AppTypography.cardTitle(context)),
             const SizedBox(height: AppSpacing.sm),
             _RecentMovements(movimentacoes: data.movimentacoesRecentes),
           ],
@@ -111,33 +115,56 @@ class _RecentMovements extends StatelessWidget {
   Widget build(BuildContext context) {
     if (movimentacoes.isEmpty) {
       return const Card(
-        child: EmptyState(
-          icon: Icons.history_outlined,
-          message: 'Nenhuma movimentação registrada.',
-        ),
+        child: EmptyState(icon: Icons.history_outlined, message: 'Nenhuma movimentação registrada.'),
       );
     }
 
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: movimentacoes.length,
         separatorBuilder: (context, index) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final item = movimentacoes[index];
-          return ListTile(
-            leading: const Icon(Icons.swap_horiz),
-            title: Text('${item.patrimonioLabel} · ${item.tipo.label}'),
-            subtitle: Text(
+        itemBuilder: (context, index) => _MovementRow(item: movimentacoes[index]),
+      ),
+    );
+  }
+}
+
+class _MovementRow extends StatelessWidget {
+  const _MovementRow({required this.item});
+
+  final MovimentacaoResumo item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(Icons.swap_horiz, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.patrimonioLabel, style: AppTypography.body(context)?.copyWith(fontWeight: FontWeight.w600)),
+                Text(item.tipo.label, style: AppTypography.auxiliary(context)),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
               '${item.origemNome ?? '—'} → ${item.destinoNome ?? '—'}',
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body(context),
             ),
-            trailing: Text(
-              _formatarData(item.dataMovimentacao),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          );
-        },
+          ),
+          Text(_formatarData(item.dataMovimentacao), style: AppTypography.caption(context)),
+        ],
       ),
     );
   }

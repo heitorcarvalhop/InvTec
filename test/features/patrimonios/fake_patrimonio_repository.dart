@@ -2,7 +2,19 @@ import 'package:invtec/core/errors/app_exception.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
+
+/// `true` quando [texto] é composto só por dígitos (após `trim`) — mesma
+/// regra usada em [PatrimonioRepositorySupabase] (PROMPT 9.1) para decidir,
+/// no modo "Tudo", entre identificador exato e texto livre.
+bool _somenteDigitos(String texto) => RegExp(r'^\d+$').hasMatch(texto);
+
+bool _contemIgnorandoCaixa(String? valor, String termo) =>
+    valor != null && valor.toLowerCase().contains(termo.toLowerCase());
+
+/// Mesmo teto usado em PatrimonioRepositorySupabase (PROMPT 9.1.1).
+const _limiteCorrespondenciaSerie = 10;
 
 /// Fake em memória de [PatrimonioRepository], sem nenhuma chamada de rede —
 /// usado para testar a listagem/detalhe/formulário isolados do Supabase
@@ -18,9 +30,49 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   int cadastrarCallCount = 0;
   int atualizarCallCount = 0;
 
+  /// Quantas vezes cada consulta em lote foi chamada — usado para provar
+  /// que a comparação de tombamentos da planilha com o banco (PROMPT 8.10)
+  /// faz UMA chamada por lista, nunca uma consulta por linha/número.
+  int buscarPorNumerosPatrimonioCallCount = 0;
+  int buscarNumerosSerieExistentesCallCount = 0;
+
   /// Parâmetros da última chamada a [cadastrar] — usado para verificar o
   /// que foi enviado à "RPC" (ver seção 12 do relatório: nunca status).
   Map<String, Object?>? ultimoCadastro;
+
+  /// Reproduz, em memória, a MESMA semântica de
+  /// [PatrimonioRepositorySupabase] para cada [PatrimonioSearchField]
+  /// (PROMPT 9.1) — em especial, [PatrimonioSearchField.patrimonio] é
+  /// sempre correspondência EXATA, nunca `contains`.
+  bool _casaComBusca(PatrimonioDetalhe item, PatrimonioSearchField campo, String termo) {
+    final p = item.patrimonio;
+    switch (campo) {
+      case PatrimonioSearchField.patrimonio:
+        return p.numeroPatrimonio == normalizarNumeroPatrimonio(termo);
+      case PatrimonioSearchField.numeroSerie:
+        return _contemIgnorandoCaixa(p.numeroSerie, termo);
+      case PatrimonioSearchField.equipamentoDescricao:
+        return _contemIgnorandoCaixa(p.descricao, termo);
+      case PatrimonioSearchField.marcaModelo:
+        return _contemIgnorandoCaixa(p.marca, termo) || _contemIgnorandoCaixa(p.modelo, termo);
+      case PatrimonioSearchField.responsavel:
+        return _contemIgnorandoCaixa(p.responsavelAtual, termo);
+      case PatrimonioSearchField.localizacao:
+        return _contemIgnorandoCaixa(item.localizacaoNome, termo);
+      case PatrimonioSearchField.tudo:
+        // consulta só de dígitos nunca chega aqui — interceptada antes, em
+        // [listar] (PROMPT 9.1.1: lógica de duas etapas, nunca mistura
+        // patrimônio com série no mesmo resultado). Só sobra o ramo
+        // textual.
+        return p.numeroPatrimonio == normalizarNumeroPatrimonio(termo) ||
+            _contemIgnorandoCaixa(p.numeroSerie, termo) ||
+            _contemIgnorandoCaixa(p.marca, termo) ||
+            _contemIgnorandoCaixa(p.modelo, termo) ||
+            _contemIgnorandoCaixa(p.descricao, termo) ||
+            _contemIgnorandoCaixa(p.responsavelAtual, termo) ||
+            _contemIgnorandoCaixa(item.localizacaoNome, termo);
+    }
+  }
 
   @override
   Future<Patrimonio?> buscarPorId(String id) async {
@@ -49,30 +101,22 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     return null;
   }
 
-  @override
-  Future<PatrimoniosResultado> listar({
-    int limit = 25,
-    int offset = 0,
-    String? busca,
+  Iterable<PatrimonioDetalhe> _comFiltrosComuns(
+    Iterable<PatrimonioDetalhe> base, {
     String? tipoId,
     PatrimonioStatus? status,
     String? setorId,
-  }) async {
-    if (erro != null) throw erro!;
-
-    Iterable<PatrimonioDetalhe> resultado = _itens;
-
-    final termo = busca?.trim().toLowerCase();
-    if (termo != null && termo.isNotEmpty) {
-      resultado = resultado.where((item) {
-        final p = item.patrimonio;
-        return (p.numeroPatrimonio?.toLowerCase().contains(termo) ?? false) ||
-            (p.numeroSerie?.toLowerCase().contains(termo) ?? false) ||
-            (p.marca?.toLowerCase().contains(termo) ?? false) ||
-            (p.modelo?.toLowerCase().contains(termo) ?? false) ||
-            (p.descricao?.toLowerCase().contains(termo) ?? false);
-      });
-    }
+    String? localizacaoId,
+    bool semLocalizacao = false,
+    String? marca,
+    String? modelo,
+    String? responsavel,
+    DateTime? dataCadastroDe,
+    DateTime? dataCadastroAte,
+    DateTime? dataAquisicaoDe,
+    DateTime? dataAquisicaoAte,
+  }) {
+    var resultado = base;
     if (tipoId != null) {
       resultado = resultado.where((item) => item.patrimonio.tipoId == tipoId);
     }
@@ -84,15 +128,146 @@ class FakePatrimonioRepository implements PatrimonioRepository {
         (item) => item.patrimonio.setorAtualId == setorId,
       );
     }
-
-    final lista = resultado.toList()
-      ..sort(
-        (a, b) =>
-            b.patrimonio.dataCadastro.compareTo(a.patrimonio.dataCadastro),
+    if (semLocalizacao) {
+      resultado = resultado.where((item) => item.patrimonio.localizacaoAtualId == null);
+    } else if (localizacaoId != null) {
+      resultado = resultado.where((item) => item.patrimonio.localizacaoAtualId == localizacaoId);
+    }
+    final marcaTrim = marca?.trim();
+    if (marcaTrim != null && marcaTrim.isNotEmpty) {
+      resultado = resultado.where((item) => _contemIgnorandoCaixa(item.patrimonio.marca, marcaTrim));
+    }
+    final modeloTrim = modelo?.trim();
+    if (modeloTrim != null && modeloTrim.isNotEmpty) {
+      resultado = resultado.where((item) => _contemIgnorandoCaixa(item.patrimonio.modelo, modeloTrim));
+    }
+    final responsavelTrim = responsavel?.trim();
+    if (responsavelTrim != null && responsavelTrim.isNotEmpty) {
+      resultado = resultado.where(
+        (item) => _contemIgnorandoCaixa(item.patrimonio.responsavelAtual, responsavelTrim),
       );
-    final pagina = lista.skip(offset).take(limit).toList();
+    }
+    if (dataCadastroDe != null) {
+      final inicio = DateTime(dataCadastroDe.year, dataCadastroDe.month, dataCadastroDe.day);
+      resultado = resultado.where((item) => !item.patrimonio.dataCadastro.isBefore(inicio));
+    }
+    if (dataCadastroAte != null) {
+      final fimExclusivo = DateTime(dataCadastroAte.year, dataCadastroAte.month, dataCadastroAte.day + 1);
+      resultado = resultado.where((item) => item.patrimonio.dataCadastro.isBefore(fimExclusivo));
+    }
+    if (dataAquisicaoDe != null) {
+      final inicio = DateTime(dataAquisicaoDe.year, dataAquisicaoDe.month, dataAquisicaoDe.day);
+      resultado = resultado.where(
+        (item) => item.patrimonio.dataAquisicao != null && !item.patrimonio.dataAquisicao!.isBefore(inicio),
+      );
+    }
+    if (dataAquisicaoAte != null) {
+      final fim = DateTime(dataAquisicaoAte.year, dataAquisicaoAte.month, dataAquisicaoAte.day);
+      resultado = resultado.where(
+        (item) => item.patrimonio.dataAquisicao != null && !item.patrimonio.dataAquisicao!.isAfter(fim),
+      );
+    }
+    return resultado;
+  }
 
+  PatrimoniosResultado _paginar(Iterable<PatrimonioDetalhe> itens, {required int limit, required int offset}) {
+    final lista = itens.toList()
+      ..sort((a, b) {
+        final porData = b.patrimonio.dataCadastro.compareTo(a.patrimonio.dataCadastro);
+        return porData != 0 ? porData : b.patrimonio.id.compareTo(a.patrimonio.id);
+      });
+    final pagina = lista.skip(offset).take(limit).toList();
     return PatrimoniosResultado(itens: pagina, total: lista.length);
+  }
+
+  @override
+  Future<PatrimoniosResultado> listar({
+    int limit = 25,
+    int offset = 0,
+    String? busca,
+    PatrimonioSearchField campoBusca = PatrimonioSearchField.tudo,
+    String? tipoId,
+    PatrimonioStatus? status,
+    String? setorId,
+    String? localizacaoId,
+    bool semLocalizacao = false,
+    String? marca,
+    String? modelo,
+    String? responsavel,
+    DateTime? dataCadastroDe,
+    DateTime? dataCadastroAte,
+    DateTime? dataAquisicaoDe,
+    DateTime? dataAquisicaoAte,
+  }) async {
+    if (erro != null) throw erro!;
+
+    final termo = busca?.trim();
+
+    // PROMPT 9.1.1: mesma lógica em duas etapas do repositório real — ver
+    // PatrimonioRepositorySupabase._listarTudoNumerico.
+    if (termo != null && termo.isNotEmpty && campoBusca == PatrimonioSearchField.tudo && _somenteDigitos(termo)) {
+      final numero = normalizarNumeroPatrimonio(termo);
+      final matchPatrimonio = _comFiltrosComuns(
+        _itens.where((item) => item.patrimonio.numeroPatrimonio == numero),
+        tipoId: tipoId,
+        status: status,
+        setorId: setorId,
+        localizacaoId: localizacaoId,
+        semLocalizacao: semLocalizacao,
+        marca: marca,
+        modelo: modelo,
+        responsavel: responsavel,
+        dataCadastroDe: dataCadastroDe,
+        dataCadastroAte: dataCadastroAte,
+        dataAquisicaoDe: dataAquisicaoDe,
+        dataAquisicaoAte: dataAquisicaoAte,
+      );
+      final resultadoPatrimonio = _paginar(matchPatrimonio, limit: limit, offset: offset);
+      if (resultadoPatrimonio.total > 0) return resultadoPatrimonio;
+
+      final matchSerie = _comFiltrosComuns(
+        _itens.where((item) => item.patrimonio.numeroSerie == termo),
+        tipoId: tipoId,
+        status: status,
+        setorId: setorId,
+        localizacaoId: localizacaoId,
+        semLocalizacao: semLocalizacao,
+        marca: marca,
+        modelo: modelo,
+        responsavel: responsavel,
+        dataCadastroDe: dataCadastroDe,
+        dataCadastroAte: dataCadastroAte,
+        dataAquisicaoDe: dataAquisicaoDe,
+        dataAquisicaoAte: dataAquisicaoAte,
+      );
+      final resultadoSerie = _paginar(matchSerie, limit: _limiteCorrespondenciaSerie, offset: 0);
+      return PatrimoniosResultado(
+        itens: const [],
+        total: 0,
+        correspondenciasPorNumeroSerie: resultadoSerie.itens,
+      );
+    }
+
+    Iterable<PatrimonioDetalhe> resultado = _itens;
+    if (termo != null && termo.isNotEmpty) {
+      resultado = resultado.where((item) => _casaComBusca(item, campoBusca, termo));
+    }
+    resultado = _comFiltrosComuns(
+      resultado,
+      tipoId: tipoId,
+      status: status,
+      setorId: setorId,
+      localizacaoId: localizacaoId,
+      semLocalizacao: semLocalizacao,
+      marca: marca,
+      modelo: modelo,
+      responsavel: responsavel,
+      dataCadastroDe: dataCadastroDe,
+      dataCadastroAte: dataCadastroAte,
+      dataAquisicaoDe: dataAquisicaoDe,
+      dataAquisicaoAte: dataAquisicaoAte,
+    );
+    return _paginar(resultado, limit: limit, offset: offset);
   }
 
   @override
@@ -107,6 +282,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     String? observacao,
     DateTime? dataAquisicao,
     String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
     String? responsavelOrigem,
     String? responsavelDestino,
     String? motivo,
@@ -125,6 +302,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       'observacao': observacao,
       'dataAquisicao': dataAquisicao,
       'origemId': origemId,
+      'localizacaoOrigemId': localizacaoOrigemId,
+      'localizacaoDestinoId': localizacaoDestinoId,
       'responsavelOrigem': responsavelOrigem,
       'responsavelDestino': responsavelDestino,
       'motivo': motivo,
@@ -218,6 +397,7 @@ class FakePatrimonioRepository implements PatrimonioRepository {
 
   @override
   Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(List<String> numeros) async {
+    buscarPorNumerosPatrimonioCallCount++;
     if (erro != null) throw erro!;
     final normalizados = numeros.toSet();
     return _itens
@@ -227,6 +407,7 @@ class FakePatrimonioRepository implements PatrimonioRepository {
 
   @override
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) async {
+    buscarNumerosSerieExistentesCallCount++;
     if (erro != null) throw erro!;
     final procurados = numerosSerie.toSet();
     return _itens

@@ -40,35 +40,79 @@ final _regras = <_RegraInferencia>[
     'microsoft office',
     'windows',
     'adobe',
+    // Variantes reais de licença Office sem a palavra "microsoft" (achado
+    // no diagnóstico com a planilha real da GETEC) — frases explícitas,
+    // nunca a palavra "office" isolada (evita falso positivo em algo como
+    // "cadeira para home office", que é mobiliário/localização).
+    'office home and business',
+    'office 2019 professional',
+    'office professional',
+    'office 365',
+    // Erro de digitação real encontrado na planilha da GETEC ("BUSSINES"
+    // em vez de "BUSINESS") — variante de grafia exata (PROMPT 8.12,
+    // auditoria 8.11), não uma regra genérica de "office" isolado.
+    'office home and bussines',
   ]),
   const _RegraInferencia('Nobreak', ['nobreak', 'ups']),
-  const _RegraInferencia('Estabilizador', ['estabilizador']),
+  // Inclui a forma plural encontrada na planilha real ("ESTABILIZADORES
+  // PROGRESSIVE III") — variante explícita, não um matching de radical.
+  const _RegraInferencia('Estabilizador', ['estabilizador', 'estabilizadores']),
   const _RegraInferencia('Servidor', ['servidor', 'server']),
   const _RegraInferencia('Impressora', ['impressora', 'multifuncional']),
   const _RegraInferencia('Projetor', ['projetor', 'datashow', 'data show']),
-  const _RegraInferencia('TV', ['televisao', 'tv']),
+  const _RegraInferencia('TV', [
+    'televisao',
+    'tv',
+    // Erro de digitação real encontrado na planilha da GETEC ("ii" duplo)
+    // — variante de grafia exata (PROMPT 8.12, auditoria 8.11).
+    'televiisor',
+  ]),
   const _RegraInferencia('Equipamento de Rede', [
     'switch',
+    // Forma plural encontrada na planilha real ("SWITCHES DELL NETWORKING
+    // N3024") — variante explícita, mesmo princípio do Estabilizador acima.
+    'switches',
     'access point',
+    // Equivalente em português de "access point", achado real da planilha
+    // GETEC (PROMPT 8.12) — frase específica, não a palavra "acesso" isolada.
+    'ponto de acesso',
     'roteador',
     'router',
     'firewall',
     'equipamento de rede',
   ]),
   const _RegraInferencia('Notebook', ['notebook', 'laptop']),
-  const _RegraInferencia('Desktop', ['desktop', 'microcomputador', 'computador desktop', 'cpu']),
-  const _RegraInferencia('Monitor', ['monitor']),
-  const _RegraInferencia('Mobiliário', [
-    'armario',
-    'mesa',
-    'cadeira',
-    'estante',
-    'gaveteiro',
-    'mobiliario',
+  const _RegraInferencia('Desktop', [
+    'desktop',
+    'microcomputador',
+    // "micro computador"/"micro-computador" (com espaço ou hífen — o hífen
+    // já vira espaço em _normalizar) também aparecem na planilha real.
+    'micro computador',
+    'computador desktop',
+    'cpu',
+    // Nomes de linha de produto que são SEMPRE um computador desktop —
+    // achados reais da planilha GETEC (PROMPT 8.12, auditoria 8.11): risco
+    // de falso positivo virtualmente nulo, são nomes de modelo específicos.
+    'optiplex',
+    // Erro de digitação real encontrado na planilha ("OPTPLEX", sem o "I").
+    'optplex',
+    'thinkcentre',
+    // Grafia real encontrada na planilha GETEC ("THINKCENTER", sem o "R"
+    // final de "centre").
+    'thinkcenter',
+    'compaq pro',
+    'estacao de trabalho',
+    'workstation',
+    'mac mini',
   ]),
+  const _RegraInferencia('Monitor', ['monitor']),
   // Itens que o catálogo GETEC explicitamente NÃO quer como tipo próprio
   // (seção 6) — mapeados para "Outros" por regra explícita, não por
-  // incerteza (seção 11).
+  // incerteza (seção 11). Fica ANTES de Mobiliário de propósito: um achado
+  // real da planilha ("SCANNER DE MESA, COLOR, DUPLEX 35 PPM") virava
+  // Mobiliário porque a palavra "mesa" batia antes da regra de Scanner —
+  // termos explícitos de "Outros" têm precedência sobre regras genéricas
+  // de Mobiliário que possam capturar uma palavra solta da descrição.
   const _RegraInferencia('Outros', [
     'teclado',
     'mouse',
@@ -77,6 +121,33 @@ final _regras = <_RegraInferencia>[
     'scanner',
     'tablet',
     'ar condicionado',
+    // Equipamentos de videoconferência (achado real: kits Logitech Group)
+    // — frases explícitas e conservadoras; nunca "camera"/"microfone"
+    // isolados, que podem significar outro tipo de bem fora desse contexto.
+    'videoconferencia',
+    'video conferencia',
+    'logitech group',
+    'expansion mic',
+    // Achados reais da planilha GETEC (PROMPT 8.12, auditoria 8.11): nomes
+    // de equipamento/eletrodoméstico/ferramenta específicos, claramente
+    // fora de todas as outras categorias — risco de falso positivo nulo.
+    'frigobar',
+    'multimetro',
+    'parafusadeira',
+    'furadeira',
+    'iphone',
+    // Variante sem espaço de "ar condicionado" (já uma regra acima) —
+    // achado real da planilha.
+    'arcondicionado',
+  ]),
+  const _RegraInferencia('Mobiliário', [
+    'armario',
+    'mesa',
+    'cadeira',
+    'estante',
+    'gaveteiro',
+    'mobiliario',
+    'poltrona',
   ]),
 ];
 
@@ -92,7 +163,7 @@ InferenciaTipoResultado inferirTipoPorDescricao(String? descricao) {
 
   for (final regra in _regras) {
     for (final chave in regra.palavrasChave) {
-      if (_contemFrase(normalizado, chave)) {
+      if (contemFraseComoPalavra(normalizado, chave)) {
         return InferenciaTipoResultado(confianca: InferenciaTipoConfianca.confirmada, nomeTipo: regra.nomeTipo);
       }
     }
@@ -103,28 +174,3 @@ InferenciaTipoResultado inferirTipoPorDescricao(String? descricao) {
 String _normalizar(String valor) {
   return normalizarTextoComparacao(valor).replaceAll('-', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
 }
-
-/// `true` quando [frase] aparece em [texto] como palavra(s) inteira(s) — não
-/// como parte de outra palavra (ex.: "cpu" não deve bater dentro de
-/// "ocupado"). Implementado sem lookbehind para não depender de suporte a
-/// regex avançado.
-bool _contemFrase(String texto, String frase) {
-  if (frase.isEmpty) return false;
-  var inicioBusca = 0;
-  while (true) {
-    final indice = texto.indexOf(frase, inicioBusca);
-    if (indice == -1) return false;
-
-    final antes = indice == 0 ? null : texto[indice - 1];
-    final indiceDepois = indice + frase.length;
-    final depois = indiceDepois >= texto.length ? null : texto[indiceDepois];
-
-    final antesOk = antes == null || !_ehAlfanumerico(antes);
-    final depoisOk = depois == null || !_ehAlfanumerico(depois);
-    if (antesOk && depoisOk) return true;
-
-    inicioBusca = indice + 1;
-  }
-}
-
-bool _ehAlfanumerico(String caractere) => RegExp(r'[a-z0-9]').hasMatch(caractere);

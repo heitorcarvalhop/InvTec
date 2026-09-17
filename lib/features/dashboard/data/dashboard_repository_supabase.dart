@@ -22,6 +22,7 @@ class DashboardRepositorySupabase implements DashboardRepository {
     try {
       final resultados = await Future.wait([
         _count(),
+        _count(PatrimonioStatus.disponivel.value),
         _count(PatrimonioStatus.emUso.value),
         _count(PatrimonioStatus.emprestado.value),
         _count(PatrimonioStatus.emManutencao.value),
@@ -29,14 +30,15 @@ class DashboardRepositorySupabase implements DashboardRepository {
       ]);
 
       final total = resultados[0];
-      final baixados = resultados[4];
+      final baixados = resultados[5];
 
       return DashboardStats(
         total: total,
         ativos: total - baixados,
-        emUso: resultados[1],
-        emprestados: resultados[2],
-        emManutencao: resultados[3],
+        disponiveis: resultados[1],
+        emUso: resultados[2],
+        emprestados: resultados[3],
+        emManutencao: resultados[4],
         baixados: baixados,
       );
     } on PostgrestException catch (e) {

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/app_exception.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/page_header.dart';
 import '../../auth/domain/profile.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../domain/setor.dart';
@@ -43,6 +45,10 @@ class _SetoresPageState extends ConsumerState<SetoresPage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _verLocalizacoes(Setor setor) {
+    context.push('/setores/${setor.id}/localizacoes', extra: setor);
   }
 
   Future<void> _novoSetor() async {
@@ -90,7 +96,20 @@ class _SetoresPageState extends ConsumerState<SetoresPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(canManage: canManage, onNovoSetor: _novoSetor),
+            InvTecPageHeader(
+              title: 'Setores',
+              subtitle: 'Gerencie as localizações utilizadas pelos patrimônios.',
+              compact: context.screenSize == ScreenSize.mobile,
+              actions: canManage
+                  ? [
+                      FilledButton.icon(
+                        onPressed: _novoSetor,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Novo setor'),
+                      ),
+                    ]
+                  : const [],
+            ),
             const SizedBox(height: AppSpacing.md),
             _SearchField(
               controller: _searchController,
@@ -113,12 +132,14 @@ class _SetoresPageState extends ConsumerState<SetoresPage> {
                         canManage: canManage,
                         onEdit: _editarSetor,
                         onToggleAtivo: _alternarAtivo,
+                        onLocalizacoes: _verLocalizacoes,
                       )
                     : SetorDesktopTable(
                         setores: setores,
                         canManage: canManage,
                         onEdit: _editarSetor,
                         onToggleAtivo: _alternarAtivo,
+                        onLocalizacoes: _verLocalizacoes,
                       );
               },
               loading: () => const Padding(
@@ -138,47 +159,6 @@ class _SetoresPageState extends ConsumerState<SetoresPage> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({required this.canManage, required this.onNovoSetor});
-
-  final bool canManage;
-  final VoidCallback onNovoSetor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Setores', style: theme.textTheme.headlineSmall),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Gerencie as localizações utilizadas pelos patrimônios.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (canManage) ...[
-          const SizedBox(width: AppSpacing.md),
-          FilledButton.icon(
-            onPressed: onNovoSetor,
-            icon: const Icon(Icons.add),
-            label: const Text('Novo setor'),
-          ),
-        ],
-      ],
     );
   }
 }

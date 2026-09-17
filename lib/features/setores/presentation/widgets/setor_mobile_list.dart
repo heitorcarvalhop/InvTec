@@ -11,12 +11,14 @@ class SetorMobileList extends StatelessWidget {
     required this.canManage,
     required this.onEdit,
     required this.onToggleAtivo,
+    required this.onLocalizacoes,
   });
 
   final List<Setor> setores;
   final bool canManage;
   final ValueChanged<Setor> onEdit;
   final ValueChanged<Setor> onToggleAtivo;
+  final ValueChanged<Setor> onLocalizacoes;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +32,7 @@ class SetorMobileList extends StatelessWidget {
               canManage: canManage,
               onEdit: () => onEdit(setor),
               onToggleAtivo: () => onToggleAtivo(setor),
+              onLocalizacoes: () => onLocalizacoes(setor),
             ),
           ),
       ],
@@ -43,12 +46,14 @@ class _SetorCard extends StatelessWidget {
     required this.canManage,
     required this.onEdit,
     required this.onToggleAtivo,
+    required this.onLocalizacoes,
   });
 
   final Setor setor;
   final bool canManage;
   final VoidCallback onEdit;
   final VoidCallback onToggleAtivo;
+  final VoidCallback onLocalizacoes;
 
   @override
   Widget build(BuildContext context) {
@@ -88,11 +93,16 @@ class _SetorCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(setor.descricao!, style: theme.textTheme.bodyMedium),
             ],
-            if (canManage) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: onLocalizacoes,
+                  icon: const Icon(Icons.place_outlined),
+                  label: const Text('Localizações'),
+                ),
+                if (canManage) ...[
                   TextButton.icon(
                     onPressed: onEdit,
                     icon: const Icon(Icons.edit_outlined),
@@ -108,8 +118,8 @@ class _SetorCard extends StatelessWidget {
                     label: Text(setor.ativo ? 'Desativar' : 'Reativar'),
                   ),
                 ],
-              ),
-            ],
+              ],
+            ),
           ],
         ),
       ),

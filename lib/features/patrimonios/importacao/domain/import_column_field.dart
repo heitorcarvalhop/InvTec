@@ -23,6 +23,13 @@ enum ImportColumnField {
   /// coluna própria para isso (seção 5 do perfil GETEC); quando mapeado, o
   /// valor é preservado em `observacao` em vez de descartado.
   tombamentoAnterior,
+
+  /// Localização dentro do setor/gerência de destino (ex.: "Home Office"
+  /// dentro de "GETEC") — distinto de [setor]: setor é a gerência, este
+  /// campo é o lugar físico/organizacional dentro dela. Sempre opcional.
+  /// A resolução contra `Localizacao` fica fora do `ImportAnalyzer`
+  /// genérico (que não conhece esse conceito) — ver `GetecImportProfile`.
+  localizacao,
 }
 
 extension ImportColumnFieldLabel on ImportColumnField {
@@ -56,6 +63,8 @@ extension ImportColumnFieldLabel on ImportColumnField {
         return 'Data da entrada';
       case ImportColumnField.tombamentoAnterior:
         return 'Tombamento anterior';
+      case ImportColumnField.localizacao:
+        return 'Localização';
     }
   }
 }

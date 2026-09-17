@@ -1,11 +1,19 @@
 # Banco de dados do InvTec
 
-Modelo definido em
-[`supabase/migrations/20260910120000_initial_schema.sql`](../supabase/migrations/20260910120000_initial_schema.sql).
+Modelo definido em três migrations:
 
-> A migration **ainda não foi aplicada** no Supabase remoto e **não foi
-> executada em nenhum PostgreSQL local** (não há Postgres/Docker/WSL nesta
-> máquina). Toda a validação até aqui foi revisão manual.
+1. [`20260910120000_initial_schema.sql`](../supabase/migrations/20260910120000_initial_schema.sql)
+   — schema inicial (`profiles`, `setores`, `tipos_patrimonio`, `patrimonios`,
+   `movimentacoes`), **já aplicada** no Supabase remoto.
+2. [`20260911130000_update_tipos_patrimonio_catalog.sql`](../supabase/migrations/20260911130000_update_tipos_patrimonio_catalog.sql)
+   — ajuste do catálogo de `tipos_patrimonio`, **já aplicada**.
+3. [`20260914140000_add_localizacoes.sql`](../supabase/migrations/20260914140000_add_localizacoes.sql)
+   — introduz `public.localizacoes` (seção própria abaixo) e evolui
+   `cadastrar_patrimonio`/`registrar_movimentacao` para aceitá-las.
+   **Ainda NÃO foi aplicada** no Supabase remoto nem em nenhum Postgres
+   local (não há Postgres/Docker/WSL nesta máquina) — toda a validação até
+   aqui foi revisão manual. Este documento já descreve o estado **final**
+   (pós-migration 3), deixando explícito o que ainda não está em produção.
 
 ## Visão geral
 
@@ -16,6 +24,10 @@ erDiagram
   SETORES ||--o{ PATRIMONIOS : "setor_atual_id"
   SETORES ||--o{ MOVIMENTACOES : "origem_id"
   SETORES ||--o{ MOVIMENTACOES : "destino_id"
+  SETORES ||--o{ LOCALIZACOES : "setor_id"
+  LOCALIZACOES ||--o{ PATRIMONIOS : "localizacao_atual_id"
+  LOCALIZACOES ||--o{ MOVIMENTACOES : "localizacao_origem_id"
+  LOCALIZACOES ||--o{ MOVIMENTACOES : "localizacao_destino_id"
   TIPOS_PATRIMONIO ||--o{ PATRIMONIOS : "tipo_id"
   PATRIMONIOS ||--o{ MOVIMENTACOES : "patrimonio_id"
 
@@ -29,6 +41,14 @@ erDiagram
 
   SETORES {
     uuid id PK
+    text nome
+    text sigla
+    bool ativo
+  }
+
+  LOCALIZACOES {
+    uuid id PK
+    uuid setor_id FK
     text nome
     text sigla
     bool ativo
@@ -48,6 +68,7 @@ erDiagram
     uuid tipo_id FK
     enum status
     uuid setor_atual_id FK
+    uuid localizacao_atual_id FK
     text responsavel_atual
     uuid criado_por FK
   }
@@ -57,8 +78,10 @@ erDiagram
     uuid patrimonio_id FK
     enum tipo
     uuid origem_id FK
+    uuid localizacao_origem_id FK
     text responsavel_origem
     uuid destino_id FK
+    uuid localizacao_destino_id FK
     text responsavel_destino
     uuid realizado_por FK
   }
@@ -67,7 +90,8 @@ erDiagram
 | Tabela | Papel |
 |---|---|
 | `profiles` | Perfil de aplicação 1:1 com `auth.users`. Sem senha própria. |
-| `setores` | Locais/gerências (GETEC, GEVEV, Almoxarifado, Assistência Técnica…). |
+| `setores` | **Gerências/unidades organizacionais** responsáveis (GETEC, GEVEV, Almoxarifado, Assistência Técnica…). A tabela não foi renomeada, mas seu papel de negócio é "gerência", não "local físico" — ver `localizacoes`. |
+| `localizacoes` | Local físico **dentro** de uma gerência (ex.: "Home Office", "Datacenter — Universitário"). Sempre pertence a exatamente um `setor_id`; **opcional** para um patrimônio. Ver seção própria abaixo. |
 | `tipos_patrimonio` | Categorias (tabela, e não enum, porque crescem com o tempo). Seedada com 10 valores. |
 | `patrimonios` | Cadastro de cada equipamento. Nunca apagado. |
 | `movimentacoes` | Histórico imutável. Só recebe `INSERT`, e só pelas RPCs. |
@@ -232,10 +256,16 @@ public` não os remove, e `grant select` não reduz um `all` já concedido.
 |---|---|
 | `profiles` | `SELECT`; `UPDATE (nome)` |
 | `setores` | `SELECT`; `INSERT (nome, sigla, descricao)`; `UPDATE (nome, sigla, descricao, ativo)` |
+| `localizacoes` | `SELECT`; `INSERT (setor_id, nome, sigla)`; `UPDATE (nome, sigla, ativo)` — `setor_id` **não** é gravável no `UPDATE` (imutável, ver seção própria) |
 | `tipos_patrimonio` | `SELECT`; `INSERT (nome, descricao)`; `UPDATE (nome, descricao, ativo)` |
-| `patrimonios` | `SELECT`; `UPDATE (numero_patrimonio, numero_serie, tipo_id, marca, modelo, descricao, observacao, data_aquisicao)` |
+| `patrimonios` | `SELECT`; `UPDATE (numero_patrimonio, numero_serie, tipo_id, marca, modelo, descricao, observacao, data_aquisicao)` — `localizacao_atual_id` **não** está na lista: só muda por movimentação registrada |
 | `movimentacoes` | `SELECT` |
 | funções | `EXECUTE` em `normalize_text`, `has_perfil`, `cadastrar_patrimonio`, `registrar_movimentacao` |
+
+Leitura de `localizacoes` é liberada para os mesmos quatro perfis de
+`setores` (ADMIN/GESTOR/OPERADOR/CONSULTA); escrita (`INSERT`/`UPDATE`), só
+ADMIN/GESTOR — igual a `setores`. Sem `DELETE` em nenhum dos dois (exclusão
+lógica via `ativo`).
 
 `id` e `criado_em` nunca são graváveis pelo cliente. `anon` não tem nenhum
 privilégio. `service_role` não é tocado — contorna RLS por definição e
@@ -260,7 +290,10 @@ confiável entra no `search_path`.
 | `handle_user_email_updated` | cliente não tem `UPDATE` de `email` em `profiles` | trigger (não chamável via RPC); só copia `new.email` para a linha correspondente |
 | `cadastrar_patrimonio` | cliente não tem `INSERT` em `patrimonios`/`movimentacoes` | `has_perfil` explícito no início |
 | `registrar_movimentacao` | cliente não tem `INSERT` em `movimentacoes` nem `UPDATE` de status/setor/responsável | `has_perfil` explícito no início |
-| `prevent_deactivate_setor_em_uso` | contar **todos** os patrimônios, independente da RLS do chamador | trigger (não chamável via RPC) |
+| `prevent_deactivate_setor_em_uso` | contar **todos** os patrimônios e localizações ativas, independente da RLS do chamador | trigger (não chamável via RPC); bloqueia desativar setor com patrimônio não baixado OU com localização ativa vinculada |
+| `prevent_deactivate_localizacao_em_uso` | contar **todos** os patrimônios, independente da RLS do chamador | trigger (não chamável via RPC); bloqueia desativar localização com patrimônio não baixado apontando para ela |
+| `validate_localizacao_pertence_ao_setor` | garantir em `patrimonios` que `localizacao_atual_id` sempre pertence ao `setor_atual_id` da mesma linha | trigger (não chamável via RPC); defesa em profundidade mesmo se a lógica das RPCs tiver um bug futuro |
+| `validate_setor_ativo_para_localizacao` | `FOR SHARE` no setor pai ao criar/reativar localização ativa | trigger (não chamável via RPC); impede localização ativa em gerência inativa, mesmo sob concorrência |
 | `validate_tipo_patrimonio_ativo` | `FOR SHARE` exige passar pela policy de `UPDATE` de tipos, que OPERADOR não tem | trigger (não chamável via RPC) |
 
 Nenhuma RPC aceita `criado_por`, `realizado_por`, `criado_em`,
@@ -299,7 +332,7 @@ Limitação conhecida: acentos não são normalizados (`Manutenção` e
 ```sql
 cadastrar_patrimonio(
   p_tipo_id uuid,                              -- obrigatório
-  p_destino_id uuid,                           -- obrigatório: onde o patrimônio fica
+  p_destino_id uuid,                           -- obrigatório: onde o patrimônio fica (gerência)
   p_numero_patrimonio text default null,
   p_numero_serie text default null,
   p_marca text default null,
@@ -312,7 +345,9 @@ cadastrar_patrimonio(
   p_responsavel_destino text default null,     -- vira o responsável atual
   p_motivo text default null,
   p_observacao_movimentacao text default null,
-  p_data_movimentacao timestamptz default null -- nulo = agora
+  p_data_movimentacao timestamptz default null, -- nulo = agora
+  p_localizacao_destino_id uuid default null,   -- localização dentro do destino, opcional
+  p_localizacao_origem_id uuid default null     -- localização dentro da origem, opcional
 ) returns patrimonios
 ```
 
@@ -321,20 +356,32 @@ Em uma única transação:
 1. `has_perfil('ADMIN','GESTOR','OPERADOR')`, senão nega;
 2. valida `tipo_id`/`destino_id` e a data;
 3. trava o tipo com `FOR SHARE` e exige `ativo`;
-4. trava o destino com `FOR SHARE` e exige `ativo`; se houver origem, ela
+4. trava o destino com `FOR SHARE` e exige `ativo`; se `p_localizacao_destino_id`
+   for informado, precisa estar **ativa** e pertencer ao mesmo `p_destino_id`
+   (`FOR SHARE`, trava contra desativação concorrente); se houver origem, ela
    precisa existir (pode estar inativa, é referência histórica) e ser
-   diferente do destino;
+   diferente do destino; se `p_localizacao_origem_id` for informado, exige
+   `p_origem_id` também informado e que a localização pertença a ele (pode
+   estar inativa — também é referência histórica);
 5. checagem amigável de número duplicado (a defesa real é o índice único);
 6. cria o patrimônio com `setor_atual_id = destino`,
+   `localizacao_atual_id = localizacao_destino`,
    `responsavel_atual = responsavel_destino` e status `EM_USO` se houver
    responsável, `DISPONIVEL` se não houver;
-7. cria a movimentação `ENTRADA` com os dados de origem e destino;
+7. cria a movimentação `ENTRADA` com os dados de origem/destino e
+   localização de origem/destino;
 8. retorna o patrimônio.
 
 `p_responsavel_atual` foi removido: o responsável atual é, por definição, o
 responsável de destino. Não existe mais trigger de ENTRADA automática.
 
 Aqui a origem vem do cliente porque o patrimônio ainda não existe no InvTec.
+
+**Origem histórica totalmente desconhecida** (ex.: carga inicial de um
+inventário legado): `p_origem_id` e `p_localizacao_origem_id` ficam ambos
+`null` — nunca um setor fictício tipo "Origem não informada". Isso não é
+tratado como erro; o motivo textual da movimentação é que documenta a
+lacuna (ex.: perfil de importação da GETEC).
 
 ---
 
@@ -350,7 +397,9 @@ registrar_movimentacao(
   p_observacao text default null,
   p_numero_documento text default null,
   p_numero_chamado text default null,
-  p_data_movimentacao timestamptz default null
+  p_data_movimentacao timestamptz default null,
+  p_localizacao_destino_id uuid default null,  -- null = preserva a localização atual
+  p_limpar_localizacao boolean default false   -- true = força localização = Não informada (só AJUSTE_INVENTARIO)
 ) returns movimentacoes
 ```
 
@@ -361,13 +410,38 @@ estava no banco **antes** da movimentação:
 | Coluna da movimentação | Valor |
 |---|---|
 | `origem_id` | `setor_atual_id` antes |
+| `localizacao_origem_id` | `localizacao_atual_id` antes |
 | `responsavel_origem` | `responsavel_atual` antes |
 | `destino_id` | `setor_atual_id` depois (`NULL` em BAIXA) |
+| `localizacao_destino_id` | `localizacao_atual_id` depois (`NULL` em BAIXA) |
 | `responsavel_destino` | `responsavel_atual` depois (`NULL` em BAIXA) |
 | `realizado_por` | `auth.uid()` |
 
 Assim o histórico sempre registra quem/onde estava antes e quem/onde passou
-a estar, sem origem nula, falsa ou divergente do estado real.
+a estar, sem origem nula, falsa ou divergente do estado real. Localização de
+origem nunca é parâmetro de entrada — é **sempre** derivada do patrimônio
+travado, nunca confiada ao cliente.
+
+### `p_localizacao_destino_id` × `p_limpar_localizacao`
+
+`p_localizacao_destino_id = null` significa **"preservar a localização
+atual"** — a mesma semântica de todo parâmetro opcional desta função. Isso
+por si só não permite representar "a gerência continua a mesma, mas a
+localização passa a Não informada" (ex.: um item que estava em "Home
+Office" volta fisicamente para a sede sem localização específica ainda
+cadastrada). Por isso existe `p_limpar_localizacao`, com regras próprias:
+
+- só é aceito com `p_tipo = 'AJUSTE_INVENTARIO'` — qualquer outro tipo
+  rejeita;
+- não pode ser combinado com `p_localizacao_destino_id` informado (erro de
+  ambiguidade — "qual dos dois vale?");
+- em `AJUSTE_INVENTARIO`, a localização resultante segue, nesta ordem:
+  1. `p_localizacao_destino_id` informado → usa ela;
+  2. `p_limpar_localizacao = true` → `NULL` (Não informada), mesmo sem
+     trocar de gerência;
+  3. gerência mudou (`p_destino_id` ≠ atual) sem localização nova → `NULL`
+     (evita referência órfã de outra gerência);
+  4. nada do acima → preserva a localização atual.
 
 ### Regra de status após deslocamento
 
@@ -408,18 +482,26 @@ Status atual (linhas) × tipo de movimentação (colunas). ✅ permitido, ❌ re
 
 ### Regras por tipo
 
-| Tipo | `destino_id` | `responsavel_destino` | Setor depois | Responsável depois | Status depois |
-|---|---|---|---|---|---|
-| `ENTRADA` | obrigatório, ≠ atual, ativo | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
-| `SAIDA` | obrigatório, ≠ atual, ativo | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
-| `TRANSFERENCIA` | obrigatório, ≠ atual, ativo | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
-| `EMPRESTIMO` | obrigatório, ≠ atual, ativo | **obrigatório** | destino | resp. destino | `EMPRESTADO` |
-| `DEVOLUCAO` | obrigatório, ≠ atual, ativo | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
-| `MANUTENCAO` | obrigatório, ≠ atual, ativo | opcional | destino | resp. destino | `EM_MANUTENCAO` |
-| `RETORNO_MANUTENCAO` | obrigatório, ≠ atual, ativo | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
-| `BAIXA` | **proibido** | **proibido** | preservado | preservado | `BAIXADO` |
-| `AJUSTE_INVENTARIO` | opcional (= atual permitido) | **proibido** | destino ou preservado | preservado | preservado |
-| `ALTERACAO_RESPONSAVEL` | **proibido** | **obrigatório**, ≠ atual | preservado (= setor atual) | resp. destino | `EM_USO` |
+| Tipo | `destino_id` | `localizacao_destino_id` | `responsavel_destino` | Setor depois | Responsável depois | Status depois |
+|---|---|---|---|---|---|---|
+| `ENTRADA` | obrigatório, ≠ atual, ativo | opcional, ativa, do destino | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
+| `SAIDA` | obrigatório, ≠ atual, ativo | opcional, ativa, do destino | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
+| `TRANSFERENCIA` — entre gerências | obrigatório, ≠ atual, ativo | opcional, ativa, do destino | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
+| `TRANSFERENCIA` — interna (mesma gerência) | obrigatório, **= atual** | **obrigatório**, ≠ atual, ativa, do mesmo setor | opcional | inalterado | resp. destino | `EM_USO` / `DISPONIVEL` |
+| `EMPRESTIMO` | obrigatório, ≠ atual, ativo | opcional, ativa, do destino | **obrigatório** | destino | resp. destino | `EMPRESTADO` |
+| `DEVOLUCAO` | obrigatório, ≠ atual, ativo | opcional, ativa, do destino | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
+| `MANUTENCAO` | obrigatório, ≠ atual, ativo | opcional, ativa, do destino | opcional | destino | resp. destino | `EM_MANUTENCAO` |
+| `RETORNO_MANUTENCAO` | obrigatório, ≠ atual, ativo | opcional, ativa, do destino | opcional | destino | resp. destino | `EM_USO` / `DISPONIVEL` |
+| `BAIXA` | **proibido** | **proibido** | **proibido** | preservado | preservado | `BAIXADO` |
+| `AJUSTE_INVENTARIO` | opcional (= atual permitido) | opcional (ver `p_limpar_localizacao` acima) | **proibido** | destino ou preservado | preservado | preservado |
+| `ALTERACAO_RESPONSAVEL` | **proibido** | **proibido** | **obrigatório**, ≠ atual | preservado (= setor atual) | resp. destino | `EM_USO` |
+
+`TRANSFERENCIA` não ganhou um novo valor de enum: o mesmo tipo cobre os dois
+cenários. Quem decide se é "entre gerências" ou "interna" é o **cliente**,
+enviando `p_destino_id` igual ou diferente do setor atual — a UI é que
+rotula com base nessa comparação. Movimentação interna com `p_destino_id`
+igual ao atual e `p_localizacao_destino_id` nulo (ou igual à localização
+atual) é rejeitada: uma "transferência" que não muda nada não é permitida.
 
 `EMPRESTIMO` exige responsável: um empréstimo sem ninguém com o equipamento
 seria uma informação contraditória (e o CHECK de coerência rejeitaria). Essa
@@ -433,10 +515,12 @@ alterados juntos.
 ### BAIXA
 
 - Status resultante: `BAIXADO`.
-- `setor_atual_id` e `responsavel_atual` **preservados**: são o último local
-  e o último responsável conhecidos.
-- `destino_id` e `responsavel_destino` são proibidos (não há destino). Na
-  movimentação gravada, origem = último setor/responsável; destino = `NULL`.
+- `setor_atual_id`, `localizacao_atual_id` e `responsavel_atual`
+  **preservados**: são o último setor, a última localização e o último
+  responsável conhecidos.
+- `destino_id`, `localizacao_destino_id` e `responsavel_destino` são
+  proibidos (não há destino). Na movimentação gravada, origem = último
+  setor/localização/responsável; destino = `NULL` nos três.
 - Depois da baixa, só `AJUSTE_INVENTARIO` é aceito, com as restrições
   abaixo. Nenhuma movimentação comum devolve o item à circulação.
 - **Reativação não existe nesta versão.** Quando for necessária, deverá ser
@@ -450,10 +534,21 @@ Serve para registrar conferência ou corrigir erro de registro.
 - Nunca altera `status` nem `responsavel_atual`.
 - Aceita `origem = destino` (caso típico: "conferi, está onde já estava").
 - Se o destino for um setor diferente do atual, ele precisa estar ativo, e o
-  setor é corrigido.
-- **Em patrimônio `BAIXADO`:** registra a observação/correção histórica, mas
-  não altera nada. `destino_id` só é aceito se for nulo ou igual ao último
-  setor; qualquer outro valor é rejeitado.
+  setor é corrigido; a localização segue a regra descrita em
+  `p_localizacao_destino_id` × `p_limpar_localizacao` acima (troca, limpa ou
+  preserva, conforme o combinado).
+- **Em patrimônio `BAIXADO`:** aceita registrar só motivo/observação (para
+  documentação/correção histórica), mas **nenhuma mudança operacional** é
+  permitida:
+  - `destino_id` só é aceito se for nulo ou igual ao último setor;
+  - `localizacao_destino_id` só é aceito se for nulo ou igual à última
+    localização;
+  - `p_limpar_localizacao = true` é sempre rejeitado;
+  - qualquer outro valor nesses três campos é rejeitado.
+  Em outras palavras: um `AJUSTE_INVENTARIO` "sem mudança" (só
+  motivo/observação) continua permitido em `BAIXADO`; qualquer tentativa de
+  alterar setor, localização (trocar **ou** limpar) ou responsável é
+  rejeitada.
 
 ### ALTERACAO_RESPONSAVEL
 
@@ -523,12 +618,64 @@ erro = nova movimentação `AJUSTE_INVENTARIO`, nunca edição da antiga.
 usado em novo cadastro nem em troca direta de `tipo_id`
 (`validate_tipo_patrimonio_ativo`).
 
+## Localizações
+
+Uma `localizacao` é um local físico **dentro** de uma gerência (`setor`) —
+ex.: "Home Office", "Datacenter — Universitário" dentro de GETEC. Sempre
+pertence a exatamente um `setor_id`; para um patrimônio, é **opcional**
+(muitos patrimônios não têm localização específica cadastrada ainda).
+
+- **Unicidade é por gerência, nunca global.** `("GETEC", "Home Office")` e
+  `("GEVEV", "Home Office")` são duas localizações distintas e válidas;
+  duas "Home Office" dentro da **mesma** gerência é que é inválido
+  (`localizacoes_setor_nome_key (setor_id, lower(nome))`).
+- **A gerência de uma localização é imutável** depois de criada — a trigger
+  `protect_localizacao_setor` rejeita qualquer `UPDATE` que mude `setor_id`,
+  sem exceção nenhuma (nem para ADMIN). Para "mover" uma localização para
+  outra gerência, o fluxo é desativar a antiga e criar uma nova na gerência
+  correta — preserva a coerência do histórico de movimentações que já a
+  referenciam.
+- **Exclusão lógica apenas** (`ativo`), igual a `setores`/`tipos_patrimonio`
+  — sem `DELETE`, nem via GRANT nem via policy.
+- **Não pode ser desativada em uso**: `prevent_deactivate_localizacao_em_uso`
+  bloqueia desativar uma localização com patrimônio não baixado apontando
+  para ela (`localizacao_atual_id`).
+- **Não pode ser criada nem reativada com a gerência inativa**:
+  `validate_setor_ativo_para_localizacao` (`BEFORE INSERT OR UPDATE OF
+  ativo`) exige que `setor_id` esteja ativo sempre que a localização está
+  (ou passa a estar) `ativo = true`. Trava o setor pai com `FOR SHARE`, o
+  que serializa corretamente contra uma desativação concorrente do setor
+  (que faz `UPDATE`, e portanto já toma lock de linha) — em nenhuma ordem
+  de execução das duas transações o estado final tem setor inativo com
+  localização ativa vinculada.
+- **Setor com localização ativa não pode ser desativado**:
+  `prevent_deactivate_setor_em_uso` também passou a contar localizações
+  ativas do setor (além de patrimônios não baixados) — é preciso desativar
+  as localizações primeiro.
+- **`patrimonios.localizacao_atual_id` sempre pertence ao
+  `patrimonios.setor_atual_id` da mesma linha** — garantido tanto pelas RPCs
+  quanto por uma trigger própria em `patrimonios`
+  (`validate_localizacao_pertence_ao_setor`, defesa em profundidade).
+- **Localização ativa só é exigida como NOVO destino.** Referências
+  históricas (`localizacao_origem_id`, ou a localização atual preservada por
+  `AJUSTE_INVENTARIO`/`BAIXA`) podem apontar para uma localização já
+  desativada — ela nunca é apagada, só marcada inativa, e a FK continua
+  válida.
+- **O que a FK preserva de fato:** a identidade da localização (o id), não
+  um retrato textual do nome no momento da movimentação. Se uma localização
+  for renomeada, uma consulta futura do histórico (via join) mostra o nome
+  **atual**, não o nome que existia quando a movimentação foi registrada.
+  Não há snapshot textual nesta versão — se vier a ser necessário, é uma
+  evolução futura separada.
+
 ## Concorrência
 
 | Corrida | Proteção |
 |---|---|
 | Duas movimentações no mesmo patrimônio | `SELECT ... FOR UPDATE` no patrimônio: a segunda espera e lê o estado já atualizado (origem, status e matriz reavaliados). |
 | Movimentar para setor X × desativar X | RPC trava X com `FOR SHARE`; o `UPDATE` do setor precisa de trava incompatível. Se a RPC chega antes, a desativação espera e sua trigger (snapshot novo) enxerga o patrimônio em X e rejeita. Se a desativação chega antes, a RPC espera e lê `ativo = false`. |
+| Movimentar para localização L × desativar L | Mesma lógica de setor: RPC trava L com `FOR SHARE`; `UPDATE` de L precisa de trava incompatível. |
+| Criar/reativar localização em setor S × desativar S | `validate_setor_ativo_para_localizacao` trava S com `FOR SHARE`; `UPDATE` de S precisa de trava incompatível. Em qualquer ordem de entrelaçamento, o resultado final nunca é setor inativo + localização ativa. |
 | Cadastrar com tipo T × desativar T | `FOR SHARE` em T no cadastro; mesma lógica. Não bloqueia desativar tipo com uso histórico. |
 | Editar `tipo_id` para T × desativar T | `FOR SHARE` na trigger `validate_tipo_patrimonio_ativo`. |
 | Dois cadastros com o mesmo número | Checagem amigável + índice único sobre o valor normalizado. O perdedor recebe violação de unicidade e a transação inteira (patrimônio + ENTRADA) é revertida. |
@@ -542,15 +689,21 @@ usado em novo cadastro nem em troca direta de `tipo_id`
 | `patrimonios_tipo_idx`, `_setor_atual_idx`, `_status_idx` | Filtros de listagem. |
 | `movimentacoes_patrimonio_data_idx` | Histórico de um patrimônio por data; checagem de data mínima na RPC. |
 | `movimentacoes_data_idx` | Atividade recente geral. |
+| `movimentacoes_localizacao_destino_idx` (parcial) | Consultas por localização de destino no histórico. |
+| `patrimonios_localizacao_atual_idx` | Filtro/listagem por localização atual. |
 | `setores_nome_key`, `tipos_patrimonio_nome_key` (`lower(nome)`) | Unicidade case-insensitive. |
 | `setores_sigla_key` | Unicidade de sigla. |
+| `localizacoes_setor_nome_key` (`setor_id, lower(nome)`) | Unicidade **por gerência**, case-insensitive. |
+| `localizacoes_setor_sigla_key` (`setor_id, sigla`, parcial) | Unicidade de sigla por gerência. |
+| `localizacoes_setor_idx` | Listagem das localizações de uma gerência. |
 
 ## Exclusão lógica
 
 | Entidade | Estratégia |
 |---|---|
 | `patrimonios` | Nunca apagado; `BAIXADO` encerra o ciclo. |
-| `setores` | `ativo`; desativação bloqueada se houver item não baixado. |
+| `setores` | `ativo`; desativação bloqueada se houver item não baixado **ou** localização ativa vinculada. |
+| `localizacoes` | `ativo`; desativação bloqueada se houver item não baixado apontando para ela; criação/reativação bloqueada se a gerência estiver inativa. |
 | `tipos_patrimonio` | `ativo`. |
 | `profiles` | `ativo`; nasce `false`. |
 | `movimentacoes` | Nunca apagada nem editada. |
@@ -572,11 +725,13 @@ a evolução natural é uma entidade própria de pessoas/servidores, separada de
 
 ## Riscos e decisões pendentes
 
-1. **SQL nunca executado.** A migration só passou por revisão manual. Antes
-   de aplicar no remoto, recomenda-se rodá-la num Postgres descartável
-   (ex.: `supabase start` local) e testar os cenários de permissão e
-   transição, incluindo `ALTERACAO_RESPONSAVEL` e a impossibilidade de
-   excluir um usuário com profile.
+1. **SQL nunca executado.** As três migrations só passaram por revisão
+   manual (as duas primeiras já foram aplicadas no Supabase remoto pelo
+   próprio usuário via SQL Editor; a terceira, de `localizacoes`, ainda
+   não). Antes de aplicar a terceira no remoto, recomenda-se rodá-la num
+   Postgres descartável (ex.: `supabase start` local) e testar os cenários
+   de permissão, transição e concorrência descritos na própria migration
+   (seção "TESTES CONCEITUAIS").
 2. **Reativação de `BAIXADO`** e **gestão de usuários pelo app** ainda não
    existem (hoje só pelo SQL Editor).
 3. **Excluir um usuário do Supabase Auth passa a falhar sempre** (FK
@@ -586,6 +741,14 @@ a evolução natural é uma entidade própria de pessoas/servidores, separada de
    de conta solicitada pelo usuário, LGPD) precisa levar em conta —
    "excluir" deixa de ser uma operação disponível; o caminho passa a ser
    sempre desativação.
+4. **Filtro por localização na listagem de patrimônios** ainda não existe na
+   UI (só o embed/exibição da localização atual).
+5. **Contagem de localizações por gerência** na listagem de Setores ainda
+   não existe na UI — só o link de acesso à tela de gestão.
+6. **Tela de histórico de movimentações** (timeline com origem/destino de
+   setor e localização) ainda não existe no app; `MovimentacaoRepository`
+   já expõe `registrarMovimentacao(..., limparLocalizacao: ...)`, mas
+   nenhuma tela chama esse método ainda.
 
 ### Confirmado nesta revisão (não são mais riscos em aberto)
 

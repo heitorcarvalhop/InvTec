@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/dashboard/data/dashboard_repository_supabase.dart';
+import 'package:invtec/features/localizacoes/data/localizacao_repository_supabase.dart';
+import 'package:invtec/features/localizacoes/domain/localizacao.dart';
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/data/tipo_patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/domain/tipo_patrimonio.dart';
@@ -14,6 +16,7 @@ import 'package:invtec/features/setores/domain/setor.dart';
 
 import '../auth/fake_auth_repository.dart';
 import '../dashboard/fake_dashboard_repository.dart';
+import '../localizacoes/fake_localizacao_repository.dart';
 import '../setores/fake_setor_repository.dart';
 import 'fake_patrimonio_repository.dart';
 import 'fake_tipo_patrimonio_repository.dart';
@@ -33,6 +36,7 @@ Future<void> _pumpFormPage(
   required FakePatrimonioRepository patrimonioRepo,
   List<TipoPatrimonio>? tipos,
   List<Setor>? setores,
+  List<Localizacao>? localizacoes,
 }) async {
   final fakeAuth = FakeAuthRepository(
     initialUserId: 'fake-user-id',
@@ -74,6 +78,9 @@ Future<void> _pumpFormPage(
         ),
         dashboardRepositoryProvider.overrideWithValue(
           FakeDashboardRepository(),
+        ),
+        localizacaoRepositoryProvider.overrideWithValue(
+          FakeLocalizacaoRepository(localizacoes: localizacoes ?? const []),
         ),
       ],
       child: MaterialApp.router(routerConfig: router),
@@ -235,5 +242,63 @@ void main() {
     await _tocarBotao(tester, 'Cadastrar patrimônio');
 
     expect(find.text('Já existe um patrimônio com este número.'), findsOneWidget);
+  });
+
+  testWidgets('seletor de localização só mostra localizações da gerência escolhida', (tester) async {
+    final repo = FakePatrimonioRepository();
+    final setores = [
+      Setor(id: 'setor-1', nome: 'GETEC', ativo: true, criadoEm: DateTime.now()),
+      Setor(id: 'setor-2', nome: 'GEVEV', ativo: true, criadoEm: DateTime.now()),
+    ];
+    await _pumpFormPage(
+      tester,
+      patrimonioRepo: repo,
+      setores: setores,
+      localizacoes: [
+        Localizacao(id: 'loc-1', setorId: 'setor-1', nome: 'Home Office', ativo: true, criadoEm: DateTime.now()),
+        Localizacao(id: 'loc-2', setorId: 'setor-2', nome: 'Sala 5', ativo: true, criadoEm: DateTime.now()),
+      ],
+    );
+
+    await _selecionarDropdown(tester, 'Destino / Setor atual *', 'GETEC');
+
+    final campoLocalizacao = find.widgetWithText(DropdownButtonFormField<String>, 'Localização');
+    expect(campoLocalizacao, findsOneWidget);
+    await tester.ensureVisible(campoLocalizacao);
+    await tester.pumpAndSettle();
+    await tester.tap(campoLocalizacao);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home Office'), findsOneWidget);
+    expect(find.text('Sala 5'), findsNothing);
+  });
+
+  testWidgets('trocar a gerência limpa a localização escolhida', (tester) async {
+    final repo = FakePatrimonioRepository();
+    final setores = [
+      Setor(id: 'setor-1', nome: 'GETEC', ativo: true, criadoEm: DateTime.now()),
+      Setor(id: 'setor-2', nome: 'GEVEV', ativo: true, criadoEm: DateTime.now()),
+    ];
+    await _pumpFormPage(
+      tester,
+      patrimonioRepo: repo,
+      setores: setores,
+      localizacoes: [
+        Localizacao(id: 'loc-1', setorId: 'setor-1', nome: 'Home Office', ativo: true, criadoEm: DateTime.now()),
+      ],
+    );
+
+    await _selecionarDropdown(tester, 'Tipo *', 'Notebook');
+    await _selecionarDropdown(tester, 'Destino / Setor atual *', 'GETEC');
+    await _selecionarDropdown(tester, 'Localização', 'Home Office');
+    // troca de gerência: GEVEV não tem localizações cadastradas.
+    await _selecionarDropdown(tester, 'Destino / Setor atual *', 'GEVEV');
+
+    expect(find.textContaining('não possui localizações cadastradas'), findsOneWidget);
+
+    await _tocarBotao(tester, 'Cadastrar patrimônio');
+    expect(repo.cadastrarCallCount, 1);
+    // a localização de GETEC nunca deveria ir junto de um cadastro em GEVEV.
+    expect(repo.ultimoCadastro?['localizacaoDestinoId'], isNull);
   });
 }

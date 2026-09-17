@@ -8,6 +8,7 @@ import '../theme/app_spacing.dart';
 import 'navigation_items.dart';
 import 'widgets/app_navigation_drawer.dart';
 import 'widgets/navigation_sidebar.dart';
+import 'widgets/theme_toggle_button.dart';
 import 'widgets/user_profile_header.dart';
 
 /// Shell reutilizável para todas as páginas autenticadas: cuida de
@@ -41,7 +42,10 @@ class AppShell extends ConsumerWidget {
 
     if (context.screenSize == ScreenSize.mobile) {
       return Scaffold(
-        appBar: AppBar(title: const Text('InvTec')),
+        appBar: AppBar(
+          title: const Text('InvTec'),
+          actions: const [ThemeToggleButton(compact: true), SizedBox(width: AppSpacing.sm)],
+        ),
         drawer: AppNavigationDrawer(
           profile: profile,
           currentRoute: currentRoute,
@@ -63,6 +67,8 @@ class AppShell extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('InvTec'),
         actions: [
+          const ThemeToggleButton(),
+          const SizedBox(width: AppSpacing.lg),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.md),
             child: Center(child: UserProfileHeader(profile: profile)),

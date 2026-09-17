@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/status_chip.dart';
 import '../../domain/patrimonio.dart';
 
 /// Status amigável (nunca o enum técnico na tela). Cor é só reforço visual
@@ -11,42 +12,13 @@ class PatrimonioStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final (background, foreground) = switch (status) {
-      PatrimonioStatus.disponivel => (
-        colorScheme.surfaceContainerHighest,
-        colorScheme.onSurfaceVariant,
-      ),
-      PatrimonioStatus.emUso => (
-        colorScheme.primaryContainer,
-        colorScheme.onPrimaryContainer,
-      ),
-      PatrimonioStatus.emprestado => (
-        colorScheme.tertiaryContainer,
-        colorScheme.onTertiaryContainer,
-      ),
-      PatrimonioStatus.emManutencao => (
-        colorScheme.errorContainer,
-        colorScheme.onErrorContainer,
-      ),
-      PatrimonioStatus.baixado => (
-        colorScheme.surfaceContainerHighest,
-        colorScheme.onSurfaceVariant,
-      ),
+    final kind = switch (status) {
+      PatrimonioStatus.disponivel => AppStatusKind.success,
+      PatrimonioStatus.emUso => AppStatusKind.info,
+      PatrimonioStatus.emprestado => AppStatusKind.warning,
+      PatrimonioStatus.emManutencao => AppStatusKind.warning,
+      PatrimonioStatus.baixado => AppStatusKind.neutral,
     };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        status.label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(color: foreground),
-      ),
-    );
+    return StatusChip(label: status.label, kind: kind);
   }
 }

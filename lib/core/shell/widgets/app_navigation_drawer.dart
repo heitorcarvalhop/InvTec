@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/auth/domain/profile.dart';
+import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../navigation_items.dart';
 import 'nav_tile.dart';
 import 'user_profile_header.dart';
 
 /// Drawer usado no mobile (largura de janela < 600) — a sidebar fixa do
-/// desktop não cabe numa tela pequena.
+/// desktop não cabe numa tela pequena. Mesma identidade visual da sidebar
+/// (fundo azul-marinho fixo — PROMPT 9.3), para o menu não parecer um
+/// componente diferente ao trocar de tamanho de janela.
 class AppNavigationDrawer extends StatelessWidget {
   const AppNavigationDrawer({
     super.key,
@@ -27,6 +30,7 @@ class AppNavigationDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      backgroundColor: AppColors.sidebarBackground,
       child: SafeArea(
         child: Column(
           children: [
@@ -34,32 +38,22 @@ class AppNavigationDrawer extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: UserProfileHeader(profile: profile),
+                child: UserProfileHeader(profile: profile, onDarkSurface: true),
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: AppColors.sidebarBorder),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.sm,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
                 children: [
                   for (final item in items)
-                    NavTile(
-                      item: item,
-                      selected: item.route == currentRoute,
-                      onTap: () => onNavigate(item.route),
-                    ),
+                    NavTile(item: item, selected: item.route == currentRoute, onTap: () => onNavigate(item.route)),
                 ],
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: AppColors.sidebarBorder),
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.sm,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
               child: Column(
                 children: [
                   NavTile(
@@ -68,9 +62,9 @@ class AppNavigationDrawer extends StatelessWidget {
                     onTap: () => onNavigate(configuracoesItem.route),
                   ),
                   ListTile(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    iconColor: AppColors.sidebarForegroundMuted,
+                    textColor: AppColors.sidebarForegroundMuted,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
                     leading: const Icon(Icons.logout),
                     title: const Text('Sair'),
                     onTap: onLogout,
