@@ -132,3 +132,100 @@ extension AppStatusColorsContext on ThemeData {
   AppStatusColors get statusColors =>
       extension<AppStatusColors>() ?? AppStatusColors.light;
 }
+
+/// Camadas de superfície (PROMPT 9.3.3) — fundo da página, cards, cabeçalho
+/// de tabela, hover de linha e borda, todas nomeadas explicitamente em vez
+/// de reaproveitar a família `surfaceContainer*` da `ColorScheme` gerada
+/// por `ColorScheme.fromSeed`.
+///
+/// Motivo: o algoritmo tonal do Material 3 (HCT) tinge levemente os tons
+/// neutros com o matiz da cor semente — com um azul como semente, isso
+/// produz um cinza com viés lilás perceptível no tema claro (relatado nos
+/// screenshots do PROMPT 9.3.3). [light] usa valores neutros
+/// escolhidos à mão (cinza-azulado discreto, nunca lilás). [dark] continua
+/// derivado da `ColorScheme` do tema escuro — a direção do tema escuro já
+/// estava aprovada; aqui só nomeamos papéis que antes eram implícitos
+/// (cabeçalho de tabela e hover de linha usavam a mesma cor do card, sem
+/// distinção).
+class AppSurfaceColors extends ThemeExtension<AppSurfaceColors> {
+  const AppSurfaceColors({
+    required this.pageBackground,
+    required this.surface,
+    required this.surfaceElevated,
+    required this.input,
+    required this.tableHeader,
+    required this.rowHover,
+    required this.border,
+  });
+
+  final Color pageBackground;
+  final Color surface;
+  final Color surfaceElevated;
+  final Color input;
+  final Color tableHeader;
+  final Color rowHover;
+  final Color border;
+
+  static const light = AppSurfaceColors(
+    pageBackground: Color(0xFFF3F6FA),
+    surface: Color(0xFFFFFFFF),
+    surfaceElevated: Color(0xFFFFFFFF),
+    input: Color(0xFFFFFFFF),
+    tableHeader: Color(0xFFEEF2F7),
+    rowHover: Color(0xFFF4F7FB),
+    border: Color(0xFFE2E8F0),
+  );
+
+  factory AppSurfaceColors.fromDarkColorScheme(ColorScheme colorScheme) {
+    return AppSurfaceColors(
+      pageBackground: colorScheme.surfaceContainerLowest,
+      surface: colorScheme.surfaceContainer,
+      surfaceElevated: colorScheme.surfaceContainerHigh,
+      input: colorScheme.surfaceContainerHigh,
+      tableHeader: colorScheme.surfaceContainerHigh,
+      rowHover: colorScheme.surfaceContainerHighest,
+      border: colorScheme.outlineVariant,
+    );
+  }
+
+  @override
+  AppSurfaceColors copyWith({
+    Color? pageBackground,
+    Color? surface,
+    Color? surfaceElevated,
+    Color? input,
+    Color? tableHeader,
+    Color? rowHover,
+    Color? border,
+  }) {
+    return AppSurfaceColors(
+      pageBackground: pageBackground ?? this.pageBackground,
+      surface: surface ?? this.surface,
+      surfaceElevated: surfaceElevated ?? this.surfaceElevated,
+      input: input ?? this.input,
+      tableHeader: tableHeader ?? this.tableHeader,
+      rowHover: rowHover ?? this.rowHover,
+      border: border ?? this.border,
+    );
+  }
+
+  @override
+  AppSurfaceColors lerp(ThemeExtension<AppSurfaceColors>? other, double t) {
+    if (other is! AppSurfaceColors) return this;
+    return AppSurfaceColors(
+      pageBackground: Color.lerp(pageBackground, other.pageBackground, t)!,
+      surface: Color.lerp(surface, other.surface, t)!,
+      surfaceElevated: Color.lerp(surfaceElevated, other.surfaceElevated, t)!,
+      input: Color.lerp(input, other.input, t)!,
+      tableHeader: Color.lerp(tableHeader, other.tableHeader, t)!,
+      rowHover: Color.lerp(rowHover, other.rowHover, t)!,
+      border: Color.lerp(border, other.border, t)!,
+    );
+  }
+}
+
+/// Acesso curto: `Theme.of(context).surfaceColors`.
+extension AppSurfaceColorsContext on ThemeData {
+  AppSurfaceColors get surfaceColors =>
+      extension<AppSurfaceColors>() ?? AppSurfaceColors.light;
+}

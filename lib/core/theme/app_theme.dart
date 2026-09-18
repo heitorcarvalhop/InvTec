@@ -17,14 +17,23 @@ class AppTheme {
   static ThemeData get light => _base(
     colorScheme: ColorScheme.fromSeed(seedColor: AppColors.seed, brightness: Brightness.light),
     statusColors: AppStatusColors.light,
+    surfaceColors: AppSurfaceColors.light,
   );
 
-  static ThemeData get dark => _base(
-    colorScheme: ColorScheme.fromSeed(seedColor: AppColors.seed, brightness: Brightness.dark),
-    statusColors: AppStatusColors.dark,
-  );
+  static ThemeData get dark {
+    final colorScheme = ColorScheme.fromSeed(seedColor: AppColors.seed, brightness: Brightness.dark);
+    return _base(
+      colorScheme: colorScheme,
+      statusColors: AppStatusColors.dark,
+      surfaceColors: AppSurfaceColors.fromDarkColorScheme(colorScheme),
+    );
+  }
 
-  static ThemeData _base({required ColorScheme colorScheme, required AppStatusColors statusColors}) {
+  static ThemeData _base({
+    required ColorScheme colorScheme,
+    required AppStatusColors statusColors,
+    required AppSurfaceColors surfaceColors,
+  }) {
     final base = ThemeData(useMaterial3: true, colorScheme: colorScheme);
     final textTheme = _textTheme(base.textTheme);
 
@@ -32,32 +41,36 @@ class AppTheme {
       textTheme: textTheme,
       // Fundo levemente afastado das superfícies "acima" dele (cards,
       // sidebar, appbar) — sem preto/branco absoluto em nenhum dos dois
-      // temas (seção "TEMA ESCURO"/"TEMA CLARO" do prompt).
-      scaffoldBackgroundColor: colorScheme.surfaceContainerLowest,
-      extensions: [statusColors],
+      // temas (seção "TEMA ESCURO"/"TEMA CLARO" do prompt), e sem o viés
+      // lilás da família `surfaceContainer*` gerada por `fromSeed` no tema
+      // claro (PROMPT 9.3.3) — ver [AppSurfaceColors].
+      scaffoldBackgroundColor: surfaceColors.pageBackground,
+      extensions: [statusColors, surfaceColors],
       cardTheme: CardThemeData(
         elevation: 0,
-        color: colorScheme.surfaceContainer,
+        color: surfaceColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          side: BorderSide(color: colorScheme.outlineVariant),
+          side: BorderSide(color: surfaceColors.border),
         ),
         margin: EdgeInsets.zero,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.surfaceContainerLowest,
+        // Mesma cor do fundo da página: a topbar não deve parecer uma
+        // segunda barra empilhada sobre a sidebar (PROMPT 9.3.3, seção 3).
+        backgroundColor: surfaceColors.pageBackground,
         foregroundColor: colorScheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 1,
         surfaceTintColor: colorScheme.surfaceTint,
         titleTextStyle: textTheme.titleLarge,
       ),
-      navigationDrawerTheme: NavigationDrawerThemeData(backgroundColor: colorScheme.surface),
-      dividerTheme: DividerThemeData(color: colorScheme.outlineVariant),
+      navigationDrawerTheme: NavigationDrawerThemeData(backgroundColor: surfaceColors.surface),
+      dividerTheme: DividerThemeData(color: surfaceColors.border),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
         filled: true,
-        fillColor: colorScheme.surface,
+        fillColor: surfaceColors.input,
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -84,6 +97,7 @@ class AppTheme {
         labelStyle: textTheme.labelMedium,
       ),
       dialogTheme: DialogThemeData(
+        backgroundColor: surfaceColors.surfaceElevated,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
       ),
       snackBarTheme: SnackBarThemeData(

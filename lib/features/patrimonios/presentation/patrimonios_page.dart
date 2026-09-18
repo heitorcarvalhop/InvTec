@@ -113,21 +113,34 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
                   : const [],
             ),
             const SizedBox(height: AppSpacing.md),
-            _SearchBar(
-              controller: _searchController,
-              campoBusca: _campoBusca,
-              onCampoBuscaChanged: _alterarCampoBusca,
-              onChanged: (value) => ref
-                  .read(patrimoniosControllerProvider.notifier)
-                  .buscar(value),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            stateAsync.maybeWhen(
-              data: (state) => PatrimonioFilters(
-                filtro: state.filtro,
-                onLimparFiltros: _limparFiltros,
+            // Busca + filtros + filtros avançados agrupados num único
+            // painel (PROMPT 9.3.3, seção 6) — antes eram controles soltos
+            // direto no fundo da página.
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SearchBar(
+                      controller: _searchController,
+                      campoBusca: _campoBusca,
+                      onCampoBuscaChanged: _alterarCampoBusca,
+                      onChanged: (value) => ref
+                          .read(patrimoniosControllerProvider.notifier)
+                          .buscar(value),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    stateAsync.maybeWhen(
+                      data: (state) => PatrimonioFilters(
+                        filtro: state.filtro,
+                        onLimparFiltros: _limparFiltros,
+                      ),
+                      orElse: () => const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
               ),
-              orElse: () => const SizedBox.shrink(),
             ),
             const SizedBox(height: AppSpacing.lg),
             stateAsync.when(

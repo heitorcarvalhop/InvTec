@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/patrimonio.dart';
@@ -54,7 +55,8 @@ class _HeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = AppTypography.label(context);
-    return Padding(
+    return Container(
+      color: Theme.of(context).surfaceColors.tableHeader,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Row(
         children: [
@@ -97,7 +99,7 @@ class _DataRowState extends State<_DataRow> {
       onExit: (_) => setState(() => _hovering = false),
       cursor: SystemMouseCursors.click,
       child: Container(
-        color: _hovering ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5) : null,
+        color: _hovering ? theme.surfaceColors.rowHover : null,
         child: InkWell(
           onTap: widget.onTap,
           child: Padding(

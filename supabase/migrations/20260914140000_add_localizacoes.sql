@@ -1,8 +1,9 @@
 -- =============================================================================
 -- InvTec — suporte a Localizações dentro de um Setor/Gerência.
 --
--- IMPORTANTE: esta migration ainda NÃO foi aplicada no Supabase remoto.
--- Revise antes de aplicar. Não modifica as migrations já aplicadas
+-- IMPORTANTE: já aplicada no Supabase remoto (confirmado pelo usuário no
+-- PROMPT 10.2) — mantida aqui só como registro histórico de como o schema
+-- chegou ao estado atual. Não modifica as migrations anteriores
 -- (20260910120000_initial_schema.sql, 20260911130000_update_tipos_...sql).
 --
 -- CONTEXTO DE NEGÓCIO: `public.setores` passa a representar a unidade

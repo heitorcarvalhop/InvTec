@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../domain/patrimonio.dart';
@@ -203,7 +205,16 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
           ),
         ),
         if (_avancadoExpandido)
-          Card(
+          Container(
+            // Sem Card/borda própria: este bloco já vive dentro do painel
+            // de busca+filtros (PROMPT 9.3.3, seção 6) — um tom
+            // ligeiramente diferente do fundo do painel basta para
+            // demarcar a seção "afundada", sem duplicar bordas.
+            margin: const EdgeInsets.only(top: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: Theme.of(context).surfaceColors.pageBackground,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Wrap(

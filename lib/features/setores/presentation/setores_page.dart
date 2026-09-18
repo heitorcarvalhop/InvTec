@@ -111,10 +111,17 @@ class _SetoresPageState extends ConsumerState<SetoresPage> {
                   : const [],
             ),
             const SizedBox(height: AppSpacing.md),
-            _SearchField(
-              controller: _searchController,
-              onChanged: (value) =>
-                  ref.read(setoresControllerProvider.notifier).buscar(value),
+            // Mesmo tratamento de painel da busca em Patrimônios (PROMPT
+            // 9.3.3, seção 8) — consistência visual entre as duas telas.
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: _SearchField(
+                  controller: _searchController,
+                  onChanged: (value) =>
+                      ref.read(setoresControllerProvider.notifier).buscar(value),
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             setoresAsync.when(

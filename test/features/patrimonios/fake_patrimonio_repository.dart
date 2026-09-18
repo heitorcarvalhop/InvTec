@@ -90,6 +90,19 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     return null;
   }
 
+  /// Substitui (ou adiciona) o item de um id — só para simular, em teste,
+  /// outra sessão alterando o patrimônio entre a leitura inicial e uma
+  /// releitura posterior (PROMPT 10.2.1, seção 4: concorrência). Nunca usado
+  /// pelo app real, só pelos testes.
+  void substituirDetalhe(PatrimonioDetalhe detalhe) {
+    final index = _itens.indexWhere((item) => item.patrimonio.id == detalhe.patrimonio.id);
+    if (index >= 0) {
+      _itens[index] = detalhe;
+    } else {
+      _itens.add(detalhe);
+    }
+  }
+
   @override
   Future<Patrimonio?> buscarPorNumeroPatrimonio(
     String numeroPatrimonio,

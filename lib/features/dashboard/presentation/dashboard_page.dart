@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -9,6 +11,7 @@ import '../../../core/widgets/status_chip.dart';
 import '../../../core/widgets/stat_card.dart';
 import '../domain/movimentacao_resumo.dart';
 import '../../movimentacoes/domain/movimentacao.dart';
+import '../../movimentacoes/presentation/widgets/movimentacao_tipo_visual.dart';
 import 'dashboard_providers.dart';
 
 class DashboardPage extends ConsumerWidget {
@@ -132,39 +135,68 @@ class _RecentMovements extends StatelessWidget {
   }
 }
 
-class _MovementRow extends StatelessWidget {
+class _MovementRow extends StatefulWidget {
   const _MovementRow({required this.item});
 
   final MovimentacaoResumo item;
 
   @override
+  State<_MovementRow> createState() => _MovementRowState();
+}
+
+class _MovementRowState extends State<_MovementRow> {
+  bool _hovering = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      child: Row(
-        children: [
-          Icon(Icons.swap_horiz, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.patrimonioLabel, style: AppTypography.body(context)?.copyWith(fontWeight: FontWeight.w600)),
-                Text(item.tipo.label, style: AppTypography.auxiliary(context)),
-              ],
+    final item = widget.item;
+    final statusColors = Theme.of(context).statusColors;
+    final (icon, kind) = visualDoTipoMovimentacao(item.tipo);
+    final (badgeBackground, badgeForeground) = switch (kind) {
+      AppStatusKind.success => (statusColors.successBackground, statusColors.successForeground),
+      AppStatusKind.warning => (statusColors.warningBackground, statusColors.warningForeground),
+      AppStatusKind.error => (statusColors.errorBackground, statusColors.errorForeground),
+      AppStatusKind.info => (statusColors.infoBackground, statusColors.infoForeground),
+      AppStatusKind.neutral => (statusColors.neutralBackground, statusColors.neutralForeground),
+    };
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: Container(
+        color: _hovering ? Theme.of(context).surfaceColors.rowHover : null,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.smd),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(color: badgeBackground, borderRadius: BorderRadius.circular(AppRadius.sm)),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 16, color: badgeForeground),
             ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              '${item.origemNome ?? '—'} → ${item.destinoNome ?? '—'}',
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body(context),
+            const SizedBox(width: AppSpacing.smd),
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.patrimonioLabel, style: AppTypography.body(context)?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(item.tipo.label, style: AppTypography.auxiliary(context)),
+                ],
+              ),
             ),
-          ),
-          Text(_formatarData(item.dataMovimentacao), style: AppTypography.caption(context)),
-        ],
+            Expanded(
+              flex: 3,
+              child: Text(
+                '${item.origemNome ?? '—'} → ${item.destinoNome ?? '—'}',
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.body(context),
+              ),
+            ),
+            Text(_formatarData(item.dataMovimentacao), style: AppTypography.caption(context)),
+          ],
+        ),
       ),
     );
   }

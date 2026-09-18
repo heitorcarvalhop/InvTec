@@ -10,10 +10,9 @@ Modelo definido em três migrations:
 3. [`20260914140000_add_localizacoes.sql`](../supabase/migrations/20260914140000_add_localizacoes.sql)
    — introduz `public.localizacoes` (seção própria abaixo) e evolui
    `cadastrar_patrimonio`/`registrar_movimentacao` para aceitá-las.
-   **Ainda NÃO foi aplicada** no Supabase remoto nem em nenhum Postgres
-   local (não há Postgres/Docker/WSL nesta máquina) — toda a validação até
-   aqui foi revisão manual. Este documento já descreve o estado **final**
-   (pós-migration 3), deixando explícito o que ainda não está em produção.
+   **Já aplicada** no Supabase remoto (confirmado pelo usuário no PROMPT
+   10.2) — a assinatura de 11 parâmetros de `registrar_movimentacao`
+   descrita abaixo é a que está realmente em produção.
 
 ## Visão geral
 

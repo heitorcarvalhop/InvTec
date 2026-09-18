@@ -69,9 +69,9 @@ void main() {
   ) async {
     await _pumpAuthenticated(tester, windowSize: const Size(1280, 800));
 
-    // "InvTec" aparece duas vezes nesta largura: o título do AppBar e a
-    // marca no topo da sidebar (PROMPT 9.3) — ambos legítimos.
-    expect(find.text('InvTec'), findsWidgets);
+    // O AppBar desktop não repete o título "InvTec" (PROMPT 9.3.3): a
+    // marca aparece só uma vez, no topo da sidebar.
+    expect(find.text('InvTec'), findsOneWidget);
     expect(find.text('Gestão de Patrimônio'), findsOneWidget);
     expect(find.text('Dashboard'), findsWidgets);
     expect(find.text('Patrimônios'), findsOneWidget);

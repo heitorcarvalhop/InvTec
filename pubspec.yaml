@@ -42,6 +42,8 @@ dependencies:
   excel: ^4.0.6
   csv: ^8.0.0
   shared_preferences: ^2.5.5
+  pdfrx: ^2.4.5
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:

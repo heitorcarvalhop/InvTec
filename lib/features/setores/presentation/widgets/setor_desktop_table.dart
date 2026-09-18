@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../domain/setor.dart';
 import 'setor_status_chip.dart';
@@ -52,7 +53,8 @@ class _HeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.labelLarge;
-    return Padding(
+    return Container(
+      color: Theme.of(context).surfaceColors.tableHeader,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
@@ -70,7 +72,7 @@ class _HeaderRow extends StatelessWidget {
   }
 }
 
-class _DataRow extends StatelessWidget {
+class _DataRow extends StatefulWidget {
   const _DataRow({
     required this.setor,
     required this.canManage,
@@ -86,70 +88,90 @@ class _DataRow extends StatelessWidget {
   final VoidCallback onLocalizacoes;
 
   @override
+  State<_DataRow> createState() => _DataRowState();
+}
+
+class _DataRowState extends State<_DataRow> {
+  bool _hovering = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(setor.sigla ?? '—', overflow: TextOverflow.ellipsis),
-          ),
-          Expanded(
-            flex: 4,
-            child: Text(setor.nome, overflow: TextOverflow.ellipsis),
-          ),
-          Expanded(
-            flex: 4,
-            child: Text(
-              (setor.descricao == null || setor.descricao!.isEmpty)
-                  ? '—'
-                  : setor.descricao!,
-              overflow: TextOverflow.ellipsis,
+    final setor = widget.setor;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: Container(
+        color: _hovering ? Theme.of(context).surfaceColors.rowHover : null,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(setor.sigla ?? '—', overflow: TextOverflow.ellipsis),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SetorStatusChip(ativo: setor.ativo),
+            Expanded(
+              flex: 4,
+              child: Text(setor.nome, overflow: TextOverflow.ellipsis),
             ),
-          ),
-          Expanded(
-            flex: 4,
-            child: Row(
-              children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Localizações',
-                  icon: const Icon(Icons.place_outlined),
-                  onPressed: onLocalizacoes,
-                ),
-                if (canManage) ...[
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'Editar',
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: onEdit,
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: setor.ativo ? 'Desativar' : 'Reativar',
-                    icon: Icon(
-                      setor.ativo
-                          ? Icons.block_outlined
-                          : Icons.check_circle_outline,
+            Expanded(
+              flex: 4,
+              child: Text(
+                (setor.descricao == null || setor.descricao!.isEmpty)
+                    ? '—'
+                    : setor.descricao!,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SetorStatusChip(ativo: setor.ativo),
+              ),
+            ),
+            Expanded(
+              flex: 4,
+              child: Row(
+                children: [
+                  Tooltip(
+                    message: 'Localizações',
+                    child: IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.place_outlined),
+                      onPressed: widget.onLocalizacoes,
                     ),
-                    onPressed: onToggleAtivo,
                   ),
+                  if (widget.canManage) ...[
+                    Tooltip(
+                      message: 'Editar',
+                      child: IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: widget.onEdit,
+                      ),
+                    ),
+                    Tooltip(
+                      message: setor.ativo ? 'Desativar' : 'Reativar',
+                      child: IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          setor.ativo
+                              ? Icons.block_outlined
+                              : Icons.check_circle_outline,
+                        ),
+                        onPressed: widget.onToggleAtivo,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

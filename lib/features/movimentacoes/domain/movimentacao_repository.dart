@@ -1,5 +1,6 @@
 import 'movimentacao.dart';
 import 'movimentacao_historico_item.dart';
+import 'movimentacoes_resultado.dart';
 
 abstract class MovimentacaoRepository {
   /// Histórico paginado de um patrimônio, do mais recente para o mais antigo.
@@ -7,6 +8,24 @@ abstract class MovimentacaoRepository {
     String patrimonioId, {
     int limit = 20,
     int offset = 0,
+  });
+
+  /// Listagem geral de movimentações (PROMPT 10.1), com busca/filtros e
+  /// paginação resolvidos no servidor — mesmo padrão de
+  /// [PatrimonioRepository.listar]: uma única consulta com embed (nunca
+  /// N+1), ordenada por `data_movimentacao DESC, id DESC`.
+  ///
+  /// [busca] casa por OR contra número do patrimônio, responsável (origem
+  /// OU destino), número de documento e número de chamado. [setorId] casa
+  /// contra origem OU destino.
+  Future<MovimentacoesResultado> listar({
+    int limit = 25,
+    int offset = 0,
+    String? busca,
+    MovimentacaoTipo? tipo,
+    String? setorId,
+    DateTime? periodoDe,
+    DateTime? periodoAte,
   });
 
   /// Igual a [listarPorPatrimonio], mas já traz os nomes de setor/localização
