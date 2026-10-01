@@ -17,6 +17,7 @@ import 'widgets/movimentacoes_filters.dart';
 import 'widgets/movimentacoes_mobile_list.dart';
 import 'widgets/nova_movimentacao_dialog.dart';
 import '../sei/presentation/importar_sei_dialog.dart';
+import '../sei/presentation/widgets/sei_pendencias_section.dart';
 
 /// Listagem geral de movimentações (PROMPT 10.1) — somente leitura: nesta
 /// etapa não há criar/editar/excluir, só consultar o histórico já
@@ -28,8 +29,22 @@ class MovimentacoesPage extends ConsumerStatefulWidget {
   ConsumerState<MovimentacoesPage> createState() => _MovimentacoesPageState();
 }
 
+/// Abas da tela (PROMPT 11.3, seção 4): "Pendências / Documentos SEI" fica
+/// SEPARADA de "Histórico de movimentações" — documentos pendentes nunca
+/// entram no histórico de `movimentacoes`, então a aba de pendências lê
+/// exclusivamente `DocumentosSeiRepository`, nunca `MovimentacaoRepository`.
+enum _MovimentacoesAba { historico, pendencias }
+
 class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
   final _searchController = TextEditingController();
+  _MovimentacoesAba _aba = _MovimentacoesAba.historico;
+
+  // Seção 4: a aba de pendências só é CONSTRUÍDA (e só então dispara a
+  // consulta ao `DocumentosSeiRepository`) depois de visitada pelo menos
+  // uma vez — nunca no primeiro build da tela. Isso evita que toda a
+  // suíte de testes já existente de "Histórico" precise conhecer/sobrepor
+  // o novo repositório de pendências.
+  bool _pendenciasVisitada = false;
 
   @override
   void initState() {
@@ -62,7 +77,27 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
     }
   }
 
-  Future<void> _importarDocumentoSei() => showImportarSeiDialog(context);
+  Future<void> _importarDocumentoSei() async {
+    // Seção 1 (PROMPT 11.3): "Salvar como pendência" no assistente devolve
+    // `true` quando a solicitação foi efetivamente persistida — NUNCA
+    // significa que uma movimentação foi registrada.
+    final salvouPendencia = await showImportarSeiDialog(context);
+    if (salvouPendencia == true && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Solicitação salva como pendência. Nenhuma movimentação foi registrada.')),
+        );
+      setState(() => _aba = _MovimentacoesAba.pendencias);
+    }
+  }
+
+  void _selecionarAba(_MovimentacoesAba aba) {
+    setState(() {
+      _aba = aba;
+      if (aba == _MovimentacoesAba.pendencias) _pendenciasVisitada = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,74 +146,94 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                   : const [],
             ),
             const SizedBox(height: AppSpacing.md),
-            // Mesmo painel de busca+filtros de Patrimônios/Setores (PROMPT
-            // 9.3.3): tudo agrupado numa única superfície coesa.
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SearchField(
-                      controller: _searchController,
-                      onChanged: (value) => ref.read(movimentacoesControllerProvider.notifier).buscar(value),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    stateAsync.maybeWhen(
-                      data: (state) => MovimentacoesFilters(
-                        filtro: state.filtro,
-                        onLimparFiltros: _limparFiltros,
+            // Seção 4 (PROMPT 11.3): duas seções distintas — "Pendências /
+            // Documentos SEI" nunca mistura com o histórico de
+            // movimentações efetivamente registradas.
+            SegmentedButton<_MovimentacoesAba>(
+              segments: const [
+                ButtonSegment(
+                  value: _MovimentacoesAba.historico,
+                  label: Text('Histórico de movimentações'),
+                  icon: Icon(Icons.history),
+                ),
+                ButtonSegment(
+                  value: _MovimentacoesAba.pendencias,
+                  label: Text('Pendências / Documentos SEI'),
+                  icon: Icon(Icons.pending_actions_outlined),
+                ),
+              ],
+              selected: {_aba},
+              onSelectionChanged: (selecionados) => _selecionarAba(selecionados.first),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (_aba == _MovimentacoesAba.historico) ...[
+              // Mesmo painel de busca+filtros de Patrimônios/Setores
+              // (PROMPT 9.3.3): tudo agrupado numa única superfície coesa.
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SearchField(
+                        controller: _searchController,
+                        onChanged: (value) => ref.read(movimentacoesControllerProvider.notifier).buscar(value),
                       ),
-                      orElse: () => const SizedBox.shrink(),
-                    ),
-                  ],
+                      const SizedBox(height: AppSpacing.md),
+                      stateAsync.maybeWhen(
+                        data: (state) => MovimentacoesFilters(filtro: state.filtro, onLimparFiltros: _limparFiltros),
+                        orElse: () => const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            stateAsync.when(
-              data: (state) {
-                final itens = state.resultado.itens;
-                if (itens.isEmpty) {
-                  return _EmptyList(
-                    temFiltroOuBusca: state.filtro.temFiltroAtivo || termoBusca.isNotEmpty,
-                    termoBusca: termoBusca,
-                  );
-                }
+              const SizedBox(height: AppSpacing.lg),
+              stateAsync.when(
+                data: (state) {
+                  final itens = state.resultado.itens;
+                  if (itens.isEmpty) {
+                    return _EmptyList(
+                      temFiltroOuBusca: state.filtro.temFiltroAtivo || termoBusca.isNotEmpty,
+                      termoBusca: termoBusca,
+                    );
+                  }
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    context.screenSize == ScreenSize.mobile
-                        ? MovimentacoesMobileList(itens: itens, onVisualizar: _visualizar)
-                        : MovimentacoesDesktopTable(itens: itens, onVisualizar: _visualizar),
-                    const SizedBox(height: AppSpacing.lg),
-                    PaginationControls(
-                      paginaAtual: state.filtro.pagina,
-                      totalPaginas: state.totalPaginas,
-                      totalItens: state.resultado.total,
-                      tamanhoPagina: state.filtro.tamanhoPagina,
-                      tamanhosPaginaPermitidos: movimentacoesTamanhosPaginaPermitidos,
-                      onChanged: (pagina) => ref.read(movimentacoesControllerProvider.notifier).irParaPagina(pagina),
-                      onTamanhoPaginaChanged: (tamanho) =>
-                          ref.read(movimentacoesControllerProvider.notifier).definirTamanhoPagina(tamanho),
-                    ),
-                  ],
-                );
-              },
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, stackTrace) => Center(
-                child: EmptyState(
-                  icon: Icons.error_outline,
-                  message: 'Não foi possível acessar as movimentações. Tente novamente.',
-                  actionLabel: 'Tentar novamente',
-                  onAction: () => ref.read(movimentacoesControllerProvider.notifier).recarregar(),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      context.screenSize == ScreenSize.mobile
+                          ? MovimentacoesMobileList(itens: itens, onVisualizar: _visualizar)
+                          : MovimentacoesDesktopTable(itens: itens, onVisualizar: _visualizar),
+                      const SizedBox(height: AppSpacing.lg),
+                      PaginationControls(
+                        paginaAtual: state.filtro.pagina,
+                        totalPaginas: state.totalPaginas,
+                        totalItens: state.resultado.total,
+                        tamanhoPagina: state.filtro.tamanhoPagina,
+                        tamanhosPaginaPermitidos: movimentacoesTamanhosPaginaPermitidos,
+                        onChanged: (pagina) => ref.read(movimentacoesControllerProvider.notifier).irParaPagina(pagina),
+                        onTamanhoPaginaChanged: (tamanho) =>
+                            ref.read(movimentacoesControllerProvider.notifier).definirTamanhoPagina(tamanho),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (error, stackTrace) => Center(
+                  child: EmptyState(
+                    icon: Icons.error_outline,
+                    message: 'Não foi possível acessar as movimentações. Tente novamente.',
+                    actionLabel: 'Tentar novamente',
+                    onAction: () => ref.read(movimentacoesControllerProvider.notifier).recarregar(),
+                  ),
                 ),
               ),
-            ),
+            ] else if (_pendenciasVisitada)
+              const SeiPendenciasSection(),
           ],
         ),
       ),
@@ -226,14 +281,13 @@ class _EmptyList extends StatelessWidget {
       final mensagem = termoBusca.isEmpty
           ? 'Nenhuma movimentação encontrada.'
           : 'Nenhuma movimentação encontrada para "$termoBusca".';
-      return Card(child: EmptyState(icon: Icons.search_off, message: mensagem));
+      return Card(
+        child: EmptyState(icon: Icons.search_off, message: mensagem),
+      );
     }
 
     return const Card(
-      child: EmptyState(
-        icon: Icons.swap_horiz_outlined,
-        message: 'Nenhuma movimentação registrada ainda.',
-      ),
+      child: EmptyState(icon: Icons.swap_horiz_outlined, message: 'Nenhuma movimentação registrada ainda.'),
     );
   }
 }

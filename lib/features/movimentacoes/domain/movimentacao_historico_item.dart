@@ -1,3 +1,4 @@
+import '../../../core/utils/setor_display.dart';
 import 'movimentacao.dart';
 
 /// Entrada do histórico (timeline) de UM patrimônio, com os nomes de
@@ -12,6 +13,8 @@ class MovimentacaoHistoricoItem {
     required this.tipo,
     this.setorOrigemNome,
     this.setorDestinoNome,
+    this.setorOrigemSigla,
+    this.setorDestinoSigla,
     this.localizacaoOrigemNome,
     this.localizacaoDestinoNome,
     this.responsavelOrigem,
@@ -32,6 +35,8 @@ class MovimentacaoHistoricoItem {
       tipo: MovimentacaoTipo.fromValue(json['tipo'] as String),
       setorOrigemNome: setorOrigem?['nome'] as String?,
       setorDestinoNome: setorDestino?['nome'] as String?,
+      setorOrigemSigla: setorOrigem?['sigla'] as String?,
+      setorDestinoSigla: setorDestino?['sigla'] as String?,
       localizacaoOrigemNome: localizacaoOrigem?['nome'] as String?,
       localizacaoDestinoNome: localizacaoDestino?['nome'] as String?,
       responsavelOrigem: json['responsavel_origem'] as String?,
@@ -46,6 +51,8 @@ class MovimentacaoHistoricoItem {
   final MovimentacaoTipo tipo;
   final String? setorOrigemNome;
   final String? setorDestinoNome;
+  final String? setorOrigemSigla;
+  final String? setorDestinoSigla;
   final String? localizacaoOrigemNome;
   final String? localizacaoDestinoNome;
   final String? responsavelOrigem;
@@ -53,4 +60,10 @@ class MovimentacaoHistoricoItem {
   final String? motivo;
   final String? observacao;
   final DateTime dataMovimentacao;
+
+  /// PROMPT 11.3.5.4 — texto COMPACTO de origem/destino: a sigla real do
+  /// setor quando cadastrada, senão o nome completo. [setorOrigemNome]/
+  /// [setorDestinoNome] continuam disponíveis para tooltip/detalhamento.
+  String? get setorOrigemExibidoCompacto => siglaOuNomeSetor(sigla: setorOrigemSigla, nome: setorOrigemNome);
+  String? get setorDestinoExibidoCompacto => siglaOuNomeSetor(sigla: setorDestinoSigla, nome: setorDestinoNome);
 }

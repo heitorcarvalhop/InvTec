@@ -114,7 +114,7 @@ class _DesktopTopBar extends StatelessWidget {
         children: [
           const ThemeToggleButton(),
           const SizedBox(width: AppSpacing.lg),
-          UserProfileHeader(profile: profile),
+          Flexible(child: UserProfileHeader(profile: profile)),
         ],
       ),
     );

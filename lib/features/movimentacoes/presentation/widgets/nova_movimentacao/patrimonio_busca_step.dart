@@ -16,12 +16,7 @@ import '../../../../patrimonios/presentation/widgets/patrimonio_status_chip.dart
 /// ([PatrimonioRepository.listar] com `campoBusca: tudo`) — nunca carrega
 /// os 1.744 patrimônios em memória para montar um seletor.
 class PatrimonioBuscaStep extends ConsumerStatefulWidget {
-  const PatrimonioBuscaStep({
-    super.key,
-    required this.selecionado,
-    required this.onSelecionar,
-    required this.onTrocar,
-  });
+  const PatrimonioBuscaStep({super.key, required this.selecionado, required this.onSelecionar, required this.onTrocar});
 
   final PatrimonioDetalhe? selecionado;
   final ValueChanged<PatrimonioDetalhe> onSelecionar;
@@ -92,27 +87,21 @@ class _PatrimonioBuscaStepState extends ConsumerState<PatrimonioBuscaStep> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Selecione o patrimônio',
-          style: AppTypography.pageSubtitle(context),
-        ),
+        Text('Selecione o patrimônio', style: AppTypography.pageSubtitle(context)),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Busque por número de patrimônio, número de série ou descrição.',
-          style: AppTypography.auxiliary(context),
-        ),
+        Text('Busque por número de patrimônio, número de série ou descrição.', style: AppTypography.auxiliary(context)),
         const SizedBox(height: AppSpacing.md),
         TextField(
           controller: _controller,
           autofocus: true,
           onChanged: _buscar,
-          decoration: const InputDecoration(
-            hintText: 'Número, série ou descrição...',
-            prefixIcon: Icon(Icons.search),
-          ),
+          decoration: const InputDecoration(hintText: 'Número, série ou descrição...', prefixIcon: Icon(Icons.search)),
         ),
         const SizedBox(height: AppSpacing.md),
-        if (_buscando) const Center(child: Padding(padding: EdgeInsets.all(AppSpacing.md), child: CircularProgressIndicator())),
+        if (_buscando)
+          const Center(
+            child: Padding(padding: EdgeInsets.all(AppSpacing.md), child: CircularProgressIndicator()),
+          ),
         if (_erro != null)
           Text(
             'Não foi possível buscar patrimônios. Tente novamente.',
@@ -145,7 +134,11 @@ class _ListaResultados extends StatelessWidget {
           for (var i = 0; i < itens.length; i++) ...[
             ListTile(
               title: Text(itens[i].patrimonio.numeroPatrimonio ?? '(sem número)'),
-              subtitle: Text('${itens[i].tipoNome} · ${itens[i].setorNome}'),
+              // PROMPT 11.3.5.4: sigla cadastrada no lugar do nome completo
+              // do setor — item de lista, sem espaço para tooltip por
+              // segmento (o resumo abaixo, ao selecionar, mostra o nome
+              // completo por tooltip).
+              subtitle: Text('${itens[i].tipoNome} · ${itens[i].setorExibidoCompacto}'),
               trailing: PatrimonioStatusChip(status: itens[i].patrimonio.status),
               onTap: () => onSelecionar(itens[i]),
             ),
@@ -177,18 +170,17 @@ class _ResumoPatrimonio extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    p.numeroPatrimonio ?? '(sem número)',
-                    style: AppTypography.pageSubtitle(context),
-                  ),
-                ),
+                Expanded(child: Text(p.numeroPatrimonio ?? '(sem número)', style: AppTypography.pageSubtitle(context))),
                 PatrimonioStatusChip(status: p.status),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             _LinhaResumo('Equipamento', detalhe.tipoNome),
-            _LinhaResumo('Setor atual', detalhe.setorNome),
+            _LinhaResumo(
+              'Setor atual',
+              detalhe.setorExibidoCompacto,
+              valorTooltip: detalhe.setorExibidoCompacto == detalhe.setorNome ? null : detalhe.setorNome,
+            ),
             _LinhaResumo('Localização atual', detalhe.localizacaoNome ?? '—'),
             _LinhaResumo('Responsável atual', p.responsavelAtual ?? '—'),
             const SizedBox(height: AppSpacing.sm),
@@ -208,20 +200,26 @@ class _ResumoPatrimonio extends StatelessWidget {
 }
 
 class _LinhaResumo extends StatelessWidget {
-  const _LinhaResumo(this.rotulo, this.valor);
+  const _LinhaResumo(this.rotulo, this.valor, {this.valorTooltip});
 
   final String rotulo;
   final String valor;
 
+  /// PROMPT 11.3.5.4 — nome completo de um setor exibido pela sigla.
+  final String? valorTooltip;
+
   @override
   Widget build(BuildContext context) {
+    final valorText = Text(valor, style: AppTypography.body(context));
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(width: 130, child: Text(rotulo, style: AppTypography.auxiliary(context))),
-          Expanded(child: Text(valor, style: AppTypography.body(context))),
+          Expanded(
+            child: valorTooltip == null ? valorText : Tooltip(message: valorTooltip, child: valorText),
+          ),
         ],
       ),
     );

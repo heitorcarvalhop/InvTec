@@ -24,6 +24,11 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
   final List<MovimentacaoHistoricoItem> historico;
   final Movimentacao? movimentacaoRegistrada;
 
+  /// Só para teste (PROMPT 11.2.1): simula outra movimentação sendo
+  /// registrada "por fora" deste fake — ex.: por outro usuário, entre a
+  /// análise original e uma revalidação.
+  void adicionarMovimentacao(MovimentacaoListagemItem item) => _itens.add(item);
+
   /// Erro para [listar] — nunca usado por [registrarMovimentacao] (ver
   /// [erroRegistrar]): os dois precisam poder ser testados
   /// independentemente, sem um teste de listagem acidentalmente também
@@ -52,6 +57,14 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
   /// bem sucedido recarrega a listagem geral (PROMPT 10.2, seção 12), sem
   /// precisar inspecionar o widget da lista.
   int listarCallCount = 0;
+
+  /// Quantas vezes [listarPorNumeroDocumento] foi chamado — usado para
+  /// provar que a checagem de duplicidade do importador SEI (PROMPT 11.2.1)
+  /// faz uma leitura por análise/revalidação, nunca uma por item (N+1).
+  int listarPorNumeroDocumentoCallCount = 0;
+
+  /// Argumentos exatos da última chamada a [listarPorNumeroDocumento].
+  Map<String, Object?>? ultimaChamadaListarPorNumeroDocumento;
 
   @override
   Future<List<Movimentacao>> listarPorPatrimonio(
@@ -130,6 +143,25 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
 
     final pagina = lista.skip(offset).take(limit).toList();
     return MovimentacoesResultado(itens: pagina, total: lista.length);
+  }
+
+  @override
+  Future<List<MovimentacaoListagemItem>> listarPorNumeroDocumento(
+    String numeroDocumento, {
+    List<String>? patrimonioIds,
+  }) async {
+    listarPorNumeroDocumentoCallCount++;
+    ultimaChamadaListarPorNumeroDocumento = {'numeroDocumento': numeroDocumento, 'patrimonioIds': patrimonioIds};
+    if (erro != null) throw erro!;
+
+    // Reproduz a mesma semântica da implementação real (PROMPT 11.2.1,
+    // seção 2): `eq` exato de numero_documento, nunca substring/OR, e
+    // filtro adicional por patrimonioIds quando informado — nunca um
+    // limite fixo que descarte linha alguma.
+    return _itens
+        .where((item) => item.numeroDocumento == numeroDocumento)
+        .where((item) => patrimonioIds == null || patrimonioIds.isEmpty || patrimonioIds.contains(item.patrimonioId))
+        .toList();
   }
 
   @override

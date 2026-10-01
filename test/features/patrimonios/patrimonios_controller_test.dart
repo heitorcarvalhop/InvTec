@@ -8,6 +8,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
+import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
 import 'package:invtec/features/patrimonios/presentation/patrimonios_controller.dart';
 
 import 'fake_patrimonio_repository.dart';
@@ -155,6 +156,12 @@ class _RepositorioComPortoesListar implements PatrimonioRepository {
   @override
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) =>
       _delegado.buscarNumerosSerieExistentes(numerosSerie);
+  @override
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) =>
+      _delegado.aplicarDecisaoComparacao(decisao);
+  @override
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) =>
+      _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
 }
 
 ProviderContainer _criarContainer(PatrimonioRepository repo) {

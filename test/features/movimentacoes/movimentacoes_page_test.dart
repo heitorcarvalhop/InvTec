@@ -15,12 +15,16 @@ import 'package:invtec/features/movimentacoes/domain/movimentacao_repository.dar
 import 'package:invtec/features/movimentacoes/domain/movimentacoes_resultado.dart';
 import 'package:invtec/features/movimentacoes/presentation/movimentacoes_page.dart';
 import 'package:invtec/features/movimentacoes/presentation/widgets/movimentacoes_desktop_table.dart';
+import 'package:invtec/features/movimentacoes/sei/data/documentos_sei_repository_supabase.dart';
+import 'package:invtec/features/movimentacoes/sei/domain/sei_documento_pendente.dart';
+import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_pendencias_list.dart';
 import 'package:invtec/features/setores/data/setor_repository_supabase.dart';
 import 'package:invtec/features/setores/domain/setor.dart';
 
 import '../auth/fake_auth_repository.dart';
 import '../setores/fake_setor_repository.dart';
 import 'fake_movimentacao_repository.dart';
+import 'sei/fake_documentos_sei_repository.dart';
 
 Profile _profile(ProfilePerfil perfil) => Profile(
   id: 'fake-user-id',
@@ -61,6 +65,12 @@ class _RepositorioTravado implements MovimentacaoRepository {
   }) async => const [];
 
   @override
+  Future<List<MovimentacaoListagemItem>> listarPorNumeroDocumento(
+    String numeroDocumento, {
+    List<String>? patrimonioIds,
+  }) async => const [];
+
+  @override
   Future<Movimentacao> registrarMovimentacao({
     required String patrimonioId,
     required MovimentacaoTipo tipo,
@@ -85,6 +95,8 @@ MovimentacaoListagemItem _item(
   String? patrimonioTipoNome,
   String? setorOrigemNome,
   String? setorDestinoNome,
+  String? setorOrigemSigla,
+  String? setorDestinoSigla,
   String? localizacaoOrigemNome,
   String? localizacaoDestinoNome,
   String? responsavelOrigem,
@@ -104,6 +116,8 @@ MovimentacaoListagemItem _item(
     patrimonioTipoNome: patrimonioTipoNome,
     setorOrigemNome: setorOrigemNome,
     setorDestinoNome: setorDestinoNome,
+    setorOrigemSigla: setorOrigemSigla,
+    setorDestinoSigla: setorDestinoSigla,
     localizacaoOrigemNome: localizacaoOrigemNome,
     localizacaoDestinoNome: localizacaoDestinoNome,
     responsavelOrigem: responsavelOrigem,
@@ -487,7 +501,126 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('GETEC'), findsWidgets);
+        // PROMPT 11.3.5.3, teste 8: setor sem sigla cadastrada (`sigla` não
+        // informado acima) cai para o nome completo — fallback seguro.
         expect(find.text('Almoxarifado Antigo (inativo)'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'PROMPT 11.3.5.3 — dropdown de Setor mostra a sigla real (não o nome longo), e o filtro continua usando o ID',
+      (tester) async {
+        // Sem itens na listagem de propósito: este teste é só sobre o
+        // dropdown do filtro — uma linha da TABELA com os mesmos nomes
+        // colidiria com as buscas de texto abaixo (ver teste separado de
+        // sigla nas colunas Origem/Destino, mais abaixo).
+        final movimentacaoRepo = FakeMovimentacaoRepository();
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: movimentacaoRepo,
+          setores: [
+            Setor(id: 'setor-1', nome: 'Gerencia de Tecnologia', sigla: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+            // "GEPOS" não existe em nenhuma lista/mapa fixo do app — prova
+            // que a sigla exibida vem do cadastro real, não de um switch
+            // fechado nos 4 setores do Despacho 577.
+            Setor(id: 'setor-2', nome: 'Gerência de Posturas', sigla: 'GEPOS', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+          ],
+        );
+
+        final campoSetor = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor');
+        await tester.ensureVisible(campoSetor);
+        await tester.pumpAndSettle();
+        await tester.tap(campoSetor);
+        await tester.pumpAndSettle();
+
+        expect(find.text('GETEC'), findsOneWidget);
+        expect(find.text('GEPOS'), findsOneWidget);
+        expect(find.text('Gerencia de Tecnologia'), findsNothing);
+        expect(find.text('Gerência de Posturas'), findsNothing);
+
+        await tester.tap(find.text('GEPOS'));
+        await tester.pumpAndSettle();
+
+        // O valor efetivamente usado pelo filtro continua sendo o ID real
+        // do setor — nunca a sigla/nome exibidos.
+        expect(movimentacaoRepo.ultimaChamadaListar?['setorId'], 'setor-2');
+      },
+    );
+
+    testWidgets(
+      'PROMPT 11.3.5.3 — colunas Origem/Destino da tabela mostram a sigla, com o nome completo no tooltip',
+      (tester) async {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(
+            itens: [
+              _item(
+                '1',
+                patrimonioNumero: '100',
+                setorOrigemNome: 'Gerencia de Tecnologia',
+                setorOrigemSigla: 'GETEC',
+                setorDestinoNome:
+                    'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+                setorDestinoSigla: 'GEASI',
+              ),
+            ],
+          ),
+        );
+
+        expect(find.text('GETEC'), findsOneWidget);
+        expect(find.text('GEASI'), findsOneWidget);
+        expect(
+          find.text('Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto'),
+          findsNothing,
+        );
+
+        final tooltip = tester.widget<Tooltip>(
+          find.ancestor(of: find.text('GEASI'), matching: find.byType(Tooltip)).first,
+        );
+        expect(
+          tooltip.message,
+          'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+        );
+      },
+    );
+
+    testWidgets(
+      'PROMPT 11.3.5.4 — diálogo de detalhes da movimentação mostra a sigla, com o nome completo no tooltip',
+      (tester) async {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(
+            itens: [
+              _item(
+                '1',
+                patrimonioNumero: '100',
+                setorOrigemNome: 'Gerencia de Tecnologia',
+                setorOrigemSigla: 'GETEC',
+                setorDestinoNome: 'Gerência de Posturas',
+                setorDestinoSigla: 'GEPOS',
+              ),
+            ],
+          ),
+        );
+
+        final botaoVisualizar = find.byIcon(Icons.visibility_outlined);
+        await tester.ensureVisible(botaoVisualizar);
+        await tester.pumpAndSettle();
+        await tester.tap(botaoVisualizar);
+        await tester.pumpAndSettle();
+
+        final dialog = find.byType(Dialog);
+        expect(find.descendant(of: dialog, matching: find.text('GETEC')), findsOneWidget);
+        expect(find.descendant(of: dialog, matching: find.text('GEPOS')), findsOneWidget);
+        expect(
+          find.descendant(of: dialog, matching: find.text('Gerência de Posturas')),
+          findsNothing,
+        );
+
+        final tooltip = tester.widget<Tooltip>(
+          find.ancestor(of: find.text('GEPOS'), matching: find.byType(Tooltip)).first,
+        );
+        expect(tooltip.message, 'Gerência de Posturas');
       },
     );
 
@@ -512,5 +645,107 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Movimentações'), findsOneWidget);
     });
+  });
+
+  group('PROMPT 11.3.9.1 — tela inteira de Movimentações sem overflow ao redimensionar', () {
+    Future<void> pumpEm(WidgetTester tester, Size tamanho) async {
+      tester.view.physicalSize = tamanho;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final fakeAuth = FakeAuthRepository(
+        initialUserId: 'fake-user-id',
+        profileResolver: (_) => _profile(ProfilePerfil.admin),
+      );
+      addTearDown(fakeAuth.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(fakeAuth),
+            movimentacaoRepositoryProvider.overrideWithValue(
+              FakeMovimentacaoRepository(itens: [_item('1', patrimonioNumero: '100')]),
+            ),
+            setorRepositoryProvider.overrideWithValue(FakeSetorRepository()),
+            documentosSeiRepositoryProvider.overrideWithValue(
+              FakeDocumentosSeiRepository(
+                documentosIniciais: [
+                  SeiDocumentoPendente.fromItens(
+                    id: 'doc-1',
+                    numeroDocumentoSei: '11111111',
+                    numeroDocumentoFormatado: '1/2026/TESTE',
+                    assunto: 'Assunto de teste',
+                    tipoOperacaoPretendida: MovimentacaoTipo.transferencia,
+                    nomeArquivo: 'a.pdf',
+                    hashSha256: 'h',
+                    versao: 1,
+                    criadoEm: DateTime(2026, 1, 1),
+                    criadoPorId: 'user-1',
+                    criadoPorNome: 'Fulano',
+                  ),
+                ],
+              ),
+            ),
+          ],
+          child: const MaterialApp(home: Scaffold(body: MovimentacoesPage())),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    for (final tamanho in [
+      const Size(1920, 1080),
+      const Size(1280, 720),
+      const Size(800, 600),
+      const Size(360, 640),
+    ]) {
+      testWidgets('em ${tamanho.width.toInt()}x${tamanho.height.toInt()}: cabeçalho sem overflow, título legível', (
+        tester,
+      ) async {
+        // A `FlutterError.onError` original só é restaurada DEPOIS de todas
+        // as interações (troca de aba + rolagem) — nunca deixada sobrescrita
+        // durante os `expect()` finais, senão o estado interno do
+        // `TestWidgetsFlutterBinding` fica inconsistente e trava os
+        // próximos testes do arquivo (mesmo padrão de
+        // `importar_sei_dialog_test.dart`).
+        final overflows = <String>[];
+        final original = FlutterError.onError;
+        FlutterError.onError = (details) {
+          if (details.toString().contains('overflowed')) {
+            overflows.add(details.summary.toString());
+            return;
+          }
+          original?.call(details);
+        };
+        addTearDown(() => FlutterError.onError = original);
+
+        await pumpEm(tester, tamanho);
+
+        final tituloSize = tester.getSize(find.text('Movimentações'));
+
+        // Aba Pendências: troca e confere que a tabela também não estoura,
+        // e que "Situação" fica alcançável rolando até o fim.
+        await tester.tap(find.text('Pendências / Documentos SEI'));
+        await tester.pumpAndSettle();
+
+        Offset? situacaoBottomRight;
+        final scrollable = find.descendant(of: find.byType(SeiPendenciasList), matching: find.byType(Scrollable));
+        if (scrollable.evaluate().isNotEmpty) {
+          final state = tester.state<ScrollableState>(scrollable.first);
+          state.position.jumpTo(state.position.maxScrollExtent);
+          await tester.pumpAndSettle();
+          situacaoBottomRight = tester.getBottomRight(find.text('Situação'));
+        }
+
+        FlutterError.onError = original;
+
+        expect(overflows, isEmpty, reason: 'sem overflow em ${tamanho.width}x${tamanho.height}: $overflows');
+        expect(tituloSize.width, greaterThan(80));
+        if (situacaoBottomRight != null) {
+          expect(situacaoBottomRight.dx, lessThanOrEqualTo(tamanho.width));
+        }
+      });
+    }
   });
 }

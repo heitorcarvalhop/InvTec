@@ -29,13 +29,32 @@ class UserProfileHeader extends StatelessWidget {
           child: Text(_iniciais(profile.nome)),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(profile.nome, style: theme.textTheme.bodyMedium?.copyWith(color: nameColor)),
-            Text(profile.perfil.label, style: theme.textTheme.bodySmall?.copyWith(color: roleColor)),
-          ],
+        // PROMPT 11.3.9.2 — `Flexible` + reticências: um nome longo (ou uma
+        // janela estreita) nunca pode estourar a topbar do desktop
+        // (`RenderFlex overflowed ... on the right`, reproduzido em
+        // app_shell.dart). O nome completo continua acessível pelo tooltip.
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Tooltip(
+                message: profile.nome,
+                child: Text(
+                  profile.nome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: nameColor),
+                ),
+              ),
+              Text(
+                profile.perfil.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(color: roleColor),
+              ),
+            ],
+          ),
         ),
       ],
     );

@@ -457,6 +457,7 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
             _CampoComOrigem(
               rotulo: 'Gerência destino',
               valor: _nomeSetor(setoresAsync, linha.destinoIdResolvido),
+              valorTooltip: _tooltipSetor(setoresAsync, linha.destinoIdResolvido),
               usouPadrao: linha.usouDestinoPadrao,
             ),
             // Localização (seção 6): distinta da gerência acima — só
@@ -471,6 +472,7 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
             _CampoComOrigem(
               rotulo: 'Origem',
               valor: _nomeSetor(setoresAsync, linha.origemIdResolvido),
+              valorTooltip: _tooltipSetor(setoresAsync, linha.origemIdResolvido),
               usouPadrao: linha.usouOrigemPadrao,
             ),
             _CampoComOrigem(
@@ -635,16 +637,26 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
                     runSpacing: AppSpacing.sm,
                     children: [
                       if (linha.destinoIdSugerido != null)
-                        OutlinedButton(
-                          onPressed: () => controller.definirDestinoDaLinha(linha, linha.destinoIdSugerido),
-                          child: Text(
-                            'Usar ${setores.firstWhere((s) => s.id == linha.destinoIdSugerido).nome}',
+                        Tooltip(
+                          message:
+                              'Usar ${setores.firstWhere((s) => s.id == linha.destinoIdSugerido).nome}',
+                          child: OutlinedButton(
+                            onPressed: () => controller.definirDestinoDaLinha(linha, linha.destinoIdSugerido),
+                            child: Text(
+                              // PROMPT 11.3.5.4: sigla cadastrada, nome
+                              // completo por tooltip.
+                              'Usar ${setores.firstWhere((s) => s.id == linha.destinoIdSugerido).rotuloCompacto}',
+                            ),
                           ),
                         ),
                       DropdownButton<String>(
                         hint: const Text('Selecionar setor'),
                         items: [
-                          for (final setor in setores) DropdownMenuItem(value: setor.id, child: Text(setor.nome)),
+                          for (final setor in setores)
+                            DropdownMenuItem(
+                              value: setor.id,
+                              child: Tooltip(message: setor.nome, child: Text(setor.rotuloCompacto)),
+                            ),
                         ],
                         onChanged: (id) => controller.definirDestinoDaLinha(linha, id),
                       ),
@@ -694,7 +706,10 @@ class _ComparacaoExistente extends StatelessWidget {
       ('Modelo', existente.modelo, linha.modelo),
       ('Série', existente.numeroSerie, linha.numeroSerie),
       ('Tipo atual', detalhe.tipoNome, null),
-      ('Setor atual', detalhe.setorNome, null),
+      // PROMPT 11.3.5.4: sigla cadastrada (fallback nome completo) — esta
+      // tabela renderiza toda linha como texto simples (sem tooltip por
+      // célula).
+      ('Setor atual', detalhe.setorExibidoCompacto, null),
       ('Localização atual', detalhe.localizacaoNome ?? '(sem localização)', null),
       ('Status atual', existente.status.label, null),
     ];
@@ -742,22 +757,28 @@ class _NotaSetorResponsavel extends StatelessWidget {
 /// cargas grandes, para o usuário não confundir dado real com padrão
 /// aplicado silenciosamente.
 class _CampoComOrigem extends StatelessWidget {
-  const _CampoComOrigem({required this.rotulo, required this.valor, required this.usouPadrao});
+  const _CampoComOrigem({required this.rotulo, required this.valor, required this.usouPadrao, this.valorTooltip});
 
   final String rotulo;
   final String? valor;
   final bool usouPadrao;
 
+  /// PROMPT 11.3.5.4 — nome completo de um setor exibido pela sigla.
+  final String? valorTooltip;
+
   @override
   Widget build(BuildContext context) {
     if (valor == null || valor!.isEmpty) return const SizedBox.shrink();
+    final valorText = Text(valor!, overflow: TextOverflow.ellipsis);
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text('$rotulo: '),
-          Expanded(child: Text(valor!, overflow: TextOverflow.ellipsis)),
+          Expanded(
+            child: valorTooltip == null ? valorText : Tooltip(message: valorTooltip, child: valorText),
+          ),
           if (usouPadrao) ...[
             const SizedBox(width: AppSpacing.xs),
             Container(
@@ -780,19 +801,38 @@ class _CampoComOrigem extends StatelessWidget {
   }
 }
 
-/// Nome do setor resolvido, quando a lista de setores já carregou —
-/// evita mostrar o UUID cru no painel de decisão da linha.
-String? _nomeSetor(AsyncValue<List<Setor>> setoresAsync, String? setorId) {
+/// Setor resolvido, quando a lista já carregou — `null` quando ainda
+/// carregando ou não encontrado (nesses casos, [_nomeSetor] cai para o
+/// próprio id como último recurso).
+Setor? _setorResolvido(AsyncValue<List<Setor>> setoresAsync, String? setorId) {
   if (setorId == null) return null;
   return setoresAsync.maybeWhen(
     data: (setores) {
       for (final setor in setores) {
-        if (setor.id == setorId) return setor.nome;
+        if (setor.id == setorId) return setor;
       }
-      return setorId;
+      return null;
     },
-    orElse: () => setorId,
+    orElse: () => null,
   );
+}
+
+/// Texto COMPACTO (sigla cadastrada, fallback nome) do setor resolvido,
+/// quando a lista de setores já carregou — evita mostrar o UUID cru no
+/// painel de decisão da linha.
+String? _nomeSetor(AsyncValue<List<Setor>> setoresAsync, String? setorId) {
+  if (setorId == null) return null;
+  final setor = _setorResolvido(setoresAsync, setorId);
+  return setor?.rotuloCompacto ?? setorId;
+}
+
+/// Nome completo do setor resolvido — `Tooltip` de [_nomeSetor] quando o
+/// texto exibido ali é uma sigla (abreviação), `null` quando já é o nome
+/// completo ou o setor não foi resolvido.
+String? _tooltipSetor(AsyncValue<List<Setor>> setoresAsync, String? setorId) {
+  final setor = _setorResolvido(setoresAsync, setorId);
+  if (setor == null || setor.rotuloCompacto == setor.nome) return null;
+  return setor.nome;
 }
 
 String _formatarDataHora(DateTime data) {

@@ -39,27 +39,44 @@ class NavigationSidebar extends StatelessWidget {
             const _BrandHeader(),
             Divider(height: 1, color: AppColors.sidebarBorder),
             const SizedBox(height: AppSpacing.sm),
+            // PROMPT 11.3.9.1 — antes, só a lista de navegação (o `ListView`
+            // do meio) rolava; o cabeçalho e o bloco fixo de
+            // "Configurações"/"Sair" no fim NUNCA rolavam. Numa janela
+            // baixa (altura reduzida), o `Expanded` do meio já chegava a
+            // zero e ainda faltava espaço para esse bloco fixo — o `Column`
+            // estourava por baixo ("BOTTOM OVERFLOWED BY 71 PIXELS",
+            // exatamente o erro do vídeo), e "Configurações"/"Sair" ficavam
+            // cortados sem nenhum jeito de alcançá-los. Agora a lista de
+            // navegação E o bloco fixo dividem o MESMO
+            // `SingleChildScrollView`: quando cabe tudo, nada rola (visual
+            // idêntico a antes); quando não cabe, a área inteira passa a
+            // rolar — nenhuma ação fica escondida permanentemente.
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                children: [
-                  for (final item in items)
-                    NavTile(item: item, selected: item.route == currentRoute, onTap: () => onNavigate(item.route)),
-                ],
-              ),
-            ),
-            Divider(height: 1, color: AppColors.sidebarBorder),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
-              child: Column(
-                children: [
-                  NavTile(
-                    item: configuracoesItem,
-                    selected: configuracoesItem.route == currentRoute,
-                    onTap: () => onNavigate(configuracoesItem.route),
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final item in items)
+                        NavTile(
+                          item: item,
+                          selected: item.route == currentRoute,
+                          onTap: () => onNavigate(item.route),
+                        ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Divider(height: 1, color: AppColors.sidebarBorder),
+                      const SizedBox(height: AppSpacing.sm),
+                      NavTile(
+                        item: configuracoesItem,
+                        selected: configuracoesItem.route == currentRoute,
+                        onTap: () => onNavigate(configuracoesItem.route),
+                      ),
+                      _SignOutTile(onTap: onLogout),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
                   ),
-                  _SignOutTile(onTap: onLogout),
-                ],
+                ),
               ),
             ),
           ],

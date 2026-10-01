@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../localizacoes/presentation/localizacoes_providers.dart';
+import '../../../setores/domain/setor.dart';
 import '../../domain/patrimonio.dart';
 import '../patrimonio_reference_data.dart';
 import '../patrimonios_controller.dart';
@@ -143,7 +144,13 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
                     for (final setor in setores)
                       DropdownMenuItem(
                         value: setor.id,
-                        child: Text(setor.nome, overflow: TextOverflow.ellipsis),
+                        // PROMPT 11.3.5.4: sigla real cadastrada, nome
+                        // completo por tooltip — o valor continua sendo
+                        // `setor.id`.
+                        child: Tooltip(
+                          message: setor.nome,
+                          child: Text(setor.rotuloCompacto, overflow: TextOverflow.ellipsis),
+                        ),
                       ),
                   ],
                   onChanged: notifier.filtrarPorSetor,

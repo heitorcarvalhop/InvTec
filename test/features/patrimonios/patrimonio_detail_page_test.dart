@@ -164,6 +164,43 @@ void main() {
     );
   });
 
+  testWidgets('PROMPT 11.3.5.4 — timeline de histórico mostra a sigla do setor, não o nome completo', (
+    tester,
+  ) async {
+    final detalhe = PatrimonioDetalhe(
+      patrimonio: Patrimonio(
+        id: '1',
+        numeroPatrimonio: '00045872',
+        tipoId: 'tipo-1',
+        status: PatrimonioStatus.emUso,
+        setorAtualId: 'setor-1',
+        dataCadastro: DateTime.utc(2026, 1, 10),
+        atualizadoEm: DateTime.utc(2026, 1, 10),
+      ),
+      tipoNome: 'Notebook',
+      setorNome: 'GETEC',
+    );
+
+    await _pumpDetailPage(
+      tester,
+      detalhe: detalhe,
+      historico: [
+        MovimentacaoHistoricoItem(
+          id: 'mov-1',
+          tipo: MovimentacaoTipo.entrada,
+          setorOrigemNome: 'Gerencia de Tecnologia',
+          setorOrigemSigla: 'GETEC',
+          setorDestinoNome: 'Gerência de Posturas',
+          setorDestinoSigla: 'GEPOS',
+          dataMovimentacao: DateTime.utc(2026, 1, 10, 14, 30),
+        ),
+      ],
+    );
+
+    expect(find.text('GETEC → GEPOS'), findsOneWidget);
+    expect(find.text('Gerência de Posturas'), findsNothing);
+  });
+
   testWidgets('patrimônio baixado é exibido claramente, sem botão de reativar', (
     tester,
   ) async {
@@ -257,5 +294,77 @@ void main() {
     await _pumpDetailPage(tester, detalhe: detalhe, perfil: ProfilePerfil.consulta);
 
     expect(find.widgetWithText(FilledButton, 'Editar'), findsNothing);
+  });
+
+  testWidgets('PROMPT 11.3.5.4 — campo Gerência mostra a sigla, com o nome completo no tooltip', (
+    tester,
+  ) async {
+    final detalhe = PatrimonioDetalhe(
+      patrimonio: Patrimonio(
+        id: '1',
+        numeroPatrimonio: '00045872',
+        tipoId: 'tipo-1',
+        status: PatrimonioStatus.emUso,
+        setorAtualId: 'setor-1',
+        dataCadastro: DateTime.utc(2026, 1, 10),
+        atualizadoEm: DateTime.utc(2026, 1, 10),
+      ),
+      tipoNome: 'Notebook',
+      setorNome: 'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+      setorSigla: 'GEASI',
+    );
+
+    await _pumpDetailPage(tester, detalhe: detalhe);
+
+    expect(find.text('GEASI'), findsOneWidget);
+    expect(
+      find.text('Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto'),
+      findsNothing,
+    );
+
+    final tooltip = tester.widget<Tooltip>(
+      find.ancestor(of: find.text('GEASI'), matching: find.byType(Tooltip)).first,
+    );
+    expect(
+      tooltip.message,
+      'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+    );
+  });
+
+  testWidgets('PROMPT 11.3.10 — a ficha mostra tudo que saiu da listagem (marca, modelo, série, localização, '
+      'responsável, descrição completa e nome completo do setor)', (tester) async {
+    const descricaoLonga =
+        'Notebook corporativo com 32 GB de memória, SSD de 1 TB, docking station e garantia estendida até 2028';
+    final detalhe = PatrimonioDetalhe(
+      patrimonio: Patrimonio(
+        id: '1',
+        numeroPatrimonio: '00045872',
+        numeroSerie: 'ABC123',
+        tipoId: 'tipo-1',
+        marca: 'Dell',
+        modelo: 'Latitude 5440',
+        descricao: descricaoLonga,
+        status: PatrimonioStatus.emUso,
+        setorAtualId: 'setor-1',
+        responsavelAtual: 'João Silva',
+        dataCadastro: DateTime.utc(2026, 1, 10),
+        atualizadoEm: DateTime.utc(2026, 1, 10),
+      ),
+      tipoNome: 'Notebook',
+      setorNome: 'Gerência de Tecnologia',
+      setorSigla: 'GETEC',
+      localizacaoNome: 'Sala 12 - Almoxarifado',
+    );
+
+    await _pumpDetailPage(tester, detalhe: detalhe);
+
+    expect(find.text('Dell'), findsOneWidget);
+    expect(find.text('Latitude 5440'), findsOneWidget);
+    expect(find.text('ABC123'), findsOneWidget);
+    expect(find.text('Sala 12 - Almoxarifado'), findsOneWidget);
+    expect(find.text('João Silva'), findsOneWidget);
+    expect(find.text(descricaoLonga), findsOneWidget);
+    expect(find.text('GETEC'), findsOneWidget);
+    expect(find.byTooltip('Gerência de Tecnologia'), findsOneWidget, reason: 'nome completo do setor por tooltip');
   });
 }

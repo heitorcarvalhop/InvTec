@@ -1,3 +1,4 @@
+import '../../../core/utils/setor_display.dart';
 import 'patrimonio.dart';
 
 /// [Patrimonio] com os nomes já resolvidos (tipo, setor atual e, quando
@@ -15,6 +16,7 @@ class PatrimonioDetalhe {
     required this.patrimonio,
     required this.tipoNome,
     required this.setorNome,
+    this.setorSigla,
     this.localizacaoNome,
     this.criadoPorNome,
   });
@@ -29,6 +31,7 @@ class PatrimonioDetalhe {
       patrimonio: Patrimonio.fromJson(json),
       tipoNome: (tipo?['nome'] as String?) ?? 'Tipo não encontrado',
       setorNome: (setor?['nome'] as String?) ?? 'Setor não encontrado',
+      setorSigla: setor?['sigla'] as String?,
       // null é um estado válido (localização é opcional) — só vira "Não
       // encontrada" quando havia um id mas o embed não resolveu (ex.: RLS).
       localizacaoNome: localizacao?['nome'] as String?,
@@ -39,6 +42,12 @@ class PatrimonioDetalhe {
   final Patrimonio patrimonio;
   final String tipoNome;
   final String setorNome;
+  final String? setorSigla;
   final String? localizacaoNome;
   final String? criadoPorNome;
+
+  /// PROMPT 11.3.5.4 — texto COMPACTO do setor atual (sigla cadastrada,
+  /// nunca inventada; cai para [setorNome] quando não há sigla). O nome
+  /// completo continua em [setorNome] para tooltip/detalhamento.
+  String get setorExibidoCompacto => siglaOuNomeSetor(sigla: setorSigla, nome: setorNome) ?? setorNome;
 }

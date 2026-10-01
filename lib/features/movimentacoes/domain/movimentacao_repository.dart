@@ -1,5 +1,6 @@
 import 'movimentacao.dart';
 import 'movimentacao_historico_item.dart';
+import 'movimentacao_listagem_item.dart';
 import 'movimentacoes_resultado.dart';
 
 abstract class MovimentacaoRepository {
@@ -35,6 +36,25 @@ abstract class MovimentacaoRepository {
     String patrimonioId, {
     int limit = 20,
     int offset = 0,
+  });
+
+  /// TODAS as movimentações cujo `numero_documento` é EXATAMENTE
+  /// [numeroDocumento] (PROMPT 11.2.1, seção 2) — filtro aplicado no banco
+  /// via `eq`, nunca a busca OR genérica de [listar] (que casaria
+  /// substring em responsável/chamado por coincidência). Sem limite
+  /// arbitrário: pagina internamente até esgotar o total real, então
+  /// nenhuma linha relevante pode ficar de fora silenciosamente — usado
+  /// pela checagem de duplicidade do importador de documentos SEI, que
+  /// precisa de certeza sobre TODAS as ocorrências, não só as 200
+  /// primeiras.
+  ///
+  /// [patrimonioIds], quando informado, estreita a busca (AND, nunca OR) —
+  /// só movimentações de patrimônios realmente presentes no documento sendo
+  /// analisado, o que também reduz o volume lido sem arriscar omitir nada
+  /// relevante.
+  Future<List<MovimentacaoListagemItem>> listarPorNumeroDocumento(
+    String numeroDocumento, {
+    List<String>? patrimonioIds,
   });
 
   /// Registra uma movimentação chamando a função transacional

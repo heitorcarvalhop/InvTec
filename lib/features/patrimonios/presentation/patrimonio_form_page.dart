@@ -387,7 +387,12 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                       for (final setor in widget.setores)
                         DropdownMenuItem(
                           value: setor.id,
-                          child: Text(setor.nome, overflow: TextOverflow.ellipsis),
+                          // PROMPT 11.3.5.4: sigla cadastrada, nome
+                          // completo por tooltip.
+                          child: Tooltip(
+                            message: setor.nome,
+                            child: Text(setor.rotuloCompacto, overflow: TextOverflow.ellipsis),
+                          ),
                         ),
                     ],
                     onChanged: _isSubmitting
@@ -422,7 +427,10 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                       for (final setor in widget.setores)
                         DropdownMenuItem(
                           value: setor.id,
-                          child: Text(setor.nome, overflow: TextOverflow.ellipsis),
+                          child: Tooltip(
+                            message: setor.nome,
+                            child: Text(setor.rotuloCompacto, overflow: TextOverflow.ellipsis),
+                          ),
                         ),
                     ],
                     onChanged: _isSubmitting

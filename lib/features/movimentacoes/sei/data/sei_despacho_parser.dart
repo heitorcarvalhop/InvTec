@@ -58,11 +58,36 @@ const _iniciosDeUnidade = [
   'Ag[êe]ncia',
 ];
 
+/// PROMPT 11.1.2, seção 2: a origem (ex.: "GETEC - Gerencia de Tecnologia")
+/// SEMPRE começa, ela mesma, com uma das palavras de `_iniciosDeUnidade`
+/// ("Gerencia"/"Gerência" é o próprio nome do setor emissor neste
+/// documento) — por isso o grupo 2 agora EXIGE consumir uma primeira
+/// ocorrência dessas palavras antes de procurar a lookahead da PRÓXIMA
+/// ocorrência (que é onde o bloco de destino começa). Sem essa exigência, a
+/// lookahead antiga era satisfeita com ZERO caracteres consumidos (a
+/// origem já começa com "Gerencia"), truncando a origem e deixando seu
+/// próprio texto vazar para dentro do destino capturado a seguir — o bug
+/// relatado ("Gerencia de Tecnologia Gerência de Licenciamento..."). A
+/// correção é estrutural (baseada em quantas vezes o padrão de início de
+/// unidade aparece), nunca amarrada ao texto específico de GEASI/GESOL/etc.
 final _origemPattern = RegExp(
-  '([A-ZÀ-Ü]{2,10})\\s*[-–]\\s*([\\s\\S]{0,140}?)(?=${_iniciosDeUnidade.join('|')})',
+  '([A-ZÀ-Ü]{2,10})\\s*[-–]\\s*((?:${_iniciosDeUnidade.join('|')})[\\s\\S]{0,140}?)'
+  '(?=${_iniciosDeUnidade.join('|')})',
 );
 final _destinoPattern = RegExp(r'^([\s\S]*?)\s*[–\-]\s*([A-ZÀ-Ü]{2,12})\b');
 final _chamadoPattern = RegExp(r'^\s*(\d{3,5})\b');
+
+/// PROMPT 11.1.2, seção 3: bloco de fechamento documental ("Atenciosamente"
+/// + "(Assinado Eletronicamente)" + linha do nome do signatário + linha do
+/// cargo) que aparece entre o fim de uma página e o início da tabela na
+/// página seguinte (seção 4 do PDF real) — nunca pertence à célula de
+/// equipamento de nenhuma linha. Reconhecido pela ESTRUTURA (saudação +
+/// marcador fixo do SEI + duas linhas de texto livre), nunca pelo nome da
+/// pessoa: qualquer signatário é tratado da mesma forma.
+final _blocoAssinaturaPattern = RegExp(
+  r'Atenciosamente,?[ \t]*\n+\(Assinado Eletronicamente\)[ \t]*\n+[^\n]{3,80}\n+[^\n]{3,60}\n',
+  caseSensitive: false,
+);
 
 /// PROMPT 11.1.1, seção 3: sinal PRIMÁRIO para localizar onde a tabela de
 /// bens começa — o próprio cabeçalho de colunas ("Unidade de Origem",
@@ -211,18 +236,26 @@ class SeiDeterministicParser implements SeiDocumentoParser {
 
   List<SeiItemExtraido> _extrairItens(List<String> textoPorPagina, List<String> avisosDocumento) {
     // Concatena preservando um marcador de página, para localizar depois em
-    // qual página cada item começou (seção 6: `paginaOrigem`). O rodapé
-    // repetido em toda página ("Despacho 577 (95955192) SEI
-    // 202600017000011 / pg. N") é removido ANTES de concatenar — senão seus
-    // próprios dígitos (despacho/documento/processo/página) contaminariam a
-    // zona equipamento+patrimônio do primeiro item da página seguinte
-    // (seção 9: quebra de página é justamente um dos casos que o parser
-    // precisa tolerar).
+    // qual página cada item começou (seção 6: `paginaOrigem`). Dois blocos
+    // que NUNCA pertencem à tabela são removidos ANTES de concatenar —
+    // senão contaminam a zona equipamento+patrimônio da linha seguinte
+    // (seção 9: quebra de página é um dos casos que o parser precisa
+    // tolerar):
+    // 1) o rodapé repetido em toda página ("Despacho 577 (95955192) SEI
+    //    202600017000011 / pg. N") — seus próprios dígitos
+    //    (despacho/documento/processo/página) virariam um falso candidato a
+    //    patrimônio;
+    // 2) o bloco de fechamento/assinatura ("Atenciosamente" + "(Assinado
+    //    Eletronicamente)" + nome + cargo — PROMPT 11.1.2, seção 3) — seu
+    //    texto viraria um "equipamento" contaminado para o primeiro item
+    //    logo depois dele.
     final buffer = StringBuffer();
     final offsetsDePagina = <int>[];
     for (final pagina in textoPorPagina) {
       offsetsDePagina.add(buffer.length);
-      buffer.write(pagina.replaceAll(_rodapeDespachoPattern, ''));
+      final semRodape = pagina.replaceAll(_rodapeDespachoPattern, '');
+      final semAssinatura = semRodape.replaceAll(_blocoAssinaturaPattern, '');
+      buffer.write(semAssinatura);
       buffer.write('\n');
     }
     final textoCompleto = buffer.toString();
@@ -237,15 +270,15 @@ class SeiDeterministicParser implements SeiDocumentoParser {
 
     final inicioTabela = _inicioDaTabela(textoCompleto);
     if (inicioTabela == null) {
-      avisosDocumento.add(
-        'Não foi possível localizar a tabela de bens no documento (nenhum equipamento reconhecido).',
-      );
+      avisosDocumento.add('Não foi possível localizar a tabela de bens no documento (nenhum equipamento reconhecido).');
       return const [];
     }
 
     final origemMatches = _origemPattern.allMatches(textoCompleto, inicioTabela).toList();
     if (origemMatches.isEmpty) {
-      avisosDocumento.add('Não foi possível localizar nenhuma linha da tabela de bens (padrão de origem não encontrado).');
+      avisosDocumento.add(
+        'Não foi possível localizar nenhuma linha da tabela de bens (padrão de origem não encontrado).',
+      );
       return const [];
     }
 
@@ -353,9 +386,7 @@ class SeiDeterministicParser implements SeiDocumentoParser {
     if (runs.length > 1) {
       final candidato = runs.reduce(
         (a, b) =>
-            (a.length - _comprimentoTipicoPatrimonio).abs() <= (b.length - _comprimentoTipicoPatrimonio).abs()
-            ? a
-            : b,
+            (a.length - _comprimentoTipicoPatrimonio).abs() <= (b.length - _comprimentoTipicoPatrimonio).abs() ? a : b,
       );
       if (candidato.length >= _comprimentoCandidatoMinimo && candidato.length <= _comprimentoCandidatoMaximo) {
         observacoes.add(

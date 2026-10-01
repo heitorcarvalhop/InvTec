@@ -63,7 +63,16 @@ class ImportLocationsStep extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               OutlinedButton(onPressed: controller.voltar, child: const Text('Voltar')),
-              FilledButton(onPressed: controller.analisar, child: const Text('Analisar planilha')),
+              FilledButton(
+              // PROMPT 11.6.3 — mesma bifurcação de `avancarAposPadroes`:
+              // este botão é o ÚLTIMO passo compartilhado entre a
+              // importação convencional e o modo ADMIN "Comparar e
+              // Atualizar" para o perfil GETEC (que sempre passa por este
+              // passo de localizações) — nunca um segundo assistente.
+              onPressed: () =>
+                  state.modoComparacaoAdmin ? controller.compararParaAdmin() : controller.analisar(),
+              child: const Text('Analisar planilha'),
+            ),
             ],
           ),
         ],
@@ -251,7 +260,16 @@ class ImportLocationsStep extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             OutlinedButton(onPressed: controller.voltar, child: const Text('Voltar')),
-            FilledButton(onPressed: controller.analisar, child: const Text('Analisar planilha')),
+            FilledButton(
+              // PROMPT 11.6.3 — mesma bifurcação de `avancarAposPadroes`:
+              // este botão é o ÚLTIMO passo compartilhado entre a
+              // importação convencional e o modo ADMIN "Comparar e
+              // Atualizar" para o perfil GETEC (que sempre passa por este
+              // passo de localizações) — nunca um segundo assistente.
+              onPressed: () =>
+                  state.modoComparacaoAdmin ? controller.compararParaAdmin() : controller.analisar(),
+              child: const Text('Analisar planilha'),
+            ),
           ],
         ),
       ],

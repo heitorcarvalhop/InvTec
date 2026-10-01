@@ -1,3 +1,5 @@
+import '../../../core/utils/setor_display.dart';
+
 class Setor {
   const Setor({
     required this.id,
@@ -52,4 +54,23 @@ class Setor {
       criadoEm: criadoEm,
     );
   }
+}
+
+/// Exibição compacta de um [Setor] (PROMPT 11.3.5.4) — usada em todo
+/// dropdown/lista que ofereça um [Setor] inteiro (diferente das telas que só
+/// têm nome/sigla resolvidos via embed, que usam [siglaOuNomeSetor]/
+/// `SetorCompactText` diretamente).
+extension SetorExibicaoCompacta on Setor {
+  /// Sigla cadastrada, ou o nome completo quando não há sigla — nunca uma
+  /// abreviação inventada. Ver [siglaOuNomeSetor].
+  String get rotuloCompacto => siglaOuNomeSetor(sigla: sigla, nome: nome) ?? nome;
+
+  /// [rotuloCompacto] com o sufixo " (inativo)" quando aplicável — para
+  /// dropdowns que precisam distinguir setores desativados (ex.: filtro de
+  /// Movimentações, que pode referenciar um setor já desativado).
+  String get rotuloCompactoComStatus => ativo ? rotuloCompacto : '$rotuloCompacto (inativo)';
+
+  /// Nome completo + o mesmo sufixo de status — texto do `Tooltip` quando
+  /// [rotuloCompactoComStatus] mostra a sigla.
+  String get nomeComStatus => ativo ? nome : '$nome (inativo)';
 }

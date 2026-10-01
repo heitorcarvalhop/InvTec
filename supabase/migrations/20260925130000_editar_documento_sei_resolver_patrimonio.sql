@@ -1,0 +1,347 @@
+-- =============================================================================
+-- PROMPT 11.4.2 (parte A) — editar_documento_sei_pendente: manter
+-- `patrimonio_id` coerente com `numero_patrimonio_corrigido`
+-- =============================================================================
+-- STATUS: PREPARADA PARA REVISÃO — NÃO APLICADA. Nada foi executado no
+-- Supabase. Revise antes de aplicar.
+--
+-- PROBLEMA: a função implantada grava `numero_patrimonio_corrigido` mas nunca
+-- atualiza `patrimonio_id`. Um item "corrigido" de A para B continuava
+-- vinculado a A — perigoso antes de existir "Concluir entrega", que
+-- movimentaria o patrimônio VINCULADO, não o que o texto mostra.
+--
+-- O QUE MUDA (somente isto; cada trecho novo está entre marcadores
+-- `-- >>> 11.4.2-A` / `-- <<< 11.4.2-A`):
+--   1. cinco variáveis novas no DECLARE;
+--   2. no loop de VALIDAÇÃO dos itens (antes de qualquer escrita): quando o
+--      payload traz `numero_patrimonio_corrigido`, calcula o número efetivo
+--      (corrigido, ou original se a correção foi removida), normaliza como o
+--      banco (`upper(normalize_text(...))`), busca em `public.patrimonios`
+--      (número único) e:
+--        - correção informada + patrimônio inexistente -> erro P0002, nada é
+--          gravado;
+--        - achou -> guarda o UUID para o UPDATE;
+--        - correção removida + original inexistente -> vínculo volta a nulo;
+--   3. no UPDATE do item: `patrimonio_id = <UUID re-resolvido>` (só para os
+--      itens cujo payload trouxe a chave).
+-- `origem_setor_id` NÃO é alterado. O antes/depois do vínculo vai no MESMO
+-- evento 'EDICAO' (as linhas inteiras dos itens já estão em dados_antes/
+-- dados_depois via to_jsonb).
+--
+-- BASE: esta função é a da migration 20260925120000 (PROMPT 11.3.13, que
+-- adiciona o bloqueio de documento ENCERRADO) — mantida INTEGRALMENTE aqui.
+-- Consequência: aplicar esta migration também aplica o guard de 11.3.13 (se
+-- 20260925120000 já foi aplicada, nada muda quanto ao guard; se ainda não,
+-- ela fica redundante). Fora dos blocos marcados, o corpo é idêntico ao de
+-- 20260925120000 (um teste do repositório confere isso).
+--
+-- PERMISSÕES: CREATE OR REPLACE mantém dono e ACL; nenhum GRANT/REVOKE aqui.
+-- NÃO TOCA: nenhuma outra função, tabela, dado existente ou documento.
+--
+-- ANTES DE APLICAR (só leitura):
+--   select pg_get_functiondef('public.editar_documento_sei_pendente(uuid,integer,text,jsonb,jsonb)'::regprocedure);
+-- DEPOIS (só leitura):
+--   select p.prosecdef, p.proconfig,
+--          p.prosrc like '%v_vinculos%' as tem_re_resolucao,
+--          p.prosrc like '%encerrado (nenhum item pendente)%' as tem_guard_11_3_13
+--   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--   where n.nspname = 'public' and p.proname = 'editar_documento_sei_pendente';
+-- =============================================================================
+
+create or replace function public.editar_documento_sei_pendente(
+  p_documento_id uuid,
+  p_versao_esperada integer,
+  p_motivo text,
+  p_alteracoes jsonb default '{}'::jsonb,
+  p_itens_alterados jsonb default '[]'::jsonb
+)
+returns public.documentos_sei
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_documento public.documentos_sei;
+  v_item_edicao jsonb;
+  v_qtd_concluidos integer;
+  v_dados_antes jsonb;
+  v_itens_antes jsonb;
+  v_itens_depois jsonb;
+  v_ids_itens_alterados uuid[];
+  v_item_id uuid;
+  v_item_check public.documentos_sei_itens;
+  -- >>> 11.4.2-A
+  v_vinculos jsonb := '{}'::jsonb;
+  v_corrigido_novo text;
+  v_numero_efetivo text;
+  v_ids_encontrados uuid[];
+  v_patrimonio_resolvido uuid;
+  -- <<< 11.4.2-A
+begin
+  if private.has_perfil('ADMIN', 'GESTOR', 'OPERADOR') is not true then
+    raise exception 'Usuário sem permissão para editar documento SEI pendente'
+      using errcode = '42501';
+  end if;
+
+  if p_motivo is null or btrim(p_motivo) = '' then
+    raise exception 'motivo é obrigatório para editar um documento SEI pendente'
+      using errcode = 'P0001';
+  end if;
+
+  -- trava o documento: edições concorrentes sobre o mesmo documento são
+  -- serializadas (seção 14) — a segunda espera a primeira terminar e então
+  -- vê a versão já incrementada, falhando na checagem abaixo.
+  select * into v_documento
+  from public.documentos_sei
+  where id = p_documento_id
+  for update;
+
+  if not found then
+    raise exception 'Documento SEI pendente % não encontrado', p_documento_id
+      using errcode = 'P0002';
+  end if;
+
+  if v_documento.versao <> p_versao_esperada then
+    raise exception 'Conflito de edição: versão % informada, versão atual % — releia o documento antes de tentar novamente',
+      p_versao_esperada, v_documento.versao
+      using errcode = 'P0010';
+  end if;
+
+  -- Seção 8: REGRA DEFINITIVA — bloqueado para sempre após a primeira
+  -- conclusão, independentemente da versão informada estar correta.
+  --
+  -- PROMPT 11.3.2, seção 3 — auditoria encontrou: a versão anterior gravava
+  -- um evento 'TENTATIVA_BLOQUEADA' IMEDIATAMENTE ANTES do `raise
+  -- exception` abaixo. Uma exceção desfaz TODA a transação corrente,
+  -- inclusive esse INSERT — o evento nunca era commitado, então a função
+  -- prometia uma trilha de auditoria que na prática nunca existia. Não é
+  -- resolvido "engolindo" a exceção e retornando sucesso (inverteria a
+  -- regra da seção 8) nem criando um serviço externo de auditoria (fora do
+  -- escopo desta etapa) — a correção é simplesmente NÃO fingir que este
+  -- evento persiste: a tentativa bloqueada é reportada ao cliente só pelo
+  -- próprio erro (que o Flutter já traduz em
+  -- `SeiDocumentoBloqueadoParaEdicaoException`), sem gravação alguma.
+  -- 'TENTATIVA_BLOQUEADA' permanece um tipo válido em
+  -- `documentos_sei_eventos_tipo_valido` para uma eventual estratégia
+  -- futura (ex.: log em tabela própria fora da transação de negócio), mas
+  -- NENHUMA função desta migration o produz hoje.
+  select count(*) into v_qtd_concluidos
+  from public.documentos_sei_itens
+  where documento_id = p_documento_id and status = 'CONCLUIDO';
+
+  if v_qtd_concluidos > 0 then
+    raise exception 'Documento % está bloqueado para edição: já tem item concluído', p_documento_id
+      using errcode = '42501';
+  end if;
+
+  -- PROMPT 11.3.13 — documento ENCERRADO (nenhum item PENDENTE: todos
+  -- cancelados e/ou concluídos) também não pode mais ser editado. Antes, só a
+  -- presença de item CONCLUÍDO bloqueava: num documento 100% cancelado ainda
+  -- era possível alterar assunto, número do documento e processo.
+  --
+  -- Posição: DEPOIS do lock do documento (`for update`, acima) e da checagem
+  -- de versão, e logo DEPOIS do bloqueio por item concluído (que continua com
+  -- precedência e mensagem própria); ANTES de qualquer validação do payload,
+  -- lock de item ou escrita. Como o documento já está travado e todas as
+  -- funções de escrita SEI travam o documento ANTES dos itens, nenhum
+  -- cancelamento/conclusão concorrente muda o conjunto de itens PENDENTES
+  -- entre esta leitura e o fim da função. Só lê: não adiciona nenhum lock
+  -- novo, então a ordem documento -> itens permanece a mesma.
+  --
+  -- A mensagem contém "bloqueado" e o errcode é 42501: o Flutter já traduz
+  -- essa combinação em `SeiDocumentoBloqueadoParaEdicaoException`.
+  if not exists (
+    select 1
+    from public.documentos_sei_itens
+    where documento_id = p_documento_id
+      and status = 'PENDENTE'
+  ) then
+    raise exception 'Documento % está bloqueado para edição: encerrado (nenhum item pendente)', p_documento_id
+      using errcode = '42501';
+  end if;
+
+  if jsonb_typeof(p_alteracoes) <> 'object' then
+    raise exception 'p_alteracoes precisa ser um objeto jsonb' using errcode = 'P0001';
+  end if;
+  if jsonb_typeof(p_itens_alterados) <> 'array' then
+    raise exception 'p_itens_alterados precisa ser um array jsonb' using errcode = 'P0001';
+  end if;
+
+  -- PROMPT 11.3.2, seção 4 — auditoria encontrou: o loop de UPDATE mais
+  -- abaixo filtrava por `id = ... and documento_id = ... and status =
+  -- 'PENDENTE'` sem NUNCA conferir se o UPDATE realmente afetou alguma
+  -- linha — um item_id inexistente, de outro documento, ou que já não
+  -- estava mais PENDENTE simplesmente não batia com o WHERE, e a função
+  -- retornava sucesso do mesmo jeito, gravando um evento 'EDICAO' como se
+  -- toda correção solicitada tivesse sido aplicada (falha silenciosa).
+  -- Corrigido com uma validação PRÉVIA, ANTES de qualquer escrita: cada
+  -- item_id precisa existir, pertencer a ESTE documento, estar PENDENTE, e
+  -- não pode se repetir no payload (tratado explicitamente como erro, não
+  -- como "a última correção do mesmo id vence" — ambíguo demais para
+  -- aceitar silenciosamente). Qualquer violação rejeita a operação
+  -- INTEIRA: a exceção desfaz também a atualização dos campos do documento
+  -- feita mais abaixo, já que tudo roda na mesma transação — nada fica
+  -- parcialmente aplicado. `for update` aqui trava cada item validado (na
+  -- mesma ordem documento→item já estabelecida) até o fim da função.
+  v_ids_itens_alterados := array[]::uuid[];
+  for v_item_edicao in select * from jsonb_array_elements(p_itens_alterados)
+  loop
+    if not (v_item_edicao ? 'item_id') or nullif(v_item_edicao ->> 'item_id', '') is null then
+      raise exception 'Cada elemento de p_itens_alterados precisa de item_id' using errcode = 'P0001';
+    end if;
+    v_item_id := (v_item_edicao ->> 'item_id')::uuid;
+
+    if v_item_id = any (v_ids_itens_alterados) then
+      raise exception 'item_id % repetido em p_itens_alterados', v_item_id using errcode = 'P0001';
+    end if;
+    v_ids_itens_alterados := array_append(v_ids_itens_alterados, v_item_id);
+
+    select * into v_item_check from public.documentos_sei_itens where id = v_item_id for update;
+    if not found then
+      raise exception 'Item % não encontrado', v_item_id using errcode = 'P0002';
+    end if;
+    if v_item_check.documento_id <> p_documento_id then
+      raise exception 'Item % não pertence ao documento %', v_item_id, p_documento_id using errcode = 'P0001';
+    end if;
+    if v_item_check.status <> 'PENDENTE' then
+      raise exception 'Item % não está PENDENTE (está %) — não pode ser editado', v_item_id, v_item_check.status
+        using errcode = 'P0001';
+    end if;
+
+    -- >>> 11.4.2-A
+    -- PROMPT 11.4.2, parte A — re-resolução do vínculo com o patrimônio.
+    -- Antes, corrigir `numero_patrimonio_corrigido` deixava `patrimonio_id`
+    -- apontando para o patrimônio ANTIGO: o texto dizia A, o vínculo dizia B.
+    -- Agora, sempre que o payload traz essa chave (inclusive para REMOVER a
+    -- correção, valor nulo/vazio), o número efetivo é recalculado
+    -- (`corrigido`, ou `original` quando a correção é removida) e buscado em
+    -- `public.patrimonios` com a MESMA normalização do banco
+    -- (`upper(normalize_text(...))`: comparação sem diferença de caixa/espaços;
+    -- `patrimonios_numero_patrimonio_key` é único, então há no máximo um).
+    --   * correção informada e patrimônio inexistente -> rejeita a operação
+    --     INTEIRA (nada é gravado; a exceção desfaz a transação);
+    --   * correção removida e o número original não existe (item que já nasceu
+    --     sem patrimônio resolvido) -> `patrimonio_id` volta a nulo, o mesmo
+    --     estado de antes da correção (nunca um vínculo falso);
+    --   * `origem_setor_id` NÃO é tocado: uma divergência de origem continua
+    --     visível e é barrada na conclusão, nunca mascarada aqui.
+    -- Só lê (sem lock novo): a ordem documento -> item não muda. O resultado
+    -- fica em `v_vinculos` e é aplicado no UPDATE abaixo; o antes/depois do
+    -- vínculo entra no MESMO evento 'EDICAO' porque `dados_antes.itens` e
+    -- `dados_depois.itens` são a linha inteira do item (to_jsonb), incluindo
+    -- `patrimonio_id`.
+    if v_item_edicao ? 'numero_patrimonio_corrigido' then
+      v_corrigido_novo := public.normalize_text(v_item_edicao ->> 'numero_patrimonio_corrigido');
+      v_numero_efetivo := upper(public.normalize_text(coalesce(v_corrigido_novo, v_item_check.numero_patrimonio_original)));
+      v_ids_encontrados := null;
+      v_patrimonio_resolvido := null;
+
+      if v_numero_efetivo is not null then
+        select array_agg(p.id) into v_ids_encontrados
+        from public.patrimonios p
+        where p.numero_patrimonio = v_numero_efetivo;
+
+        if cardinality(v_ids_encontrados) > 1 then
+          raise exception 'Mais de um patrimônio com o número % — inconsistência de dados', v_numero_efetivo
+            using errcode = 'P0001';
+        end if;
+        v_patrimonio_resolvido := v_ids_encontrados[1];
+      end if;
+
+      if v_patrimonio_resolvido is null and v_corrigido_novo is not null then
+        raise exception 'Patrimônio % não encontrado no InvTec — a correção do item % não foi aplicada', v_numero_efetivo, v_item_id
+          using errcode = 'P0002';
+      end if;
+
+      v_vinculos := v_vinculos || jsonb_build_object(v_item_id::text, v_patrimonio_resolvido);
+    end if;
+    -- <<< 11.4.2-A
+  end loop;
+
+  v_dados_antes := jsonb_build_object(
+    'numero_documento_sei', v_documento.numero_documento_sei,
+    'numero_processo', v_documento.numero_processo,
+    'numero_documento_formatado', v_documento.numero_documento_formatado,
+    'assunto', v_documento.assunto
+  );
+
+  -- PROMPT 11.3.1, seção 7: retrato "antes" dos itens que serão tocados —
+  -- capturado ANTES do loop de correção, para o evento de auditoria
+  -- registrar o antes/depois real (não só dos campos do documento).
+  select coalesce(jsonb_agg(to_jsonb(i.*)), '[]'::jsonb) into v_itens_antes
+  from public.documentos_sei_itens i
+  where i.documento_id = p_documento_id and i.id = any (coalesce(v_ids_itens_alterados, array[]::uuid[]));
+
+  update public.documentos_sei set
+    numero_documento_sei = case when p_alteracoes ? 'numero_documento_sei'
+      then p_alteracoes ->> 'numero_documento_sei' else numero_documento_sei end,
+    numero_processo = case when p_alteracoes ? 'numero_processo'
+      then p_alteracoes ->> 'numero_processo' else numero_processo end,
+    numero_documento_formatado = case when p_alteracoes ? 'numero_documento_formatado'
+      then p_alteracoes ->> 'numero_documento_formatado' else numero_documento_formatado end,
+    assunto = case when p_alteracoes ? 'assunto' then p_alteracoes ->> 'assunto' else assunto end,
+    versao = versao + 1,
+    atualizado_em = now()
+  where id = p_documento_id
+  returning * into v_documento;
+
+  for v_item_edicao in select * from jsonb_array_elements(p_itens_alterados)
+  loop
+    update public.documentos_sei_itens set
+      numero_patrimonio_corrigido = case when v_item_edicao ? 'numero_patrimonio_corrigido'
+        then v_item_edicao ->> 'numero_patrimonio_corrigido' else numero_patrimonio_corrigido end,
+      -- >>> 11.4.2-A
+      patrimonio_id = case when v_vinculos ? ((v_item_edicao ->> 'item_id')::uuid)::text
+        then nullif(v_vinculos ->> ((v_item_edicao ->> 'item_id')::uuid)::text, '')::uuid else patrimonio_id end,
+      -- <<< 11.4.2-A
+      destino_texto_corrigido = case when v_item_edicao ? 'destino_texto_corrigido'
+        then v_item_edicao ->> 'destino_texto_corrigido' else destino_texto_corrigido end,
+      numero_chamado_corrigido = case when v_item_edicao ? 'numero_chamado_corrigido'
+        then v_item_edicao ->> 'numero_chamado_corrigido' else numero_chamado_corrigido end,
+      equipamento_texto_corrigido = case when v_item_edicao ? 'equipamento_texto_corrigido'
+        then v_item_edicao ->> 'equipamento_texto_corrigido' else equipamento_texto_corrigido end,
+      -- Seção 3 desta auditoria: agora também editáveis enquanto o
+      -- documento não tiver item concluído — destino resolvido,
+      -- localização e responsável de destino (decisão + valor sempre
+      -- juntos, para nunca violar as constraints de coerência da seção 2).
+      destino_setor_id = case when v_item_edicao ? 'destino_setor_id'
+        then nullif(v_item_edicao ->> 'destino_setor_id', '')::uuid else destino_setor_id end,
+      localizacao_destino_id = case when v_item_edicao ? 'localizacao_destino_id'
+        then nullif(v_item_edicao ->> 'localizacao_destino_id', '')::uuid else localizacao_destino_id end,
+      decisao_localizacao = case when v_item_edicao ? 'decisao_localizacao'
+        then (v_item_edicao ->> 'decisao_localizacao')::public.documento_sei_decisao_campo else decisao_localizacao end,
+      responsavel_destino = case when v_item_edicao ? 'responsavel_destino'
+        then v_item_edicao ->> 'responsavel_destino' else responsavel_destino end,
+      decisao_responsavel = case when v_item_edicao ? 'decisao_responsavel'
+        then (v_item_edicao ->> 'decisao_responsavel')::public.documento_sei_decisao_campo else decisao_responsavel end,
+      corrigido_por = auth.uid(),
+      corrigido_em = now(),
+      motivo_correcao = p_motivo
+    where id = (v_item_edicao ->> 'item_id')::uuid
+      and documento_id = p_documento_id
+      and status = 'PENDENTE'; -- defesa extra: nunca corrige item concluído/cancelado
+  end loop;
+
+  select coalesce(jsonb_agg(to_jsonb(i.*)), '[]'::jsonb) into v_itens_depois
+  from public.documentos_sei_itens i
+  where i.documento_id = p_documento_id and i.id = any (coalesce(v_ids_itens_alterados, array[]::uuid[]));
+
+  insert into public.documentos_sei_eventos (documento_id, tipo, descricao, dados_antes, dados_depois, autor_id)
+  values (
+    p_documento_id, 'EDICAO', p_motivo,
+    jsonb_build_object('documento', v_dados_antes, 'itens', v_itens_antes),
+    jsonb_build_object(
+      'documento', jsonb_build_object(
+        'numero_documento_sei', v_documento.numero_documento_sei,
+        'numero_processo', v_documento.numero_processo,
+        'numero_documento_formatado', v_documento.numero_documento_formatado,
+        'assunto', v_documento.assunto
+      ),
+      'itens', v_itens_depois
+    ),
+    auth.uid()
+  );
+
+  return v_documento;
+end;
+$$;

@@ -3,6 +3,8 @@
 #include <dwmapi.h>
 #include <flutter_windows.h>
 
+#include <algorithm>
+
 #include "resource.h"
 
 namespace {
@@ -197,6 +199,44 @@ Win32Window::MessageHandler(HWND hwnd,
 
       return 0;
     }
+    case WM_GETMINMAXINFO: {
+      // PROMPT 11.3.9.2 — minimum window size. The limit is expressed as a
+      // CLIENT size (what Flutter actually lays out in), so the outer size
+      // must add the real title bar/border thickness for the CURRENT dpi —
+      // never a hard-coded outer size, which would leave the usable area
+      // smaller than intended. Only ptMinTrackSize is touched: maximizing,
+      // restoring and enlarging stay under Windows' default behavior.
+      if (min_client_width_ == 0 || min_client_height_ == 0) {
+        break;
+      }
+      const UINT dpi = GetDpiForWindow(hwnd);
+      const double scale_factor = dpi / 96.0;
+      RECT outer = {0, 0, Scale(min_client_width_, scale_factor),
+                    Scale(min_client_height_, scale_factor)};
+      AdjustWindowRectExForDpi(
+          &outer, static_cast<DWORD>(GetWindowLongPtr(hwnd, GWL_STYLE)), FALSE,
+          static_cast<DWORD>(GetWindowLongPtr(hwnd, GWL_EXSTYLE)), dpi);
+      LONG min_width = outer.right - outer.left;
+      LONG min_height = outer.bottom - outer.top;
+
+      // On a small (or highly scaled) monitor the minimum must never be
+      // larger than the space Windows actually gives the window.
+      MONITORINFO monitor_info{};
+      monitor_info.cbSize = sizeof(monitor_info);
+      if (GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST),
+                         &monitor_info)) {
+        min_width = std::min<LONG>(
+            min_width, monitor_info.rcWork.right - monitor_info.rcWork.left);
+        min_height = std::min<LONG>(
+            min_height, monitor_info.rcWork.bottom - monitor_info.rcWork.top);
+      }
+
+      auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+      info->ptMinTrackSize.x = min_width;
+      info->ptMinTrackSize.y = min_height;
+      return 0;
+    }
+
     case WM_SIZE: {
       RECT rect = GetClientArea();
       if (child_content_ != nullptr) {
@@ -253,6 +293,11 @@ RECT Win32Window::GetClientArea() {
   RECT frame;
   GetClientRect(window_handle_, &frame);
   return frame;
+}
+
+void Win32Window::SetMinimumClientSize(const Size& size) {
+  min_client_width_ = size.width;
+  min_client_height_ = size.height;
 }
 
 HWND Win32Window::GetHandle() {

@@ -3,12 +3,20 @@ import '../domain/import_column_mapping.dart';
 import '../domain/import_defaults.dart';
 import '../domain/import_row.dart';
 import '../domain/import_summary.dart';
+import '../domain/patrimonio_comparacao.dart';
+import '../domain/patrimonio_decisao.dart';
 import '../domain/profiles/import_profile_id.dart';
 
 /// Passos do assistente de importação (seção 3) — sempre nesta ordem;
 /// nunca importa automaticamente ao selecionar o arquivo. [resolverLocalizacoes]
 /// só é visitado quando um perfil com localizações a resolver (hoje, só o
 /// GETEC) está ativo — ver [PatrimonioImportState.perfilAtivo].
+///
+/// PROMPT 11.6.3 — [compararRevisao]/[compararResumo] são o modo ADMIN
+/// "Comparar e Atualizar": alcançados a partir do MESMO passo
+/// [configurarPadroes]/[resolverLocalizacoes] do assistente convencional
+/// (ver [PatrimonioImportState.modoComparacaoAdmin]), nunca um segundo
+/// assistente — só o desfecho de "Continuar"/"Analisar planilha" diverge.
 enum ImportStep {
   selecionarArquivo,
   selecionarAba,
@@ -20,6 +28,8 @@ enum ImportStep {
   revisar,
   importando,
   resultado,
+  compararRevisao,
+  compararResumo,
 }
 
 /// Filtro do passo de revisão (seção 22/23) — "duplicados" não é um
@@ -76,6 +86,44 @@ List<ImportRow> aplicarFiltroRevisao(List<ImportRow> linhas, ImportFiltroRevisao
   }
 }
 
+/// PROMPT 11.6.3, seção 3 — filtros da lista de revisão do modo ADMIN
+/// "Comparar e Atualizar". Opera sobre [ComparacaoLote.itensParaRevisao]
+/// (idênticos JÁ excluídos por aquele getter — nunca reaparecem aqui,
+/// mesmo com o filtro "Todos").
+enum ComparacaoFiltroRevisao {
+  todos,
+  localizacaoOuSetor,
+  outrosMetadados,
+  novos,
+  bloqueados,
+  pendentesDeDecisao,
+  selecionadosParaAtualizacao,
+  ignorados,
+}
+
+extension ComparacaoFiltroRevisaoLabel on ComparacaoFiltroRevisao {
+  String get label {
+    switch (this) {
+      case ComparacaoFiltroRevisao.todos:
+        return 'Todos';
+      case ComparacaoFiltroRevisao.localizacaoOuSetor:
+        return 'Localização/Setor';
+      case ComparacaoFiltroRevisao.outrosMetadados:
+        return 'Outros metadados';
+      case ComparacaoFiltroRevisao.novos:
+        return 'Novos';
+      case ComparacaoFiltroRevisao.bloqueados:
+        return 'Bloqueados';
+      case ComparacaoFiltroRevisao.pendentesDeDecisao:
+        return 'Pendentes de decisão';
+      case ComparacaoFiltroRevisao.selecionadosParaAtualizacao:
+        return 'Selecionados para atualização';
+      case ComparacaoFiltroRevisao.ignorados:
+        return 'Ignorados';
+    }
+  }
+}
+
 /// Estado completo do assistente — uma única classe mutável-por-substituição
 /// (nunca mutamos [PatrimonioImportState] em si; sempre `copyWith`). As
 /// [linhas] dentro dela, porém, SÃO mutadas em memória (ver [ImportRow]) por
@@ -108,6 +156,11 @@ class PatrimonioImportState {
     this.revalidando = false,
     this.revalidacaoConcluidaNaRevisao,
     this.revalidacaoNumerosQueViraramExistentes = const [],
+    this.comparacao,
+    this.modoComparacaoAdmin = false,
+    this.decisoes = const {},
+    this.filtroComparacao = ComparacaoFiltroRevisao.todos,
+    this.buscaNumeroPatrimonio = '',
   }) : padroes = padroes ?? ImportDefaults();
 
   final ImportStep step;
@@ -199,6 +252,176 @@ class PatrimonioImportState {
   /// Vazio quando a revalidação não encontrou nenhuma mudança.
   final List<String> revalidacaoNumerosQueViraramExistentes;
 
+  /// PROMPT 11.6.2 — resultado do modo ADMIN "Comparar e Atualizar",
+  /// calculado a partir das MESMAS [linhas] já produzidas pelo assistente
+  /// convencional (ver [PatrimonioImportController.compararParaAdmin]).
+  /// `null` sempre que esse modo nunca foi acionado nesta sessão — a
+  /// importação convencional nunca o preenche, então seu comportamento
+  /// (inclusive todo [resumo]/[linhasFiltradas] abaixo) permanece IDÊNTICO
+  /// ao de antes deste prompt.
+  final ComparacaoLote? comparacao;
+
+  /// PROMPT 11.6.3 — `true` quando o usuário (sempre ADMIN — ver seção 1;
+  /// [PatrimonioImportController.definirModoComparacaoAdmin] recusa fora
+  /// desse perfil) escolheu "Comparar e Atualizar" em vez da importação
+  /// convencional, no passo "Configurar padrões". Decide qual método o
+  /// botão "Continuar"/"Analisar planilha" chama
+  /// ([PatrimonioImportController.analisar] ou
+  /// [PatrimonioImportController.compararParaAdmin]) — nunca cria um
+  /// segundo assistente: até aqui, os dois modos compartilham exatamente
+  /// os mesmos passos (arquivo, aba, cabeçalho, colunas, padrões,
+  /// localizações do perfil GETEC).
+  final bool modoComparacaoAdmin;
+
+  /// PROMPT 11.6.3, seção 5 — decisão do ADMIN por campo divergente,
+  /// chaveada por [ChaveDecisaoCampo] (patrimonioId + campo — NUNCA um
+  /// índice de lista, que muda com filtro/ordenação). Só contém entradas
+  /// para patrimônios [ClassificacaoComparacao.divergente]: nunca para
+  /// novos (sem cadastro automático — seção 6) nem bloqueados (seção 7).
+  /// Reiniciada a CADA nova planilha ([PatrimonioImportController.carregarArquivo]
+  /// já reseta o estado inteiro) e a cada nova chamada de
+  /// [PatrimonioImportController.compararParaAdmin] (seção 9: "invalidar
+  /// as decisões anteriores"). Puramente em memória — nada aqui é
+  /// persistido nem enviado a lugar nenhum nesta etapa (seção 10).
+  final Map<ChaveDecisaoCampo, DecisaoCampoValor> decisoes;
+
+  /// PROMPT 11.6.3, seção 3 — filtro ativo da lista de revisão do modo
+  /// ADMIN.
+  final ComparacaoFiltroRevisao filtroComparacao;
+
+  /// PROMPT 11.6.3, seção 3 — texto de busca por número patrimonial na
+  /// lista de revisão do modo ADMIN (contains, sem diferenciar caixa).
+  final String buscaNumeroPatrimonio;
+
+  /// Decisão atual de um campo — [DecisaoCampoValor.pendente] quando ainda
+  /// não há entrada em [decisoes] (nunca lança, nunca exige inicialização
+  /// prévia por patrimônio).
+  DecisaoCampoValor decisaoDe(String patrimonioId, String campo) =>
+      decisoes[ChaveDecisaoCampo(patrimonioId: patrimonioId, campo: campo)] ?? DecisaoCampoValor.pendente;
+
+  /// `true` quando TODAS as divergências de [item] já têm uma decisão
+  /// [DecisaoCampoValor.ignorar] — usado pelo filtro "Ignorados" (seção 3) e
+  /// pelo resumo de decisões (seção 8: "patrimônios ignorados" nunca conta
+  /// quem ainda tem alguma decisão pendente, nem quem tem alguma aplicada).
+  bool _totalmenteIgnorado(PatrimonioComparacao item) {
+    if (item.divergencias.isEmpty) return false;
+    final id = item.patrimonioId;
+    if (id == null) return false;
+    return item.divergencias.every((d) => decisaoDe(id, d.campo) == DecisaoCampoValor.ignorar);
+  }
+
+  bool _temAoMenosUmaAplicacao(PatrimonioComparacao item) {
+    final id = item.patrimonioId;
+    if (id == null) return false;
+    return item.divergencias.any((d) => decisaoDe(id, d.campo) == DecisaoCampoValor.aplicar);
+  }
+
+  bool _temAoMenosUmaPendente(PatrimonioComparacao item) {
+    final id = item.patrimonioId;
+    if (id == null) return false;
+    return item.divergencias.any((d) => decisaoDe(id, d.campo) == DecisaoCampoValor.pendente);
+  }
+
+  /// PROMPT 11.6.3, seção 8 — etapa de conferência ("resumo das decisões").
+  /// Calculado a partir de [comparacao] + [decisoes], nunca armazenado à
+  /// parte (uma única fonte de verdade — impossível ficar dessincronizado).
+  ComparacaoDecisoesResumo get resumoDecisoes {
+    final lote = comparacao;
+    if (lote == null) return ComparacaoDecisoesResumo.vazio();
+
+    final divergentes = lote.itens
+        .where((i) => i.classificacao == ClassificacaoComparacao.divergente && i.patrimonioId != null)
+        .toList();
+
+    var patrimoniosComAlteracao = 0;
+    var patrimoniosIgnorados = 0;
+    var camposAAtualizar = 0;
+    var alteracoesLocalizacaoOuSetor = 0;
+    var alteracoesMetadados = 0;
+    var decisoesPendentes = 0;
+
+    for (final item in divergentes) {
+      final id = item.patrimonioId!;
+      if (_temAoMenosUmaAplicacao(item)) patrimoniosComAlteracao++;
+      // "Ignorados" (seção 8) nunca conta quem tem alguma aplicação — as
+      // duas categorias são mutuamente exclusivas por construção.
+      if (!_temAoMenosUmaAplicacao(item) && _totalmenteIgnorado(item)) patrimoniosIgnorados++;
+
+      for (final campo in item.divergencias) {
+        switch (decisaoDe(id, campo.campo)) {
+          case DecisaoCampoValor.aplicar:
+            camposAAtualizar++;
+            if (campo.tipo == TipoDivergencia.setor || campo.tipo == TipoDivergencia.localizacao) {
+              alteracoesLocalizacaoOuSetor++;
+            } else {
+              alteracoesMetadados++;
+            }
+          case DecisaoCampoValor.pendente:
+            decisoesPendentes++;
+          case DecisaoCampoValor.ignorar:
+            break;
+        }
+      }
+    }
+
+    return ComparacaoDecisoesResumo(
+      patrimoniosComAlteracaoSelecionada: patrimoniosComAlteracao,
+      camposAAtualizar: camposAAtualizar,
+      alteracoesLocalizacaoOuSetor: alteracoesLocalizacaoOuSetor,
+      alteracoesMetadados: alteracoesMetadados,
+      patrimoniosIgnorados: patrimoniosIgnorados,
+      itensBloqueados: lote.resumo.bloqueados,
+      decisoesPendentes: decisoesPendentes,
+    );
+  }
+
+  /// PROMPT 11.6.3, seção 3 — [ComparacaoLote.itensParaRevisao] (idênticos
+  /// JÁ excluídos), com [filtroComparacao] e [buscaNumeroPatrimonio]
+  /// aplicados. `[]` (nunca `null`) quando [comparacao] ainda não existe —
+  /// a UI trata isso como "nenhum item", nunca como erro.
+  List<PatrimonioComparacao> get itensComparacaoFiltrados {
+    final lote = comparacao;
+    if (lote == null) return const [];
+
+    var itens = lote.itensParaRevisao;
+
+    final termo = buscaNumeroPatrimonio.trim().toLowerCase();
+    if (termo.isNotEmpty) {
+      itens = itens.where((i) => (i.numeroPatrimonio ?? '').toLowerCase().contains(termo)).toList();
+    }
+
+    switch (filtroComparacao) {
+      case ComparacaoFiltroRevisao.todos:
+        return itens;
+      case ComparacaoFiltroRevisao.localizacaoOuSetor:
+        return itens
+            .where(
+              (i) => i.divergencias.any(
+                (d) => d.tipo == TipoDivergencia.setor || d.tipo == TipoDivergencia.localizacao,
+              ),
+            )
+            .toList();
+      case ComparacaoFiltroRevisao.outrosMetadados:
+        return itens.where((i) => i.divergencias.any((d) => d.tipo == TipoDivergencia.metadado)).toList();
+      case ComparacaoFiltroRevisao.novos:
+        return itens.where((i) => i.classificacao == ClassificacaoComparacao.novo).toList();
+      case ComparacaoFiltroRevisao.bloqueados:
+        return itens.where((i) => i.classificacao == ClassificacaoComparacao.bloqueado).toList();
+      case ComparacaoFiltroRevisao.pendentesDeDecisao:
+        return itens
+            .where((i) => i.classificacao == ClassificacaoComparacao.divergente && _temAoMenosUmaPendente(i))
+            .toList();
+      case ComparacaoFiltroRevisao.selecionadosParaAtualizacao:
+        return itens
+            .where((i) => i.classificacao == ClassificacaoComparacao.divergente && _temAoMenosUmaAplicacao(i))
+            .toList();
+      case ComparacaoFiltroRevisao.ignorados:
+        return itens
+            .where((i) => i.classificacao == ClassificacaoComparacao.divergente && _totalmenteIgnorado(i))
+            .toList();
+    }
+  }
+
   ImportParsedSheet? get abaSelecionada =>
       abaSelecionadaIndice == null ? null : abas[abaSelecionadaIndice!];
 
@@ -238,6 +461,11 @@ class PatrimonioImportState {
     bool? revalidando,
     int? Function()? revalidacaoConcluidaNaRevisao,
     List<String>? revalidacaoNumerosQueViraramExistentes,
+    ComparacaoLote? Function()? comparacao,
+    bool? modoComparacaoAdmin,
+    Map<ChaveDecisaoCampo, DecisaoCampoValor>? decisoes,
+    ComparacaoFiltroRevisao? filtroComparacao,
+    String? buscaNumeroPatrimonio,
   }) {
     return PatrimonioImportState(
       step: step ?? this.step,
@@ -270,6 +498,46 @@ class PatrimonioImportState {
           : this.revalidacaoConcluidaNaRevisao,
       revalidacaoNumerosQueViraramExistentes:
           revalidacaoNumerosQueViraramExistentes ?? this.revalidacaoNumerosQueViraramExistentes,
+      comparacao: comparacao != null ? comparacao() : this.comparacao,
+      modoComparacaoAdmin: modoComparacaoAdmin ?? this.modoComparacaoAdmin,
+      decisoes: decisoes ?? this.decisoes,
+      filtroComparacao: filtroComparacao ?? this.filtroComparacao,
+      buscaNumeroPatrimonio: buscaNumeroPatrimonio ?? this.buscaNumeroPatrimonio,
     );
   }
+}
+
+/// PROMPT 11.6.3, seção 8 — contagens da etapa "Resumo das decisões".
+/// [patrimoniosComAlteracaoSelecionada] e [patrimoniosIgnorados] nunca se
+/// sobrepõem (cada patrimônio divergente cai em NO MÁXIMO uma das duas —
+/// ver [PatrimonioImportState.resumoDecisoes]) e nenhum patrimônio é
+/// contado mais de uma vez dentro da mesma categoria.
+class ComparacaoDecisoesResumo {
+  const ComparacaoDecisoesResumo({
+    required this.patrimoniosComAlteracaoSelecionada,
+    required this.camposAAtualizar,
+    required this.alteracoesLocalizacaoOuSetor,
+    required this.alteracoesMetadados,
+    required this.patrimoniosIgnorados,
+    required this.itensBloqueados,
+    required this.decisoesPendentes,
+  });
+
+  factory ComparacaoDecisoesResumo.vazio() => const ComparacaoDecisoesResumo(
+    patrimoniosComAlteracaoSelecionada: 0,
+    camposAAtualizar: 0,
+    alteracoesLocalizacaoOuSetor: 0,
+    alteracoesMetadados: 0,
+    patrimoniosIgnorados: 0,
+    itensBloqueados: 0,
+    decisoesPendentes: 0,
+  );
+
+  final int patrimoniosComAlteracaoSelecionada;
+  final int camposAAtualizar;
+  final int alteracoesLocalizacaoOuSetor;
+  final int alteracoesMetadados;
+  final int patrimoniosIgnorados;
+  final int itensBloqueados;
+  final int decisoesPendentes;
 }

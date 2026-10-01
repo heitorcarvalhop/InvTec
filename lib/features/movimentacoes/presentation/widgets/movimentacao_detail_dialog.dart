@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/setor_display.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../domain/movimentacao.dart';
 import '../../domain/movimentacao_listagem_item.dart';
@@ -37,17 +38,32 @@ class MovimentacaoDetailDialog extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: Text('Movimentação', style: AppTypography.pageSubtitle(context)),
-                  ),
+                  Expanded(child: Text('Movimentação', style: AppTypography.pageSubtitle(context))),
                   StatusChip(label: item.tipo.label, kind: kind, icon: icon),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
               _Field(label: 'Patrimônio', value: item.patrimonioNumero),
               if (item.patrimonioTipoNome != null) _Field(label: 'Equipamento', value: item.patrimonioTipoNome),
-              _Field(label: 'Origem', value: item.setorOrigemNome),
-              _Field(label: 'Destino', value: item.setorDestinoNome),
+              // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
+              // tooltip.
+              _Field(
+                label: 'Origem',
+                value: siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome),
+                valueTooltip:
+                    siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome) == item.setorOrigemNome
+                    ? null
+                    : item.setorOrigemNome,
+              ),
+              _Field(
+                label: 'Destino',
+                value: siglaOuNomeSetor(sigla: item.setorDestinoSigla, nome: item.setorDestinoNome),
+                valueTooltip:
+                    siglaOuNomeSetor(sigla: item.setorDestinoSigla, nome: item.setorDestinoNome) ==
+                        item.setorDestinoNome
+                    ? null
+                    : item.setorDestinoNome,
+              ),
               if (localizacao != null) _Field(label: 'Localização', value: localizacao),
               _Field(label: 'Responsável', value: item.responsavelExibido),
               _Field(label: 'Autor', value: item.autorExibido),
@@ -62,10 +78,7 @@ class MovimentacaoDetailDialog extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Fechar'),
-                ),
+                child: TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar')),
               ),
             ],
           ),
@@ -85,13 +98,17 @@ String? _resumoLocalizacao(MovimentacaoListagemItem item) {
 }
 
 class _Field extends StatelessWidget {
-  const _Field({required this.label, required this.value});
+  const _Field({required this.label, required this.value, this.valueTooltip});
 
   final String label;
   final String? value;
 
+  /// PROMPT 11.3.5.4 — nome completo de um setor exibido pela sigla.
+  final String? valueTooltip;
+
   @override
   Widget build(BuildContext context) {
+    final valueText = Text(value ?? '—', style: AppTypography.body(context));
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Column(
@@ -99,7 +116,7 @@ class _Field extends StatelessWidget {
         children: [
           Text(label, style: AppTypography.auxiliary(context)),
           const SizedBox(height: 2),
-          Text(value ?? '—', style: AppTypography.body(context)),
+          valueTooltip == null ? valueText : Tooltip(message: valueTooltip, child: valueText),
         ],
       ),
     );

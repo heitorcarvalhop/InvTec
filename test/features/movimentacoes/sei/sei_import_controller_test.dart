@@ -2,10 +2,14 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supabase.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
+import 'package:invtec/features/movimentacoes/domain/movimentacao_listagem_item.dart';
 import 'package:invtec/features/movimentacoes/sei/application/sei_documento_parser.dart';
 import 'package:invtec/features/movimentacoes/sei/data/sei_pdf_text_extractor.dart';
 import 'package:invtec/features/movimentacoes/sei/domain/sei_documento_extraido.dart';
+import 'package:invtec/features/movimentacoes/sei/domain/sei_duplicidade.dart';
+import 'package:invtec/features/movimentacoes/sei/domain/sei_estagio_preparacao.dart';
 import 'package:invtec/features/movimentacoes/sei/domain/sei_item_extraido.dart';
 import 'package:invtec/features/movimentacoes/sei/presentation/sei_import_controller.dart';
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
@@ -16,6 +20,7 @@ import 'package:invtec/features/setores/domain/setor.dart';
 
 import '../../patrimonios/fake_patrimonio_repository.dart';
 import '../../setores/fake_setor_repository.dart';
+import '../fake_movimentacao_repository.dart';
 
 class _FakeExtractor implements SeiPdfTextExtractor {
   _FakeExtractor({this.resultado, this.erro});
@@ -47,13 +52,17 @@ class _FakeParser implements SeiDocumentoParser {
 final _setorGetec = Setor(id: 'setor-getec', nome: 'Gerencia de Tecnologia', sigla: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1));
 final _setorGeasi = Setor(id: 'setor-geasi', nome: 'Gerência de Licenciamento', sigla: 'GEASI', ativo: true, criadoEm: DateTime(2026, 1, 1));
 
-PatrimonioDetalhe _patrimonio(String numero, {String setorAtualId = 'setor-getec'}) {
+PatrimonioDetalhe _patrimonio(
+  String numero, {
+  String setorAtualId = 'setor-getec',
+  PatrimonioStatus status = PatrimonioStatus.disponivel,
+}) {
   return PatrimonioDetalhe(
     patrimonio: Patrimonio(
       id: 'id-$numero',
       numeroPatrimonio: numero,
       tipoId: 'tipo-1',
-      status: PatrimonioStatus.disponivel,
+      status: status,
       setorAtualId: setorAtualId,
       dataCadastro: DateTime(2026, 1, 1),
       atualizadoEm: DateTime(2026, 1, 1),
@@ -63,14 +72,14 @@ PatrimonioDetalhe _patrimonio(String numero, {String setorAtualId = 'setor-getec
   );
 }
 
-SeiDocumentoExtraido _documentoComDoisItens() {
+SeiDocumentoExtraido _documentoComDoisItens({SeiConfianca confiancaSegundoItem = SeiConfianca.alta}) {
   return SeiDocumentoExtraido(
     nomeArquivo: 'despacho.pdf',
     tamanhoBytes: 500,
     quantidadePaginas: 1,
     hashSha256: 'hash-fake',
-    numeroProcesso: '202600017000011',
     numeroDocumentoSei: '95955192',
+    numeroDocumentoFormatado: '577/2026/SEMAD/GETEC-12014',
     tipoMovimentacaoInferido: MovimentacaoTipo.transferencia,
     itens: [
       SeiItemExtraido(
@@ -90,30 +99,44 @@ SeiDocumentoExtraido _documentoComDoisItens() {
         unidadeOrigemTexto: 'GETEC - Gerencia de Tecnologia',
         unidadeDestinoTexto: 'Gerência de Licenciamento – GEASI',
         numeroChamado: '4496',
+        confiancaPatrimonio: confiancaSegundoItem,
       ),
     ],
   );
 }
 
+// `Override` (o tipo esperado por `ProviderContainer(overrides: ...)`) não é
+// exportado publicamente pelo barril de `flutter_riverpod` nesta versão —
+// só pode ser usado por inferência, nunca escrito explicitamente aqui.
+// ignore: strict_top_level_inference
+_overridesPadrao({
+  required FakePatrimonioRepository patrimonioRepo,
+  FakeMovimentacaoRepository? movimentacaoRepo,
+  SeiPdfLido? pdfLido,
+  SeiDocumentoExtraido? documento,
+}) {
+  return [
+    seiPdfTextExtractorProvider.overrideWithValue(
+      _FakeExtractor(resultado: pdfLido ?? const SeiPdfLido(textoPorPagina: ['texto'], quantidadePaginas: 1, hashSha256: 'hash')),
+    ),
+    if (documento != null) seiDocumentoParserProvider.overrideWithValue(_FakeParser(documento)),
+    patrimonioRepositoryProvider.overrideWithValue(patrimonioRepo),
+    setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: [_setorGetec, _setorGeasi])),
+    movimentacaoRepositoryProvider.overrideWithValue(movimentacaoRepo ?? FakeMovimentacaoRepository()),
+  ];
+}
+
 void main() {
-  group('PROMPT 11.1 — SeiImportController (nunca escreve, sempre leitura em lote)', () {
-    test('fluxo completo: lê, extrai, cruza em lote e termina em revisão', () async {
+  group('PROMPT 11.1/11.2 — SeiImportController (nunca registra, só lê em lote)', () {
+    test('fluxo completo: lê, extrai, cruza em lote, checa duplicidade e termina em revisão', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
-      final extrator = _FakeExtractor(
-        resultado: const SeiPdfLido(textoPorPagina: ['texto'], quantidadePaginas: 1, hashSha256: 'hash'),
-      );
+      final movimentacaoRepo = FakeMovimentacaoRepository();
       final container = ProviderContainer(
-        overrides: [
-          seiPdfTextExtractorProvider.overrideWithValue(extrator),
-          seiDocumentoParserProvider.overrideWithValue(_FakeParser(_documentoComDoisItens())),
-          patrimonioRepositoryProvider.overrideWithValue(patrimonioRepo),
-          setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: [_setorGetec, _setorGeasi])),
-          // Deliberadamente SEM override de `movimentacaoRepositoryProvider`
-          // (seção 31): se o controller alguma vez lesse esse provider, o
-          // provider padrão tentaria `Supabase.instance.client` e este
-          // teste quebraria — a ausência de erro aqui É a prova de que o
-          // caminho nunca toca a RPC de escrita.
-        ],
+        overrides: _overridesPadrao(
+          patrimonioRepo: patrimonioRepo,
+          movimentacaoRepo: movimentacaoRepo,
+          documento: _documentoComDoisItens(),
+        ),
       );
       addTearDown(container.dispose);
 
@@ -130,8 +153,89 @@ void main() {
       expect(state.resultado!.totalProntos, 1);
       expect(state.resultado!.totalBloqueados, 1);
 
-      // seção 16: uma única consulta em lote, nunca uma por item.
+      // seção 16 (PROMPT 11.1): uma única consulta em lote a patrimônios.
       expect(patrimonioRepo.buscarPorNumerosPatrimonioCallCount, 1);
+      // seção 2 (PROMPT 11.2.1): uma única LEITURA em lote, via filtro
+      // exato no banco (nunca `.listar` com busca OR genérica) — nunca uma
+      // por item.
+      expect(movimentacaoRepo.listarPorNumeroDocumentoCallCount, 1);
+      expect(movimentacaoRepo.listarCallCount, 0);
+      // E, acima de tudo: NENHUMA escrita, em nenhum momento deste fluxo.
+      expect(movimentacaoRepo.registrarCallCount, 0);
+    });
+
+    test(
+      'PROMPT 11.2, seção 2: documento com todos os itens PRONTO continua em estágio "patrimoniosConferidos"/'
+      '"aptoParaExecucao" — NUNCA "autorizado" sem confirmação explícita do usuário',
+      () async {
+        final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090'), _patrimonio('9999999')]);
+        final container = ProviderContainer(
+          overrides: _overridesPadrao(patrimonioRepo: patrimonioRepo, documento: _documentoComDoisItens()),
+        );
+        addTearDown(container.dispose);
+
+        await container
+            .read(seiImportControllerProvider.notifier)
+            .selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+
+        final state = container.read(seiImportControllerProvider);
+        expect(state.resultado!.totalBloqueados, 0);
+        expect(state.autorizacaoConfirmada, isFalse);
+        expect(state.estagio, isNot(SeiEstagioPreparacao.autorizado));
+
+        container.read(seiImportControllerProvider.notifier).confirmarAutorizacao(true);
+        expect(container.read(seiImportControllerProvider).estagio, SeiEstagioPreparacao.autorizado);
+      },
+    );
+
+    test('PROMPT 11.2, seção 4: histórico com movimentação idêntica é classificado como possível duplicidade/já registrada', () async {
+      final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
+      final movimentacaoRepo = FakeMovimentacaoRepository(
+        itens: [
+          MovimentacaoListagemItem(
+            id: 'mov-1',
+            tipo: MovimentacaoTipo.transferencia,
+            patrimonioId: 'id-4157090',
+            setorDestinoId: 'setor-geasi',
+            numeroChamado: '4556',
+            numeroDocumento: '95955192',
+            dataMovimentacao: DateTime(2026, 1, 1),
+          ),
+        ],
+      );
+      final container = ProviderContainer(
+        overrides: _overridesPadrao(
+          patrimonioRepo: patrimonioRepo,
+          movimentacaoRepo: movimentacaoRepo,
+          documento: SeiDocumentoExtraido(
+            nomeArquivo: 'despacho.pdf',
+            tamanhoBytes: 500,
+            quantidadePaginas: 1,
+            hashSha256: 'hash-fake',
+            numeroDocumentoSei: '95955192',
+            tipoMovimentacaoInferido: MovimentacaoTipo.transferencia,
+            itens: [
+              SeiItemExtraido(
+                linha: 1,
+                paginaOrigem: 1,
+                numeroPatrimonio: '4157090',
+                equipamento: 'Monitor Positivo',
+                unidadeOrigemTexto: 'GETEC - Gerencia de Tecnologia',
+                unidadeDestinoTexto: 'Gerência de Licenciamento – GEASI',
+                numeroChamado: '4556',
+              ),
+            ],
+          ),
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(seiImportControllerProvider.notifier)
+          .selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+
+      final state = container.read(seiImportControllerProvider);
+      expect(state.execucao[1]?.duplicidade?.status, SeiDuplicidadeStatus.jaRegistrada);
     });
 
     test('erro de leitura do PDF mantém o usuário no passo de seleção, com mensagem amigável', () async {
@@ -141,6 +245,7 @@ void main() {
           seiPdfTextExtractorProvider.overrideWithValue(extrator),
           patrimonioRepositoryProvider.overrideWithValue(FakePatrimonioRepository()),
           setorRepositoryProvider.overrideWithValue(FakeSetorRepository()),
+          movimentacaoRepositoryProvider.overrideWithValue(FakeMovimentacaoRepository()),
         ],
       );
       addTearDown(container.dispose);
@@ -158,14 +263,7 @@ void main() {
     test('reiniciar() volta ao estado inicial, descartando o resultado anterior', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       final container = ProviderContainer(
-        overrides: [
-          seiPdfTextExtractorProvider.overrideWithValue(
-            _FakeExtractor(resultado: const SeiPdfLido(textoPorPagina: ['x'], quantidadePaginas: 1, hashSha256: 'h')),
-          ),
-          seiDocumentoParserProvider.overrideWithValue(_FakeParser(_documentoComDoisItens())),
-          patrimonioRepositoryProvider.overrideWithValue(patrimonioRepo),
-          setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: [_setorGetec, _setorGeasi])),
-        ],
+        overrides: _overridesPadrao(patrimonioRepo: patrimonioRepo, documento: _documentoComDoisItens()),
       );
       addTearDown(container.dispose);
 
@@ -184,14 +282,7 @@ void main() {
     test('filtrar() muda o filtro sem tocar no resultado já calculado', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       final container = ProviderContainer(
-        overrides: [
-          seiPdfTextExtractorProvider.overrideWithValue(
-            _FakeExtractor(resultado: const SeiPdfLido(textoPorPagina: ['x'], quantidadePaginas: 1, hashSha256: 'h')),
-          ),
-          seiDocumentoParserProvider.overrideWithValue(_FakeParser(_documentoComDoisItens())),
-          patrimonioRepositoryProvider.overrideWithValue(patrimonioRepo),
-          setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: [_setorGetec, _setorGeasi])),
-        ],
+        overrides: _overridesPadrao(patrimonioRepo: patrimonioRepo, documento: _documentoComDoisItens()),
       );
       addTearDown(container.dispose);
 
@@ -206,5 +297,376 @@ void main() {
       expect(state.filtro, SeiFiltroRevisao.bloqueados);
       expect(state.resultado, same(resultadoAntes));
     });
+
+    test('PROMPT 11.2, seção 8: alternarSelecao nunca liga uma linha BLOQUEADA', () async {
+      final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]); // 9999999 não existe -> bloqueado
+      final container = ProviderContainer(
+        overrides: _overridesPadrao(patrimonioRepo: patrimonioRepo, documento: _documentoComDoisItens()),
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(seiImportControllerProvider.notifier)
+          .selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+
+      final notifier = container.read(seiImportControllerProvider.notifier);
+      // PROMPT 11.2.1, seção 4: localização/responsável de destino
+      // continuam PENDENTES até decisão explícita — precisa resolver as
+      // duas antes de a linha 1 (PRONTO) virar selecionável.
+      notifier.confirmarSemLocalizacao(1);
+      notifier.confirmarSemResponsavel(1);
+      notifier.alternarSelecao(1); // PRONTO + decisões resolvidas -> pode selecionar
+      notifier.alternarSelecao(2); // BLOQUEADO -> nunca liga, mesmo com decisões pendentes
+
+      final state = container.read(seiImportControllerProvider);
+      expect(state.execucao[1]?.selecionado, isTrue);
+      expect(state.execucao[2]?.selecionado ?? false, isFalse);
+    });
+
+    test('PROMPT 11.2, seção 7: linha de confiança MÉDIA só pode ser selecionada depois de confirmarAviso', () async {
+      final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090'), _patrimonio('9999999')]);
+      final container = ProviderContainer(
+        overrides: _overridesPadrao(
+          patrimonioRepo: patrimonioRepo,
+          documento: _documentoComDoisItens(confiancaSegundoItem: SeiConfianca.media),
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(seiImportControllerProvider.notifier)
+          .selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+
+      final notifier = container.read(seiImportControllerProvider.notifier);
+      notifier.confirmarSemLocalizacao(2);
+      notifier.confirmarSemResponsavel(2);
+
+      notifier.alternarSelecao(2);
+      expect(container.read(seiImportControllerProvider).execucao[2]?.selecionado ?? false, isFalse);
+
+      notifier.confirmarAviso(2, true);
+      notifier.alternarSelecao(2);
+      expect(container.read(seiImportControllerProvider).execucao[2]?.selecionado, isTrue);
+
+      // revogar a confirmação também tira da seleção (seção 7)
+      notifier.confirmarAviso(2, false);
+      expect(container.read(seiImportControllerProvider).execucao[2]?.selecionado, isFalse);
+    });
+
+    test('PROMPT 11.2, seção 9: plano gerado a partir da seleção nunca chama registrarMovimentacao', () async {
+      final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
+      final movimentacaoRepo = FakeMovimentacaoRepository();
+      final container = ProviderContainer(
+        overrides: _overridesPadrao(
+          patrimonioRepo: patrimonioRepo,
+          movimentacaoRepo: movimentacaoRepo,
+          documento: SeiDocumentoExtraido(
+            nomeArquivo: 'despacho.pdf',
+            tamanhoBytes: 500,
+            quantidadePaginas: 1,
+            hashSha256: 'hash-fake',
+            numeroDocumentoSei: '95955192',
+            numeroDocumentoFormatado: '577/2026/SEMAD/GETEC-12014',
+            tipoMovimentacaoInferido: MovimentacaoTipo.transferencia,
+            itens: [
+              SeiItemExtraido(
+                linha: 1,
+                paginaOrigem: 1,
+                numeroPatrimonio: '4157090',
+                equipamento: 'Monitor Positivo',
+                unidadeOrigemTexto: 'GETEC - Gerencia de Tecnologia',
+                unidadeDestinoTexto: 'Gerência de Licenciamento – GEASI',
+                numeroChamado: '4556',
+              ),
+            ],
+          ),
+        ),
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(seiImportControllerProvider.notifier);
+      await notifier.selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+      notifier.confirmarSemLocalizacao(1);
+      notifier.confirmarSemResponsavel(1);
+      notifier.alternarSelecao(1);
+
+      final plano = container.read(seiImportControllerProvider).plano;
+      expect(plano.totalItens, 1);
+      expect(plano.itens.single.numeroPatrimonio, '4157090');
+      expect(movimentacaoRepo.registrarCallCount, 0);
+    });
+
+    test('PROMPT 11.2, seção 5: revalidar() detecta mudança de status/setor e marca a linha desatualizada, sem selecioná-la', () async {
+      final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
+      final container = ProviderContainer(
+        overrides: _overridesPadrao(
+          patrimonioRepo: patrimonioRepo,
+          documento: SeiDocumentoExtraido(
+            nomeArquivo: 'despacho.pdf',
+            tamanhoBytes: 500,
+            quantidadePaginas: 1,
+            hashSha256: 'hash-fake',
+            numeroDocumentoSei: '95955192',
+            tipoMovimentacaoInferido: MovimentacaoTipo.transferencia,
+            itens: [
+              SeiItemExtraido(
+                linha: 1,
+                paginaOrigem: 1,
+                numeroPatrimonio: '4157090',
+                equipamento: 'Monitor Positivo',
+                unidadeOrigemTexto: 'GETEC - Gerencia de Tecnologia',
+                unidadeDestinoTexto: 'Gerência de Licenciamento – GEASI',
+                numeroChamado: '4556',
+              ),
+            ],
+          ),
+        ),
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(seiImportControllerProvider.notifier);
+      await notifier.selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+      notifier.confirmarSemLocalizacao(1);
+      notifier.confirmarSemResponsavel(1);
+      notifier.alternarSelecao(1);
+      expect(container.read(seiImportControllerProvider).execucao[1]?.selecionado, isTrue);
+
+      // Estado mudou no InvTec desde a análise (ex.: alguém já moveu o
+      // patrimônio para EM_MANUTENCAO por fora deste fluxo).
+      patrimonioRepo.substituirDetalhe(_patrimonio('4157090', status: PatrimonioStatus.emManutencao));
+
+      await notifier.revalidar();
+
+      final state = container.read(seiImportControllerProvider);
+      expect(state.execucao[1]?.desatualizado, isTrue);
+      expect(state.execucao[1]?.selecionado, isFalse);
+    });
+
+    test('PROMPT 11.2, seção 11: ausência de dependência executável de escrita — nenhuma chamada a registrarMovimentacao em todo o fluxo', () async {
+      final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
+      final movimentacaoRepo = FakeMovimentacaoRepository();
+      final container = ProviderContainer(
+        overrides: _overridesPadrao(
+          patrimonioRepo: patrimonioRepo,
+          movimentacaoRepo: movimentacaoRepo,
+          documento: _documentoComDoisItens(),
+        ),
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(seiImportControllerProvider.notifier);
+      await notifier.selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+      notifier.alternarSelecao(1);
+      notifier.confirmarAutorizacao(true);
+      await notifier.revalidar();
+
+      expect(movimentacaoRepo.registrarCallCount, 0);
+    });
+
+    test('PROMPT 11.2.1, seção 2: busca exata por número SEI — não confunde com substring de outro documento', () async {
+      final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
+      final movimentacaoRepo = FakeMovimentacaoRepository(
+        itens: [
+          // numero_documento contém o alvo como SUBSTRING, mas não é igual
+          // — uma busca OR/ilike (a antiga implementação) o encontraria por
+          // engano; a busca exata (seção 2) não pode.
+          MovimentacaoListagemItem(
+            id: 'mov-outro-doc',
+            tipo: MovimentacaoTipo.transferencia,
+            patrimonioId: 'id-4157090',
+            numeroDocumento: '9595519299999',
+            dataMovimentacao: DateTime(2026, 1, 1),
+          ),
+        ],
+      );
+      final container = ProviderContainer(
+        overrides: _overridesPadrao(
+          patrimonioRepo: patrimonioRepo,
+          movimentacaoRepo: movimentacaoRepo,
+          documento: SeiDocumentoExtraido(
+            nomeArquivo: 'despacho.pdf',
+            tamanhoBytes: 500,
+            quantidadePaginas: 1,
+            hashSha256: 'hash-fake',
+            numeroDocumentoSei: '95955192',
+            tipoMovimentacaoInferido: MovimentacaoTipo.transferencia,
+            itens: [
+              SeiItemExtraido(
+                linha: 1,
+                paginaOrigem: 1,
+                numeroPatrimonio: '4157090',
+                equipamento: 'Monitor Positivo',
+                unidadeOrigemTexto: 'GETEC - Gerencia de Tecnologia',
+                unidadeDestinoTexto: 'Gerência de Licenciamento – GEASI',
+                numeroChamado: '4556',
+              ),
+            ],
+          ),
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(seiImportControllerProvider.notifier)
+          .selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+
+      final state = container.read(seiImportControllerProvider);
+      expect(state.execucao[1]?.duplicidade?.status, SeiDuplicidadeStatus.semCorrespondencia);
+    });
+
+    test('PROMPT 11.2.1, seção 2: mais de 200 movimentações vinculadas ao documento — todas consideradas, sem limite arbitrário', () async {
+      final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
+      // 250 movimentações "de ruído" (outro documento) + 1 movimentação
+      // relevante posicionada DEPOIS delas (seção 8: "duplicidade fora da
+      // primeira página") — nada pode ser descartado silenciosamente.
+      final ruido = List.generate(
+        250,
+        (i) => MovimentacaoListagemItem(
+          id: 'mov-ruido-$i',
+          tipo: MovimentacaoTipo.transferencia,
+          patrimonioId: 'id-4157090',
+          numeroDocumento: 'outro-documento-$i',
+          dataMovimentacao: DateTime(2026, 1, 1),
+        ),
+      );
+      final movimentacaoRepo = FakeMovimentacaoRepository(
+        itens: [
+          ...ruido,
+          MovimentacaoListagemItem(
+            id: 'mov-relevante',
+            tipo: MovimentacaoTipo.transferencia,
+            patrimonioId: 'id-4157090',
+            setorDestinoId: 'setor-geasi',
+            numeroChamado: '4556',
+            numeroDocumento: '95955192',
+            dataMovimentacao: DateTime(2026, 1, 1),
+          ),
+        ],
+      );
+      final container = ProviderContainer(
+        overrides: _overridesPadrao(
+          patrimonioRepo: patrimonioRepo,
+          movimentacaoRepo: movimentacaoRepo,
+          documento: SeiDocumentoExtraido(
+            nomeArquivo: 'despacho.pdf',
+            tamanhoBytes: 500,
+            quantidadePaginas: 1,
+            hashSha256: 'hash-fake',
+            numeroDocumentoSei: '95955192',
+            tipoMovimentacaoInferido: MovimentacaoTipo.transferencia,
+            itens: [
+              SeiItemExtraido(
+                linha: 1,
+                paginaOrigem: 1,
+                numeroPatrimonio: '4157090',
+                equipamento: 'Monitor Positivo',
+                unidadeOrigemTexto: 'GETEC - Gerencia de Tecnologia',
+                unidadeDestinoTexto: 'Gerência de Licenciamento – GEASI',
+                numeroChamado: '4556',
+              ),
+            ],
+          ),
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(seiImportControllerProvider.notifier)
+          .selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+
+      final state = container.read(seiImportControllerProvider);
+      expect(state.execucao[1]?.duplicidade?.status, SeiDuplicidadeStatus.jaRegistrada);
+    });
+
+    test(
+      'PROMPT 11.2.1, seção 5: autorização geral do documento NÃO elimina pendências individuais (decisão de localização pendente)',
+      () async {
+        final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
+        final container = ProviderContainer(
+          overrides: _overridesPadrao(patrimonioRepo: patrimonioRepo, documento: _documentoComDoisItens()),
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(seiImportControllerProvider.notifier);
+        await notifier.selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+
+        // Autoriza o documento inteiro SEM resolver nenhuma decisão
+        // individual — o item 1 (PRONTO) continua tecnicamente inapto.
+        notifier.confirmarAutorizacao(true);
+
+        final state = container.read(seiImportControllerProvider);
+        expect(state.autorizacaoConfirmada, isTrue);
+        expect(state.itensAptos, isEmpty);
+        // e, por decorrência, nem consegue ser selecionado:
+        notifier.alternarSelecao(1);
+        expect(container.read(seiImportControllerProvider).execucao[1]?.selecionado ?? false, isFalse);
+      },
+    );
+
+    test(
+      'PROMPT 11.2.1, seção 7: revalidação identifica uma nova movimentação registrada por outro usuário entretanto',
+      () async {
+        final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
+        final movimentacaoRepo = FakeMovimentacaoRepository();
+        final container = ProviderContainer(
+          overrides: _overridesPadrao(
+            patrimonioRepo: patrimonioRepo,
+            movimentacaoRepo: movimentacaoRepo,
+            documento: SeiDocumentoExtraido(
+              nomeArquivo: 'despacho.pdf',
+              tamanhoBytes: 500,
+              quantidadePaginas: 1,
+              hashSha256: 'hash-fake',
+              numeroDocumentoSei: '95955192',
+              tipoMovimentacaoInferido: MovimentacaoTipo.transferencia,
+              itens: [
+                SeiItemExtraido(
+                  linha: 1,
+                  paginaOrigem: 1,
+                  numeroPatrimonio: '4157090',
+                  equipamento: 'Monitor Positivo',
+                  unidadeOrigemTexto: 'GETEC - Gerencia de Tecnologia',
+                  unidadeDestinoTexto: 'Gerência de Licenciamento – GEASI',
+                  numeroChamado: '4556',
+                ),
+              ],
+            ),
+          ),
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(seiImportControllerProvider.notifier);
+        await notifier.selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
+        expect(container.read(seiImportControllerProvider).execucao[1]?.duplicidade?.status, SeiDuplicidadeStatus.semCorrespondencia);
+
+        notifier.confirmarSemLocalizacao(1);
+        notifier.confirmarSemResponsavel(1);
+        notifier.alternarSelecao(1);
+        expect(container.read(seiImportControllerProvider).execucao[1]?.selecionado, isTrue);
+
+        // Entre a análise original e a revalidação, OUTRO usuário registrou
+        // a movimentação deste item para o mesmo documento — a revalidação
+        // precisa repetir a consulta de duplicidade INTEIRA (nunca
+        // reaproveitar o resultado anterior) e detectar isso.
+        movimentacaoRepo.adicionarMovimentacao(
+          MovimentacaoListagemItem(
+            id: 'mov-outro-usuario',
+            tipo: MovimentacaoTipo.transferencia,
+            patrimonioId: 'id-4157090',
+            setorDestinoId: 'setor-geasi',
+            numeroChamado: '4556',
+            numeroDocumento: '95955192',
+            dataMovimentacao: DateTime(2026, 1, 1),
+          ),
+        );
+
+        await notifier.revalidar();
+
+        final state = container.read(seiImportControllerProvider);
+        expect(state.execucao[1]?.duplicidade?.status, SeiDuplicidadeStatus.jaRegistrada);
+        expect(state.execucao[1]?.desatualizado, isTrue);
+        expect(state.execucao[1]?.selecionado, isFalse);
+      },
+    );
   });
 }

@@ -7,6 +7,8 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/empty_state.dart';
 import 'patrimonio_import_controller.dart';
 import 'patrimonio_import_state.dart';
+import 'widgets/import_comparacao_resumo_step.dart';
+import 'widgets/import_comparacao_step.dart';
 import 'widgets/import_defaults_step.dart';
 import 'widgets/import_locations_step.dart';
 import 'widgets/import_mapping_step.dart';
@@ -92,6 +94,10 @@ class _Cabecalho extends StatelessWidget {
         return 'Passo 7 de 7 — Importando...';
       case ImportStep.resultado:
         return 'Importação concluída.';
+      case ImportStep.compararRevisao:
+        return 'Comparar e Atualizar (ADMIN) — revise as divergências encontradas contra o InvTec.';
+      case ImportStep.compararResumo:
+        return 'Comparar e Atualizar (ADMIN) — resumo das decisões, só conferência.';
     }
   }
 }
@@ -117,9 +123,11 @@ int _posicaoDoPasso(ImportStep step) {
     case ImportStep.resolverTipos:
       return 4;
     case ImportStep.revisar:
+    case ImportStep.compararRevisao:
       return 5;
     case ImportStep.importando:
     case ImportStep.resultado:
+    case ImportStep.compararResumo:
       return 6;
   }
 }
@@ -258,6 +266,10 @@ class _Conteudo extends ConsumerWidget {
         return ImportProgressStep(state: state);
       case ImportStep.resultado:
         return ImportResultStep(state: state);
+      case ImportStep.compararRevisao:
+        return ImportComparacaoStep(state: state);
+      case ImportStep.compararResumo:
+        return ImportComparacaoResumoStep(state: state);
     }
   }
 }

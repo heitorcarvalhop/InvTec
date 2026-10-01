@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/setor_display.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../domain/movimentacao.dart';
 import '../../domain/movimentacao_listagem_item.dart';
@@ -52,10 +53,7 @@ class _MovimentacaoCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          item.patrimonioNumero ?? '—',
-                          style: AppTypography.cardTitle(context),
-                        ),
+                        Text(item.patrimonioNumero ?? '—', style: AppTypography.cardTitle(context)),
                         if (item.patrimonioTipoNome != null)
                           Text(item.patrimonioTipoNome!, style: AppTypography.auxiliary(context)),
                       ],
@@ -66,8 +64,13 @@ class _MovimentacaoCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
+              // PROMPT 11.3.5.4: sigla cadastrada — card compacto, sem
+              // espaço para tooltip por segmento (o diálogo de detalhe,
+              // aberto ao tocar o card, mostra o nome completo por
+              // tooltip).
               Text(
-                '${item.setorOrigemNome ?? '—'} → ${item.setorDestinoNome ?? '—'}',
+                '${siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome) ?? '—'} → '
+                '${siglaOuNomeSetor(sigla: item.setorDestinoSigla, nome: item.setorDestinoNome) ?? '—'}',
                 style: AppTypography.body(context),
               ),
               const SizedBox(height: AppSpacing.xs),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../auth/domain/profile.dart';
+import '../../../../auth/presentation/auth_controller.dart';
 import '../../../../setores/domain/setor.dart';
 import '../../../presentation/patrimonio_reference_data.dart';
 import '../../domain/import_defaults.dart';
@@ -114,7 +116,12 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
                       items: [
                         const DropdownMenuItem(value: null, child: Text('Nenhum')),
                         for (final setor in setores)
-                          DropdownMenuItem(value: setor.id, child: Text(setor.nome)),
+                          DropdownMenuItem(
+                            value: setor.id,
+                            // PROMPT 11.3.5.4: sigla cadastrada, nome
+                            // completo por tooltip.
+                            child: Tooltip(message: setor.nome, child: Text(setor.rotuloCompacto)),
+                          ),
                       ],
                       onChanged: (valor) =>
                           _atualizar(controller, (p) => p.copyWith(destinoPadraoId: () => valor)),
@@ -130,7 +137,10 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Não informar')),
                       for (final setor in setores)
-                        DropdownMenuItem(value: setor.id, child: Text(setor.nome)),
+                        DropdownMenuItem(
+                          value: setor.id,
+                          child: Tooltip(message: setor.nome, child: Text(setor.rotuloCompacto)),
+                        ),
                     ],
                     onChanged: (valor) =>
                         _atualizar(controller, (p) => p.copyWith(origemPadraoId: () => valor)),
@@ -189,6 +199,8 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
             ),
           ),
         ),
+        const SizedBox(height: AppSpacing.md),
+        _ModoComparacaoAdminToggle(state: widget.state, controller: controller),
         const SizedBox(height: AppSpacing.lg),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -203,6 +215,41 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// PROMPT 11.6.3, seção 1 — só ADMIN vê (e só ADMIN consegue ativar, ver
+/// `PatrimonioImportController.definirModoComparacaoAdmin`) o toggle do
+/// modo "Comparar e Atualizar". Qualquer outro perfil nunca vê este
+/// widget: a importação convencional continua exatamente como sempre foi,
+/// sem nenhuma alteração de comportamento (seção 1: "usuários não
+/// administradores devem continuar utilizando a importação convencional,
+/// sem alterações").
+class _ModoComparacaoAdminToggle extends ConsumerWidget {
+  const _ModoComparacaoAdminToggle({required this.state, required this.controller});
+
+  final PatrimonioImportState state;
+  final PatrimonioImportController controller;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
+    if (perfil != ProfilePerfil.admin) return const SizedBox.shrink();
+
+    return Card(
+      color: Theme.of(context).colorScheme.tertiaryContainer,
+      child: SwitchListTile(
+        key: const Key('toggle-modo-comparacao-admin'),
+        value: state.modoComparacaoAdmin,
+        onChanged: controller.definirModoComparacaoAdmin,
+        title: const Text('Comparar e Atualizar (ADMIN)'),
+        subtitle: const Text(
+          'Em vez da importação convencional, compara esta planilha contra os patrimônios '
+          'já cadastrados e mostra as divergências para revisão — nenhuma alteração é '
+          'aplicada automaticamente.',
+        ),
+      ),
     );
   }
 }
@@ -236,7 +283,9 @@ class _GerenciaGetecInfo extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(gerencia.nome),
+                // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
+                // tooltip.
+                Tooltip(message: gerencia.nome, child: Text(gerencia.rotuloCompacto)),
                 Text(
                   'Definida automaticamente pelo perfil GETEC',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(

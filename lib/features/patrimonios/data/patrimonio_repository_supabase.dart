@@ -8,6 +8,7 @@ import '../domain/patrimonio_detalhe.dart';
 import '../domain/patrimonio_repository.dart';
 import '../domain/patrimonio_search_field.dart';
 import '../domain/patrimonios_resultado.dart';
+import '../importacao/domain/comparacao_execucao.dart';
 import 'patrimonio_error_mapper.dart';
 
 /// `true` quando [texto] é composto só por dígitos (após `trim`) — usado
@@ -28,7 +29,7 @@ const _limiteCorrespondenciaSerie = 10;
 /// não há ambiguidade a desambiguar (diferente de `movimentacoes`, que tem
 /// duas FKs para `setores`).
 const _colunasComRelacionamentos =
-    '*, tipos_patrimonio(nome), setores(nome), localizacoes(nome)';
+    '*, tipos_patrimonio(nome), setores(nome, sigla), localizacoes(nome)';
 
 /// Agrupa os filtros combináveis por AND de [PatrimonioRepositorySupabase.listar]
 /// (PROMPT 9.2) — só para não repetir a mesma lista de parâmetros nas duas
@@ -549,6 +550,86 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       return resultado;
     } on PostgrestException catch (e) {
       throw AppException(mapPatrimonioErrorMessage(e), cause: e);
+    }
+  }
+
+  @override
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) async {
+    try {
+      // ÚNICA chamada: `aplicar_decisao_comparacao_patrimonio` trava o
+      // patrimônio, revalida a versão e — quando há alteração de setor/
+      // localização — chama `registrar_movimentacao` por dentro, tudo na
+      // MESMA transação no servidor (PROMPT 11.6.4, seção 4). O cliente
+      // nunca decompõe isso em duas chamadas separadas.
+      final row = await _client.rpc(
+        operacaoAplicarDecisaoComparacao,
+        params: {
+          'p_operacao_id': decisao.operacaoId,
+          'p_lote_id': decisao.loteId,
+          'p_patrimonio_id': decisao.patrimonioId,
+          'p_versao_esperada': decisao.versaoEsperada.toIso8601String(),
+          'p_justificativa': decisao.justificativa,
+          'p_numero_serie': decisao.numeroSerie,
+          'p_marca': decisao.marca,
+          'p_modelo': decisao.modelo,
+          'p_descricao': decisao.descricao,
+          'p_observacao': decisao.observacao,
+          'p_novo_setor_id': decisao.novoSetorId,
+          'p_nova_localizacao_id': decisao.novaLocalizacaoId,
+        },
+      );
+      return ResultadoAplicacaoDecisao.fromJson(row as Map<String, dynamic>);
+    } on PostgrestException catch (e) {
+      // PROMPT 11.6.5, seção 5 — nem toda `PostgrestException` é uma recusa
+      // DEFINITIVA do servidor: chamadas RPC são sempre POST, então NUNCA
+      // entram no retry automático da biblioteca `postgrest` (só GET/HEAD).
+      // Uma falha de transporte (proxy/gateway 502/503/504, 500, timeout
+      // 408) também chega aqui como `PostgrestException`, mas com
+      // `code` sendo o status HTTP cru, NUNCA um SQLSTATE real — ver
+      // [ehFalhaDeTransporte]. Só uma recusa SQL de verdade (a transação foi
+      // desfeita, nada escrito) vira [ComparacaoExecucaoFalhouException];
+      // uma falha de transporte passa SEM tratamento, exatamente como uma
+      // exceção de rede comum, para [ComparacaoExecucaoController] tratar
+      // como resultado DESCONHECIDO (preserva `decisao`, nunca gera um novo
+      // operacaoId).
+      if (ehFalhaDeTransporte(e.code)) rethrow;
+      throw falhaDeExecucaoComparacao(
+        codigo: e.code,
+        mensagemDoServidor: e.message,
+        detalhes: e.details?.toString(),
+        dica: e.hint,
+        cause: e,
+      );
+    }
+  }
+
+  @override
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) async {
+    try {
+      // SELECT direto — nunca uma RPC: a tabela só é ESCRITA pela função
+      // SECURITY DEFINER; esta leitura respeita a RLS já instalada
+      // (`patrimonio_comparacao_execucoes_select`, restrita a ADMIN — que
+      // deliberadamente deixa QUALQUER ADMIN ler QUALQUER linha, ver o
+      // comentário da migration). A defesa de que uma leitura nunca é
+      // confundida com "esta é a MINHA tentativa pendente" fica aqui: só
+      // aceitamos o resultado se `criado_por` bater com a sessão ATUAL —
+      // mesmo padrão de `DocumentosSeiRepositorySupabase.buscarLotePorId`.
+      final row = await _client
+          .from('patrimonio_comparacao_execucoes')
+          .select('resultado, criado_por')
+          .eq('operacao_id', operacaoId)
+          .maybeSingle();
+      if (row == null) return null;
+      final usuarioAtualId = _client.auth.currentUser?.id;
+      if (row['criado_por'] != usuarioAtualId) {
+        throw AppException('A operação $operacaoId não pertence à sessão atual.');
+      }
+      return ResultadoAplicacaoDecisao.fromJson(row['resultado'] as Map<String, dynamic>);
+    } on PostgrestException catch (e) {
+      // Falha de LEITURA (rede/permissão) — NUNCA convertida em `null`: o
+      // chamador não pode confundir "não consegui perguntar" com "perguntei
+      // e não achei nada" (mesma garantia de `buscarLotePorId` do SEI).
+      throw AppException('Falha ao consultar o resultado da operação $operacaoId', cause: e);
     }
   }
 }

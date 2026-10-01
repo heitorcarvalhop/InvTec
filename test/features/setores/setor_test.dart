@@ -48,4 +48,37 @@ void main() {
     expect(atualizado.nome, setor.nome);
     expect(atualizado.id, setor.id);
   });
+
+  // PROMPT 11.3.5.4 — `SetorExibicaoCompacta` é o ponto único que telas com
+  // um `Setor` inteiro (dropdowns/resumos) usam para decidir sigla vs. nome
+  // completo — mesma regra de `siglaOuNomeSetor`, sem lista fixa de
+  // setores conhecidos.
+  group('PROMPT 11.3.5.4 — rotuloCompacto/rotuloCompactoComStatus/nomeComStatus', () {
+    Setor setorComNomeLongo({String? sigla, bool ativo = true}) => Setor(
+      id: 'setor-1',
+      nome: 'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+      sigla: sigla,
+      ativo: ativo,
+      criadoEm: DateTime(2026, 1, 1),
+    );
+
+    test('com sigla cadastrada, rotuloCompacto é a sigla', () {
+      expect(setorComNomeLongo(sigla: 'GEASI').rotuloCompacto, 'GEASI');
+    });
+
+    test('sem sigla cadastrada, rotuloCompacto cai para o nome completo', () {
+      final setor = setorComNomeLongo(sigla: null);
+      expect(setor.rotuloCompacto, setor.nome);
+    });
+
+    test('setor ativo: rotuloCompactoComStatus não tem sufixo', () {
+      expect(setorComNomeLongo(sigla: 'GEASI', ativo: true).rotuloCompactoComStatus, 'GEASI');
+    });
+
+    test('setor inativo: rotuloCompactoComStatus e nomeComStatus têm o sufixo " (inativo)"', () {
+      final setor = setorComNomeLongo(sigla: 'GEASI', ativo: false);
+      expect(setor.rotuloCompactoComStatus, 'GEASI (inativo)');
+      expect(setor.nomeComStatus, '${setor.nome} (inativo)');
+    });
+  });
 }

@@ -129,4 +129,25 @@ void main() {
     expect(fakeAuth.signOutCallCount, 1);
     expect(find.widgetWithText(FilledButton, 'Entrar'), findsOneWidget);
   });
+
+  testWidgets(
+    'PROMPT 11.3.9.1 — Drawer mobile numa janela baixa: sem overflow, e "Sair" continua acessível',
+    (tester) async {
+      // Mesma classe de defeito da sidebar fixa ("BOTTOM OVERFLOWED"),
+      // aqui reproduzida no Drawer mobile (largura < 600) numa altura bem
+      // mais curta que o normal — mesmo `Column` sem rolagem no bloco fixo
+      // de "Configurações"/"Sair".
+      await _pumpAuthenticated(tester, windowSize: const Size(390, 150));
+
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+
+      await tester.dragUntilVisible(find.text('Sair'), find.byType(Scrollable).first, const Offset(0, -50));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sair'), findsOneWidget);
+      expect(tester.getBottomRight(find.text('Sair')).dy, lessThanOrEqualTo(150));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

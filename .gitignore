@@ -33,8 +33,16 @@ migrate_working_dir/
 /build/
 /coverage/
 
-# Environment variables (contêm credenciais, nunca versionar)
-.env
+# Environment variables (contêm credenciais, nunca versionar).
+.env*
+!.env.example
+
+# PROMPT 11.3.4.1 — env/*.env (consumidos via --dart-define-from-file para
+# selecionar produção/homologação explicitamente no comando de build/
+# execução, substituindo a troca manual de .env do PROMPT 11.3.4). Os
+# TEMPLATES .example continuam versionados.
+env/*.env
+!env/*.env.example
 
 # Estado local do Claude Code (lock files de sessão, não é código do projeto)
 .claude/

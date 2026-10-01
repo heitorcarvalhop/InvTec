@@ -1,3 +1,4 @@
+import '../importacao/domain/comparacao_execucao.dart';
 import 'patrimonio.dart';
 import 'patrimonio_detalhe.dart';
 import 'patrimonio_search_field.dart';
@@ -118,4 +119,26 @@ abstract class PatrimonioRepository {
   /// cadastrado — usado para o aviso de possível duplicidade por número de
   /// série (não é `unique` no banco, então nunca bloqueia, só avisa).
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie);
+
+  /// PROMPT 11.6.4 — aplica UMA decisão de comparação (um patrimônio) via
+  /// `aplicar_decisao_comparacao_patrimonio`, dentro de uma única transação
+  /// no servidor: metadados por UPDATE direto, setor/localização sempre por
+  /// `registrar_movimentacao` (nunca um atalho). Idempotente por
+  /// [DecisaoItemParaExecutar.operacaoId] — reenviar a MESMA [decisao] após
+  /// um resultado de rede desconhecido é seguro (ver
+  /// [ResultadoAplicacaoDecisao.jaExecutado]).
+  ///
+  /// Uma [ComparacaoExecucaoFalhouException] significa RECUSA síncrona do
+  /// servidor: a transação foi desfeita, nada foi escrito por esta chamada.
+  /// Qualquer OUTRA exceção (rede/timeout) tem resultado DESCONHECIDO —
+  /// quem chama precisa preservar [decisao] (nunca gerar uma nova) para um
+  /// retry ou uma reconciliação posterior via
+  /// [buscarExecucaoComparacaoPorOperacaoId].
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao);
+
+  /// Consulta somente-leitura de `patrimonio_comparacao_execucoes` pelo
+  /// `operacao_id` — usada para reconciliar um resultado desconhecido sem
+  /// nenhuma nova escrita. `null` quando nada foi encontrado (o que NÃO
+  /// prova que a operação não foi aplicada — pode não ter comitado ainda).
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId);
 }

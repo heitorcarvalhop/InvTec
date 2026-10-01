@@ -7,6 +7,7 @@ import '../../../../../core/widgets/status_chip.dart';
 import '../../../../localizacoes/data/localizacao_repository_supabase.dart';
 import '../../../../patrimonios/domain/patrimonio_detalhe.dart';
 import '../../../../patrimonios/presentation/patrimonio_reference_data.dart';
+import '../../../../setores/domain/setor.dart';
 import '../../../domain/movimentacao.dart';
 import '../../nova_movimentacao_regras.dart';
 import '../movimentacao_tipo_visual.dart';
@@ -75,12 +76,15 @@ class RevisaoStep extends ConsumerWidget {
                   const _CampoRevisao(rotulo: 'Setor/localização/responsável', valor: 'Preservados (sem alteração)')
                 else if (tipo == MovimentacaoTipo.alteracaoResponsavel) ...[
                   _CampoRevisao(rotulo: 'De (responsável atual)', valor: patrimonio.responsavelAtual ?? '—'),
-                  _CampoRevisao(
-                    rotulo: 'Para (novo responsável)',
-                    valor: rascunho.responsavelController.text.trim(),
-                  ),
+                  _CampoRevisao(rotulo: 'Para (novo responsável)', valor: rascunho.responsavelController.text.trim()),
                 ] else ...[
-                  _CampoRevisao(rotulo: 'De', valor: detalhe.setorNome),
+                  _CampoRevisao(
+                    rotulo: 'De',
+                    // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
+                    // tooltip.
+                    valor: detalhe.setorExibidoCompacto,
+                    valorTooltip: detalhe.setorExibidoCompacto == detalhe.setorNome ? null : detalhe.setorNome,
+                  ),
                   if (detalhe.localizacaoNome != null)
                     _CampoRevisao(rotulo: 'Localização de', valor: detalhe.localizacaoNome!),
                   if (patrimonio.responsavelAtual != null)
@@ -136,14 +140,21 @@ class _NomeSetor extends ConsumerWidget {
     // Detalhes (sem nova consulta) — o destino, quando preenchido, é
     // sempre um setor ativo (a RPC rejeita inativo).
     final setoresAsync = ref.watch(setoresAtivosParaPatrimonioProvider);
-    String? nome;
+    Setor? setorEncontrado;
     for (final setor in setoresAsync.value ?? const []) {
       if (setor.id == setorId) {
-        nome = setor.nome;
+        setorEncontrado = setor;
         break;
       }
     }
-    return _CampoRevisao(rotulo: 'Para', valor: nome ?? '...');
+    return _CampoRevisao(
+      rotulo: 'Para',
+      // PROMPT 11.3.5.4: sigla cadastrada, nome completo por tooltip.
+      valor: setorEncontrado?.rotuloCompacto ?? '...',
+      valorTooltip: setorEncontrado == null || setorEncontrado.rotuloCompacto == setorEncontrado.nome
+          ? null
+          : setorEncontrado.nome,
+    );
   }
 }
 
@@ -224,20 +235,27 @@ class _AvisoBaixa extends StatelessWidget {
 }
 
 class _CampoRevisao extends StatelessWidget {
-  const _CampoRevisao({required this.rotulo, required this.valor});
+  const _CampoRevisao({required this.rotulo, required this.valor, this.valorTooltip});
 
   final String rotulo;
   final String valor;
 
+  /// PROMPT 11.3.5.4 — quando informado, mostra um `Tooltip` no valor (ex.:
+  /// o nome completo de um setor exibido pela sigla).
+  final String? valorTooltip;
+
   @override
   Widget build(BuildContext context) {
+    final valorText = Text(valor, style: AppTypography.body(context));
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(width: 150, child: Text(rotulo, style: AppTypography.auxiliary(context))),
-          Expanded(child: Text(valor, style: AppTypography.body(context))),
+          Expanded(
+            child: valorTooltip == null ? valorText : Tooltip(message: valorTooltip, child: valorText),
+          ),
         ],
       ),
     );

@@ -34,8 +34,10 @@ class _TimelineEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final origem = item.setorOrigemNome ?? '—';
-    final destino = item.setorDestinoNome ?? '—';
+    // PROMPT 11.3.5.4: sigla cadastrada (fallback nome completo) — timeline
+    // compacta, sem espaço para tooltip por segmento.
+    final origem = item.setorOrigemExibidoCompacto ?? '—';
+    final destino = item.setorDestinoExibidoCompacto ?? '—';
 
     return IntrinsicHeight(
       child: Row(

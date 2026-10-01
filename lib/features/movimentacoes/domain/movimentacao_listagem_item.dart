@@ -15,6 +15,8 @@ class MovimentacaoListagemItem {
     this.setorDestinoId,
     this.setorOrigemNome,
     this.setorDestinoNome,
+    this.setorOrigemSigla,
+    this.setorDestinoSigla,
     this.localizacaoOrigemNome,
     this.localizacaoDestinoNome,
     this.responsavelOrigem,
@@ -50,6 +52,8 @@ class MovimentacaoListagemItem {
       setorDestinoId: json['destino_id'] as String?,
       setorOrigemNome: setorOrigem?['nome'] as String?,
       setorDestinoNome: setorDestino?['nome'] as String?,
+      setorOrigemSigla: setorOrigem?['sigla'] as String?,
+      setorDestinoSigla: setorDestino?['sigla'] as String?,
       localizacaoOrigemNome: localizacaoOrigem?['nome'] as String?,
       localizacaoDestinoNome: localizacaoDestino?['nome'] as String?,
       responsavelOrigem: json['responsavel_origem'] as String?,
@@ -75,6 +79,8 @@ class MovimentacaoListagemItem {
   final String? setorDestinoId;
   final String? setorOrigemNome;
   final String? setorDestinoNome;
+  final String? setorOrigemSigla;
+  final String? setorDestinoSigla;
   final String? localizacaoOrigemNome;
   final String? localizacaoDestinoNome;
   final String? responsavelOrigem;

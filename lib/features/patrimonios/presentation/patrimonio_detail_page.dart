@@ -141,7 +141,13 @@ class _Detalhe extends ConsumerWidget {
               title: 'Localização',
               icon: Icons.place_outlined,
               fields: [
-                _DetailField(label: 'Gerência', value: detalhe.setorNome),
+                _DetailField(
+                  label: 'Gerência',
+                  // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
+                  // tooltip (fallback para o nome quando não há sigla).
+                  value: detalhe.setorExibidoCompacto,
+                  valueTooltip: detalhe.setorExibidoCompacto == detalhe.setorNome ? null : detalhe.setorNome,
+                ),
                 _DetailField(label: 'Localização atual', value: detalhe.localizacaoNome ?? 'Sem localização'),
               ],
             ),
@@ -257,14 +263,19 @@ class _Section extends StatelessWidget {
 }
 
 class _DetailField extends StatelessWidget {
-  const _DetailField({required this.label, required this.value, this.wide = false});
+  const _DetailField({required this.label, required this.value, this.valueTooltip, this.wide = false});
 
   final String label;
   final String value;
+
+  /// PROMPT 11.3.5.4 — quando informado, mostra o `Tooltip` no valor (ex.:
+  /// o nome completo de um setor exibido pela sigla).
+  final String? valueTooltip;
   final bool wide;
 
   @override
   Widget build(BuildContext context) {
+    final valueText = Text(value, style: AppTypography.body(context));
     return SizedBox(
       width: wide ? double.infinity : 220,
       child: Column(
@@ -272,7 +283,7 @@ class _DetailField extends StatelessWidget {
         children: [
           Text(label, style: AppTypography.auxiliary(context)),
           const SizedBox(height: 2),
-          Text(value, style: AppTypography.body(context)),
+          valueTooltip == null ? valueText : Tooltip(message: valueTooltip, child: valueText),
         ],
       ),
     );

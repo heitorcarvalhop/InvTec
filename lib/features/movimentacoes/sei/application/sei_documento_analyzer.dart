@@ -43,8 +43,7 @@ class SeiDocumentoAnalyzer {
 
     final setorPorSigla = <String, Setor>{
       for (final setor in setoresAtivos)
-        if (setor.sigla != null && setor.sigla!.trim().isNotEmpty)
-          normalizarTextoComparacao(setor.sigla!): setor,
+        if (setor.sigla != null && setor.sigla!.trim().isNotEmpty) normalizarTextoComparacao(setor.sigla!): setor,
     };
     final setorPorId = {for (final setor in setoresAtivos) setor.id: setor};
 
@@ -149,9 +148,12 @@ class SeiDocumentoAnalyzer {
     bool? equipamentoCompativel;
     if (patrimonio != null && item.equipamento != null && item.equipamento!.trim().isNotEmpty) {
       final textoCadastro = normalizarTextoComparacao(
-        [patrimonio.tipoNome, patrimonio.patrimonio.marca, patrimonio.patrimonio.modelo, patrimonio.patrimonio.descricao]
-            .whereType<String>()
-            .join(' '),
+        [
+          patrimonio.tipoNome,
+          patrimonio.patrimonio.marca,
+          patrimonio.patrimonio.modelo,
+          patrimonio.patrimonio.descricao,
+        ].whereType<String>().join(' '),
       );
       final palavrasDocumento = normalizarTextoComparacao(item.equipamento!).split(' ');
       equipamentoCompativel = palavrasDocumento.any(

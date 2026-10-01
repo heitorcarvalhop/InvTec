@@ -14,6 +14,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
 import 'package:invtec/features/patrimonios/domain/tipo_patrimonio.dart';
+import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/import_column_field.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/import_defaults.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/import_row.dart';
@@ -166,6 +167,14 @@ class _RepositorioComFalhaSeletiva implements PatrimonioRepository {
   @override
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) =>
       _delegado.buscarNumerosSerieExistentes(numerosSerie);
+
+  @override
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) =>
+      _delegado.aplicarDecisaoComparacao(decisao);
+
+  @override
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) =>
+      _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
 }
 
 /// Repositório que só libera cada `cadastrar` quando o teste manda — usado
@@ -280,6 +289,14 @@ class _RepositorioComPortoes implements PatrimonioRepository {
   @override
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) =>
       _delegado.buscarNumerosSerieExistentes(numerosSerie);
+
+  @override
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) =>
+      _delegado.aplicarDecisaoComparacao(decisao);
+
+  @override
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) =>
+      _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
 }
 
 ProviderContainer _criarContainer(
@@ -1629,4 +1646,12 @@ class _RepositorioContadorConcorrencia implements PatrimonioRepository {
   @override
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) =>
       _delegado.buscarNumerosSerieExistentes(numerosSerie);
+
+  @override
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) =>
+      _delegado.aplicarDecisaoComparacao(decisao);
+
+  @override
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) =>
+      _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
 }

@@ -301,4 +301,37 @@ void main() {
     // a localização de GETEC nunca deveria ir junto de um cadastro em GEVEV.
     expect(repo.ultimoCadastro?['localizacaoDestinoId'], isNull);
   });
+
+  testWidgets(
+    'PROMPT 11.3.5.4 — dropdowns Origem/Destino mostram a sigla real, e o cadastro continua usando o ID',
+    (tester) async {
+      final repo = FakePatrimonioRepository();
+      final setores = [
+        Setor(id: 'setor-1', nome: 'Gerencia de Tecnologia', sigla: 'GETEC', ativo: true, criadoEm: DateTime.now()),
+        // "GEPOS" não existe em nenhuma lista fixa do app.
+        Setor(id: 'setor-2', nome: 'Gerência de Posturas', sigla: 'GEPOS', ativo: true, criadoEm: DateTime.now()),
+      ];
+      await _pumpFormPage(tester, patrimonioRepo: repo, setores: setores);
+
+      final campoDestino = find.widgetWithText(DropdownButtonFormField<String>, 'Destino / Setor atual *');
+      await tester.ensureVisible(campoDestino);
+      await tester.pumpAndSettle();
+      await tester.tap(campoDestino);
+      await tester.pumpAndSettle();
+
+      expect(find.text('GETEC'), findsWidgets);
+      expect(find.text('GEPOS'), findsOneWidget);
+      expect(find.text('Gerencia de Tecnologia'), findsNothing);
+      expect(find.text('Gerência de Posturas'), findsNothing);
+
+      await tester.tap(find.text('GEPOS').last);
+      await tester.pumpAndSettle();
+
+      await _selecionarDropdown(tester, 'Tipo *', 'Notebook');
+      await _tocarBotao(tester, 'Cadastrar patrimônio');
+
+      // O valor enviado ao repositório continua sendo o ID real do setor.
+      expect(repo.ultimoCadastro?['destinoId'], 'setor-2');
+    },
+  );
 }

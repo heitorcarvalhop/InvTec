@@ -48,9 +48,30 @@ class InvTecPageHeader extends StatelessWidget {
       );
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [Expanded(child: titulo), const SizedBox(width: AppSpacing.md), botoes],
+    // PROMPT 11.3.9.1 — nunca mais um `Row` aqui: `botoes` (um `Wrap`) não é
+    // flexível, então um `Row` dava a ele sua largura NATURAL irrestrita
+    // (soma dos dois botões) já na primeira passada de layout — em telas
+    // de tablet (600–1024px, onde `compact` continua `false`), essa largura
+    // fixa sobrava pouco ou nenhum espaço para o `Expanded(child: titulo)`,
+    // que ficava espremido a zero/largura negativa: o título quebrava
+    // letra por letra e o próprio `Row` estourava ("RenderFlex overflowed
+    // ... on the right" — exatamente os erros do vídeo). Um `Wrap` nunca
+    // esmaga um item abaixo do tamanho natural dele — quando título e
+    // botões não cabem lado a lado, os botões simplesmente descem para uma
+    // nova linha inteira, nunca uma letra por linha. `SizedBox(width:
+    // double.infinity)` é necessário: um `Wrap` sem largura própria imposta
+    // encolhe para o conteúdo (confirmado empiricamente) — sem isso,
+    // `WrapAlignment.spaceBetween` não teria espaço sobrando para distribuir
+    // e os botões ficariam colados ao título, nunca no canto direito como
+    // hoje.
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.start,
+        runSpacing: AppSpacing.md,
+        children: [titulo, botoes],
+      ),
     );
   }
 }

@@ -19,23 +19,26 @@ const _colunasListagem =
     'id, tipo, data_movimentacao, responsavel_origem, responsavel_destino, motivo, observacao, '
     'numero_documento, numero_chamado, patrimonio_id, origem_id, destino_id, '
     'patrimonios(numero_patrimonio, tipos_patrimonio(nome)), '
-    'setor_origem:setores!origem_id(nome), '
-    'setor_destino:setores!destino_id(nome), '
+    'setor_origem:setores!origem_id(nome, sigla), '
+    'setor_destino:setores!destino_id(nome, sigla), '
     'localizacao_origem:localizacoes!localizacao_origem_id(nome), '
     'localizacao_destino:localizacoes!localizacao_destino_id(nome), '
     'autor:profiles!realizado_por(nome)';
 
+/// PROMPT 11.2.1, seção 2: tamanho de página usado para PAGINAR
+/// [MovimentacaoRepositorySupabase.listarPorNumeroDocumento] até o total
+/// real — nunca um teto arbitrário que descarte linhas.
+const _tamanhoPaginaDuplicidade = 500;
+
 /// Início (00:00) do dia LOCAL de [data], convertido para o instante UTC
 /// correspondente — mesmo critério de `PatrimonioRepositorySupabase` para
 /// comparar corretamente com uma coluna `timestamptz`.
-DateTime _inicioDoDiaLocalEmUtc(DateTime data) =>
-    DateTime(data.year, data.month, data.day).toUtc();
+DateTime _inicioDoDiaLocalEmUtc(DateTime data) => DateTime(data.year, data.month, data.day).toUtc();
 
 /// Início do dia LOCAL seguinte a [data] — limite EXCLUSIVO superior do
 /// intervalo (nunca `23:59:59.999`, que pode perder registros por
 /// precisão de subsegundo).
-DateTime _inicioDoDiaSeguinteLocalEmUtc(DateTime data) =>
-    DateTime(data.year, data.month, data.day + 1).toUtc();
+DateTime _inicioDoDiaSeguinteLocalEmUtc(DateTime data) => DateTime(data.year, data.month, data.day + 1).toUtc();
 
 class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
   MovimentacaoRepositorySupabase(this._client);
@@ -111,11 +114,7 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
   }
 
   @override
-  Future<List<Movimentacao>> listarPorPatrimonio(
-    String patrimonioId, {
-    int limit = 20,
-    int offset = 0,
-  }) async {
+  Future<List<Movimentacao>> listarPorPatrimonio(String patrimonioId, {int limit = 20, int offset = 0}) async {
     try {
       final rows = await _client
           .from('movimentacoes')
@@ -127,10 +126,50 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
 
       return rows.map(Movimentacao.fromJson).toList();
     } on PostgrestException catch (e) {
-      throw AppException(
-        'Falha ao listar movimentações do patrimônio',
-        cause: e,
-      );
+      throw AppException('Falha ao listar movimentações do patrimônio', cause: e);
+    }
+  }
+
+  @override
+  Future<List<MovimentacaoListagemItem>> listarPorNumeroDocumento(
+    String numeroDocumento, {
+    List<String>? patrimonioIds,
+  }) async {
+    try {
+      final itens = <MovimentacaoListagemItem>[];
+      var offset = 0;
+
+      // Pagina até esgotar o total real (PROMPT 11.2.1, seção 2) — nunca
+      // um limite fixo que possa omitir linha relevante em silêncio.
+      while (true) {
+        var query = _client.from('movimentacoes').select(_colunasListagem).eq('numero_documento', numeroDocumento);
+
+        // AND, nunca OR: estreita o volume lido sem arriscar perder
+        // ocorrência alguma do documento (patrimonioIds é só um filtro
+        // adicional, o `eq` de numero_documento continua sendo a
+        // autoridade). Um único `inFilter` — documentos SEI têm dezenas de
+        // itens, não milhares, então não há necessidade do particionamento
+        // em lotes usado em `PatrimonioRepositorySupabase` para listas
+        // muito maiores.
+        if (patrimonioIds != null && patrimonioIds.isNotEmpty) {
+          query = query.inFilter('patrimonio_id', patrimonioIds);
+        }
+
+        final response = await query
+            .order('data_movimentacao', ascending: false)
+            .order('id', ascending: false)
+            .range(offset, offset + _tamanhoPaginaDuplicidade - 1)
+            .count(CountOption.exact);
+
+        itens.addAll(response.data.map(MovimentacaoListagemItem.fromJson));
+
+        offset += _tamanhoPaginaDuplicidade;
+        if (offset >= response.count || response.data.isEmpty) break;
+      }
+
+      return itens;
+    } on PostgrestException catch (e) {
+      throw AppException('Falha ao buscar movimentações pelo número do documento', cause: e);
     }
   }
 
@@ -145,8 +184,8 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
           .from('movimentacoes')
           .select(
             'id, tipo, data_movimentacao, responsavel_origem, responsavel_destino, motivo, observacao, '
-            'setor_origem:setores!origem_id(nome), '
-            'setor_destino:setores!destino_id(nome), '
+            'setor_origem:setores!origem_id(nome, sigla), '
+            'setor_destino:setores!destino_id(nome, sigla), '
             'localizacao_origem:localizacoes!localizacao_origem_id(nome), '
             'localizacao_destino:localizacoes!localizacao_destino_id(nome)',
           )
@@ -157,10 +196,7 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
 
       return rows.map(MovimentacaoHistoricoItem.fromJson).toList();
     } on PostgrestException catch (e) {
-      throw AppException(
-        'Falha ao carregar o histórico de movimentações do patrimônio',
-        cause: e,
-      );
+      throw AppException('Falha ao carregar o histórico de movimentações do patrimônio', cause: e);
     }
   }
 
@@ -244,8 +280,6 @@ Map<String, Object?> buildRegistrarMovimentacaoParams({
   };
 }
 
-final movimentacaoRepositoryProvider = Provider<MovimentacaoRepository>((
-  ref,
-) {
+final movimentacaoRepositoryProvider = Provider<MovimentacaoRepository>((ref) {
   return MovimentacaoRepositorySupabase(Supabase.instance.client);
 });

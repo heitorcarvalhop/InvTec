@@ -101,6 +101,79 @@ void main() {
     });
   });
 
+  group('PROMPT 11.1.2 — limpeza de contaminação textual (documento real)', () {
+    late SeiDocumentoExtraido documento;
+
+    setUpAll(() async {
+      documento = await const SeiDeterministicParser().analisar(
+        nomeArquivo: 'SEI_95955192_Despacho_577.pdf',
+        tamanhoBytes: 60000,
+        hashSha256: 'hash-de-teste',
+        textoPorPagina: seiFixtureTextoPorPagina,
+      );
+    });
+
+    test('destino não contém mais texto da origem ("Gerencia de Tecnologia") em NENHUM item', () {
+      for (final item in documento.itens) {
+        expect(item.unidadeDestinoTexto, isNot(contains('Tecnologia')), reason: 'linha ${item.linha}');
+      }
+    });
+
+    test('origem continua correta e completa: "GETEC - Gerencia de Tecnologia"', () {
+      final item = documento.itens.firstWhere((i) => i.numeroPatrimonio == '4157090');
+      expect(item.unidadeOrigemTexto, 'GETEC - Gerencia de Tecnologia');
+    });
+
+    test('destino GEASI (item 4157090) contém só o texto real do destino, sem prefixo da origem', () {
+      final item = documento.itens.firstWhere((i) => i.numeroPatrimonio == '4157090');
+      expect(
+        item.unidadeDestinoTexto,
+        'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto - GEASI',
+      );
+    });
+
+    test('assinatura não contamina equipamento: item 3636971 = "Monitor Multi", sem "Atenciosamente"/nome/cargo', () {
+      final item = documento.itens.firstWhere((i) => i.numeroPatrimonio == '3636971');
+      expect(item.equipamento, 'Monitor Multi');
+      expect(item.unidadeDestinoTexto, contains('GEASI'));
+      expect(item.numeroChamado, '4556');
+    });
+
+    test('spot-check completo dos 4 itens citados no PROMPT 11.1.2', () {
+      final porNumero = {for (final i in documento.itens) i.numeroPatrimonio: i};
+
+      expect(porNumero['4157090']!.equipamento, 'Monitor Positivo');
+      expect(porNumero['4157090']!.unidadeDestinoTexto, contains('GEASI'));
+      expect(porNumero['4157090']!.numeroChamado, '4556');
+
+      expect(porNumero['3636971']!.equipamento, 'Monitor Multi');
+      expect(porNumero['3636971']!.unidadeDestinoTexto, contains('GEASI'));
+      expect(porNumero['3636971']!.numeroChamado, '4556');
+
+      expect(porNumero['3452536']!.equipamento, 'Notebook Dell');
+      expect(porNumero['3452536']!.unidadeDestinoTexto, contains('GESOL'));
+      expect(porNumero['3452536']!.numeroChamado, '4496');
+
+      expect(porNumero['3636975']!.equipamento, 'Monitor Multi');
+      expect(porNumero['3636975']!.unidadeDestinoTexto, contains('CIMEHGO'));
+      expect(porNumero['3636975']!.numeroChamado, '4429');
+    });
+
+    test('regressão 33/33: continua 33 itens e 33 patrimônios distintos após a limpeza textual', () {
+      expect(documento.itens, hasLength(33));
+      expect(documento.itens.map((i) => i.numeroPatrimonio).whereType<String>().toSet(), hasLength(33));
+    });
+
+    test('os 6 estabilizadores continuam com confiança MÉDIA (nunca promovidos a alta) e aviso explícito', () {
+      const numerosEsperados = ['3152941', '3120388', '3163983', '3170562', '3152919', '3152959'];
+      for (final numero in numerosEsperados) {
+        final item = documento.itens.firstWhere((i) => i.numeroPatrimonio == numero);
+        expect(item.confiancaPatrimonio, SeiConfianca.media, reason: numero);
+        expect(item.observacoesParsing, isNotEmpty, reason: numero);
+      }
+    });
+  });
+
   group('PROMPT 11.1.1 — robustez do parser (documentos sintéticos)', () {
     test('equipamento fora do vocabulário conhecido ainda localiza a tabela e o item', () async {
       final documento = await const SeiDeterministicParser().analisar(

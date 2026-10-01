@@ -55,6 +55,13 @@ class Win32Window {
   // Return a RECT representing the bounds of the current client area.
   RECT GetClientArea();
 
+  // PROMPT 11.3.9.2 — smallest CLIENT area (logical pixels, i.e. before DPI
+  // scaling, excluding title bar and borders) the user may resize the window
+  // to. Enforced through WM_GETMINMAXINFO, so the normal Windows caption
+  // buttons (minimize/maximize/restore/close) and free enlargement keep
+  // working. Never larger than the work area of the monitor the window is on.
+  void SetMinimumClientSize(const Size& size);
+
  protected:
   // Processes and route salient window messages for mouse handling,
   // size change and DPI. Delegates handling of these to member overloads that
@@ -91,6 +98,10 @@ class Win32Window {
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
+
+  // Minimum client size in logical pixels; {0, 0} means "no minimum".
+  unsigned int min_client_width_ = 0;
+  unsigned int min_client_height_ = 0;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

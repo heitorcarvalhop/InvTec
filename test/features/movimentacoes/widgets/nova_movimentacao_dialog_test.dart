@@ -11,6 +11,7 @@ import 'package:invtec/features/localizacoes/domain/localizacao.dart';
 import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supabase.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_historico_item.dart';
+import 'package:invtec/features/movimentacoes/domain/movimentacao_listagem_item.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_repository.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacoes_resultado.dart';
 import 'package:invtec/features/movimentacoes/presentation/movimentacoes_page.dart';
@@ -106,6 +107,12 @@ class _RepositorioLento implements MovimentacaoRepository {
     int limit = 20,
     int offset = 0,
   }) => _interno.listarHistoricoPorPatrimonio(patrimonioId, limit: limit, offset: offset);
+
+  @override
+  Future<List<MovimentacaoListagemItem>> listarPorNumeroDocumento(
+    String numeroDocumento, {
+    List<String>? patrimonioIds,
+  }) => _interno.listarPorNumeroDocumento(numeroDocumento, patrimonioIds: patrimonioIds);
 }
 
 Profile _profile(ProfilePerfil perfil) => Profile(
@@ -126,6 +133,7 @@ PatrimonioDetalhe _patrimonioDetalhe({
   String? localizacaoAtualId,
   String? responsavelAtual,
   String setorNome = 'GETEC',
+  String? setorSigla,
   String? localizacaoNome,
 }) {
   return PatrimonioDetalhe(
@@ -142,6 +150,7 @@ PatrimonioDetalhe _patrimonioDetalhe({
     ),
     tipoNome: 'Notebook',
     setorNome: setorNome,
+    setorSigla: setorSigla,
     localizacaoNome: localizacaoNome,
   );
 }
@@ -656,5 +665,54 @@ void main() {
       expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
       expect(repo.ultimoRegistrar!['motivo'], 'Conferência de inventário anual');
     });
+
+    testWidgets(
+      'PROMPT 11.3.5.4 — dropdown de setor e revisão mostram a sigla real, com o nome completo no tooltip',
+      (tester) async {
+        final setorOrigem = Setor(
+          id: 'setor-a',
+          nome: 'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+          sigla: 'GEASI',
+          ativo: true,
+          criadoEm: DateTime(2026, 1, 1),
+        );
+        // "GEPOS" não existe em nenhuma lista fixa do app.
+        final setorDestino = Setor(
+          id: 'setor-b',
+          nome: 'Gerência de Posturas',
+          sigla: 'GEPOS',
+          ativo: true,
+          criadoEm: DateTime(2026, 1, 1),
+        );
+
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          patrimonios: [
+            _patrimonioDetalhe(setorNome: setorOrigem.nome, setorSigla: setorOrigem.sigla),
+          ],
+          setores: [setorOrigem, setorDestino],
+        );
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.manutencao);
+        await _avancar(tester);
+
+        final campo = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor de destino *');
+        await _tocar(tester, campo);
+
+        expect(find.text('GEPOS'), findsOneWidget);
+        expect(find.text('Gerência de Posturas'), findsNothing);
+
+        await _tocar(tester, find.text('GEPOS').last);
+        await _avancar(tester); // Detalhes -> Revisão
+
+        // "De" (origem) e "Para" (destino) mostram a sigla, com o nome
+        // completo disponível por tooltip.
+        expect(find.text('GEASI'), findsOneWidget);
+        expect(find.text('GEPOS'), findsOneWidget);
+        expect(find.text(setorOrigem.nome), findsNothing);
+        expect(find.text(setorDestino.nome), findsNothing);
+      },
+    );
   });
 }

@@ -42,34 +42,43 @@ class AppNavigationDrawer extends StatelessWidget {
               ),
             ),
             Divider(height: 1, color: AppColors.sidebarBorder),
+            // PROMPT 11.3.9.1 — mesma correção de `NavigationSidebar`: a
+            // lista de navegação e o bloco fixo de "Configurações"/"Sair"
+            // agora dividem o MESMO `SingleChildScrollView`, para uma
+            // janela baixa nunca cortar essas duas ações permanentemente
+            // (e nunca estourar o `Column` por baixo).
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
-                children: [
-                  for (final item in items)
-                    NavTile(item: item, selected: item.route == currentRoute, onTap: () => onNavigate(item.route)),
-                ],
-              ),
-            ),
-            Divider(height: 1, color: AppColors.sidebarBorder),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
-              child: Column(
-                children: [
-                  NavTile(
-                    item: configuracoesItem,
-                    selected: configuracoesItem.route == currentRoute,
-                    onTap: () => onNavigate(configuracoesItem.route),
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final item in items)
+                        NavTile(
+                          item: item,
+                          selected: item.route == currentRoute,
+                          onTap: () => onNavigate(item.route),
+                        ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Divider(height: 1, color: AppColors.sidebarBorder),
+                      const SizedBox(height: AppSpacing.sm),
+                      NavTile(
+                        item: configuracoesItem,
+                        selected: configuracoesItem.route == currentRoute,
+                        onTap: () => onNavigate(configuracoesItem.route),
+                      ),
+                      ListTile(
+                        iconColor: AppColors.sidebarForegroundMuted,
+                        textColor: AppColors.sidebarForegroundMuted,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+                        leading: const Icon(Icons.logout),
+                        title: const Text('Sair'),
+                        onTap: onLogout,
+                      ),
+                    ],
                   ),
-                  ListTile(
-                    iconColor: AppColors.sidebarForegroundMuted,
-                    textColor: AppColors.sidebarForegroundMuted,
-                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
-                    leading: const Icon(Icons.logout),
-                    title: const Text('Sair'),
-                    onTap: onLogout,
-                  ),
-                ],
+                ),
               ),
             ),
           ],

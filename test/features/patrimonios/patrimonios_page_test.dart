@@ -11,6 +11,7 @@ import 'package:invtec/features/localizacoes/data/localizacao_repository_supabas
 import 'package:invtec/features/localizacoes/domain/localizacao.dart';
 import 'package:invtec/features/patrimonios/presentation/patrimonios_page.dart';
 import 'package:invtec/features/setores/data/setor_repository_supabase.dart';
+import 'package:invtec/features/setores/domain/setor.dart';
 
 import '../auth/fake_auth_repository.dart';
 import '../localizacoes/fake_localizacao_repository.dart';
@@ -36,6 +37,9 @@ PatrimonioDetalhe _item(
   String? localizacaoId,
   PatrimonioStatus status = PatrimonioStatus.disponivel,
   DateTime? dataCadastro,
+  String setorAtualId = 'setor-1',
+  String setorNome = 'GETEC',
+  String? setorSigla,
 }) {
   return PatrimonioDetalhe(
     patrimonio: Patrimonio(
@@ -45,13 +49,14 @@ PatrimonioDetalhe _item(
       marca: marca,
       tipoId: 'tipo-1',
       status: status,
-      setorAtualId: 'setor-1',
+      setorAtualId: setorAtualId,
       localizacaoAtualId: localizacaoId,
       dataCadastro: dataCadastro ?? DateTime.now(),
       atualizadoEm: DateTime.now(),
     ),
     tipoNome: 'Notebook',
-    setorNome: 'GETEC',
+    setorNome: setorNome,
+    setorSigla: setorSigla,
   );
 }
 
@@ -60,6 +65,7 @@ Future<void> _pumpPatrimoniosPage(
   required ProfilePerfil perfil,
   required FakePatrimonioRepository patrimonioRepo,
   FakeLocalizacaoRepository? localizacaoRepo,
+  List<Setor>? setores,
 }) async {
   final fakeAuth = FakeAuthRepository(
     initialUserId: 'fake-user-id',
@@ -75,7 +81,7 @@ Future<void> _pumpPatrimoniosPage(
         tipoPatrimonioRepositoryProvider.overrideWithValue(
           FakeTipoPatrimonioRepository(),
         ),
-        setorRepositoryProvider.overrideWithValue(FakeSetorRepository()),
+        setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: setores)),
         localizacaoRepositoryProvider.overrideWithValue(
           localizacaoRepo ?? FakeLocalizacaoRepository(),
         ),
@@ -506,6 +512,78 @@ void main() {
         find.widgetWithText(OutlinedButton, 'Importar planilha'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('PROMPT 11.3.5.4 — siglas de setor na tabela e no filtro', () {
+    testWidgets('coluna Localização/Setor mostra a sigla, com o nome completo no tooltip', (tester) async {
+      await _pumpPatrimoniosPage(
+        tester,
+        perfil: ProfilePerfil.admin,
+        patrimonioRepo: FakePatrimonioRepository(
+          itens: [
+            _item(
+              'id-1',
+              numero: '100',
+              setorNome: 'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+              setorSigla: 'GEASI',
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('GEASI'), findsOneWidget);
+      expect(
+        find.text('Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('dropdown de Setor atual mostra a sigla real, e o filtro continua usando o ID', (tester) async {
+      await _pumpPatrimoniosPage(
+        tester,
+        perfil: ProfilePerfil.admin,
+        patrimonioRepo: FakePatrimonioRepository(
+          itens: [
+            _item(
+              'id-1',
+              numero: '100',
+              setorAtualId: 'id-getec',
+              setorNome: 'Gerencia de Tecnologia',
+              setorSigla: 'GETEC',
+            ),
+            _item(
+              'id-2',
+              numero: '200',
+              setorAtualId: 'id-gepos',
+              setorNome: 'Gerência de Posturas',
+              setorSigla: 'GEPOS',
+            ),
+          ],
+        ),
+        setores: [
+          Setor(id: 'id-getec', nome: 'Gerencia de Tecnologia', sigla: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+          // "GEPOS" não existe em nenhuma lista fixa do app — prova que a
+          // sigla vem do cadastro real, não de um switch fechado.
+          Setor(id: 'id-gepos', nome: 'Gerência de Posturas', sigla: 'GEPOS', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+        ],
+      );
+
+      final campoSetor = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor atual');
+      await tester.ensureVisible(campoSetor);
+      await tester.pumpAndSettle();
+      await tester.tap(campoSetor);
+      await tester.pumpAndSettle();
+
+      expect(find.text('GEPOS'), findsWidgets);
+
+      await tester.tap(find.text('GEPOS').last);
+      await tester.pumpAndSettle();
+
+      // O valor real do filtro continua sendo o ID (`setorAtualId` do
+      // fake): só o patrimônio do setor GEPOS (id-gepos) permanece.
+      expect(find.text('200'), findsOneWidget);
+      expect(find.text('100'), findsNothing);
     });
   });
 }

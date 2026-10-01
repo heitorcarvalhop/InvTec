@@ -220,15 +220,18 @@ class _SetorDestinoField extends ConsumerWidget {
           if (!obrigatorio) const DropdownMenuItem(value: null, child: Text('Manter o setor atual')),
           for (final Setor setor in setores)
             if (!excluirSetorAtual || setor.id != setorAtualId)
-              DropdownMenuItem(value: setor.id, child: Text(setor.nome)),
+              DropdownMenuItem(
+                value: setor.id,
+                // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
+                // tooltip.
+                child: Tooltip(message: setor.nome, child: Text(setor.rotuloCompacto)),
+              ),
         ],
         onChanged: enabled ? onChanged : null,
       ),
       loading: () => const LinearProgressIndicator(),
-      error: (_, _) => Text(
-        'Não foi possível carregar os setores.',
-        style: TextStyle(color: Theme.of(context).colorScheme.error),
-      ),
+      error: (_, _) =>
+          Text('Não foi possível carregar os setores.', style: TextStyle(color: Theme.of(context).colorScheme.error)),
     );
   }
 }
@@ -281,9 +284,7 @@ class _LocalizacaoSimples extends ConsumerWidget {
     return DropdownButtonFormField<String?>(
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(
-        labelText: obrigatoria ? 'Localização de destino *' : 'Localização de destino',
-      ),
+      decoration: InputDecoration(labelText: obrigatoria ? 'Localização de destino *' : 'Localização de destino'),
       items: [
         const DropdownMenuItem(value: null, child: Text('Sem localização')),
         for (final localizacao in localizacoes) DropdownMenuItem(value: localizacao.id, child: Text(localizacao.nome)),

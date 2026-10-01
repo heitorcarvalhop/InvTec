@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../setores/domain/setor.dart';
 import '../../domain/movimentacao.dart';
 import '../movimentacoes_controller.dart';
 import '../movimentacoes_filtro.dart';
@@ -45,8 +46,7 @@ class MovimentacoesFilters extends ConsumerWidget {
                 decoration: const InputDecoration(labelText: 'Tipo'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Todos os tipos')),
-                  for (final tipo in MovimentacaoTipo.values)
-                    DropdownMenuItem(value: tipo, child: Text(tipo.label)),
+                  for (final tipo in MovimentacaoTipo.values) DropdownMenuItem(value: tipo, child: Text(tipo.label)),
                 ],
                 onChanged: notifier.filtrarPorTipo,
               ),
@@ -63,7 +63,11 @@ class MovimentacoesFilters extends ConsumerWidget {
                     for (final setor in setores)
                       DropdownMenuItem(
                         value: setor.id,
-                        child: Text(setor.ativo ? setor.nome : '${setor.nome} (inativo)'),
+                        // PROMPT 11.3.5.3/11.3.5.4: sigla real cadastrada
+                        // (nunca inventada) — nome completo por tooltip. O
+                        // valor do item continua sendo `setor.id` — o
+                        // filtro em si não muda.
+                        child: Tooltip(message: setor.nomeComStatus, child: Text(setor.rotuloCompactoComStatus)),
                       ),
                   ],
                   onChanged: notifier.filtrarPorSetor,
@@ -80,9 +84,7 @@ class MovimentacoesFilters extends ConsumerWidget {
                   ScaffoldMessenger.of(context)
                     ..hideCurrentSnackBar()
                     ..showSnackBar(
-                      const SnackBar(
-                        content: Text('A data inicial deve ser anterior ou igual à data final.'),
-                      ),
+                      const SnackBar(content: Text('A data inicial deve ser anterior ou igual à data final.')),
                     );
                   return;
                 }

@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/app_exception.dart';
+import '../../../auth/domain/profile.dart';
+import '../../../auth/presentation/auth_controller.dart';
 import '../../../localizacoes/domain/localizacao.dart';
 import '../../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../../dashboard/presentation/dashboard_providers.dart';
@@ -18,11 +20,30 @@ import '../domain/import_column_field.dart';
 import '../domain/import_column_mapping.dart';
 import '../domain/import_defaults.dart';
 import '../domain/import_row.dart';
+import '../domain/patrimonio_comparacao.dart';
+import '../domain/patrimonio_decisao.dart';
 import '../domain/profiles/getec_import_profile.dart';
 import '../domain/profiles/import_profile_id.dart';
 import '../domain/profiles/tipo_inference.dart';
 import '../domain/text_similarity.dart';
+import 'comparacao_execucao_controller.dart';
 import 'patrimonio_import_state.dart';
+
+/// PROMPT 11.6.2 — mensagem exibida quando [PatrimonioImportController
+/// .compararParaAdmin] é chamado por uma sessão sem perfil ADMIN (seção 6:
+/// "o novo modo será destinado exclusivamente ao perfil ADMIN"). Pública
+/// para os testes.
+const mensagemComparacaoRestritaAdmin = 'Este modo de comparação é exclusivo do perfil administrador.';
+
+/// PROMPT 11.6.4, seção 7/9 — exibida quando [PatrimonioImportController
+/// .compararParaAdmin] é chamado enquanto a execução das decisões da
+/// comparação ANTERIOR ainda está em andamento ou tem algum item de
+/// resultado desconhecido: "não iniciar uma nova comparação enquanto
+/// existir uma execução sem resultado definitivo". Pública para os testes.
+const mensagemComparacaoBloqueadaPorExecucaoPendente =
+    'Há uma execução de alterações em andamento ou pendente de confirmação. '
+    'Resolva-a (aguarde terminar, ou tente novamente/consulte o resultado dos itens pendentes) antes de '
+    'iniciar uma nova comparação.';
 
 /// Máximo de gravações simultâneas no Supabase durante a importação (seção
 /// 26): controla a carga sem paralelizar centenas/milhares de chamadas de
@@ -44,8 +65,32 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   Uint8List? _bytesArquivo;
   final List<ImportStep> _historico = [];
 
+  /// PROMPT 11.6.3, seção 9 — "as decisões não podem ser transferidas
+  /// acidentalmente de um usuário para outro". Mesmo padrão de defesa em
+  /// profundidade já usado em `SeiConclusaoLoteController.build()`: este
+  /// provider é `.autoDispose` (some ao sair da tela de importação, o que já
+  /// devolveria um estado zerado na maioria dos casos), mas login/logout/
+  /// troca de usuário SEM desmontar a tela nunca deve deixar as decisões de
+  /// uma sessão vazarem para a próxima — `ref.listen` (nunca `ref.watch`,
+  /// que reconstruiria isto a cada transição transitória de
+  /// `authControllerProvider`) reresolve o estado inteiro só quando o
+  /// usuário AUTENTICADO RESOLVIDO realmente muda.
+  String? _usuarioConhecido;
+
   @override
-  PatrimonioImportState build() => PatrimonioImportState();
+  PatrimonioImportState build() {
+    _usuarioConhecido = ref.read(authControllerProvider).value?.profile?.id;
+    ref.listen(authControllerProvider, (previous, next) {
+      if (!next.hasValue) return;
+      final novoUsuario = next.value?.profile?.id;
+      if (novoUsuario == _usuarioConhecido) return;
+      _usuarioConhecido = novoUsuario;
+      _historico.clear();
+      _bytesArquivo = null;
+      state = PatrimonioImportState();
+    });
+    return PatrimonioImportState();
+  }
 
   // ---------------------------------------------------------------------
   // 1-2. seleção de arquivo / leitura
@@ -208,7 +253,26 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
       );
       return;
     }
-    await analisar();
+    // PROMPT 11.6.3 — único ponto de bifurcação do perfil GENÉRICO entre a
+    // importação convencional e o modo ADMIN "Comparar e Atualizar": os
+    // dois compartilham TODOS os passos anteriores (arquivo, aba,
+    // cabeçalho, colunas, padrões) — nunca um segundo assistente.
+    if (state.modoComparacaoAdmin) {
+      await compararParaAdmin();
+    } else {
+      await analisar();
+    }
+  }
+
+  /// PROMPT 11.6.3, seção 1 — só ADMIN pode ativar/desativar o modo
+  /// "Comparar e Atualizar" (defesa em profundidade: a UI já esconde o
+  /// controle de qualquer outro perfil, mas esta checagem garante que
+  /// nenhuma chamada direta ao controller o contorne). Sem efeito para
+  /// qualquer outro perfil — nunca lança, nunca muda nada.
+  void definirModoComparacaoAdmin(bool valor) {
+    final perfil = ref.read(authControllerProvider).value?.profile?.perfil;
+    if (perfil != ProfilePerfil.admin) return;
+    state = state.copyWith(modoComparacaoAdmin: valor);
   }
 
   // ---------------------------------------------------------------------
@@ -456,6 +520,156 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
         mensagemErro: () => 'Não foi possível analisar a planilha. Tente novamente.',
       );
     }
+  }
+
+  /// PROMPT 11.6.2 — modo ADMIN "Comparar e Atualizar": roda a MESMA
+  /// [analisar] da importação convencional (mesma leitura de planilha,
+  /// mesmo mapeamento, mesma consulta em lote de existentes, mesmo
+  /// pós-processamento do perfil ativo — seção 2, "reaproveitar ao
+  /// máximo") e, sobre as [PatrimonioImportState.linhas] resultantes, roda
+  /// [PatrimonioComparador.comparar] — um SEGUNDO OLHAR, só de leitura,
+  /// nunca uma segunda implementação de importador.
+  ///
+  /// Restrito ao perfil ADMIN (seção 6): qualquer outro perfil (ou sessão
+  /// sem perfil resolvido) recebe [mensagemComparacaoRestritaAdmin] em
+  /// [PatrimonioImportState.mensagemErro] e NADA é lido/comparado — nem a
+  /// planilha é analisada.
+  ///
+  /// Só CONSULTA e COMPARA: nenhuma chamada a `cadastrar`/`atualizar` (nem
+  /// aqui, nem dentro de [analisar]/[ImportAnalyzer]/[PatrimonioComparador]
+  /// — todos os três são estritamente de leitura). A autorização de
+  /// escrita deste modo é tratada à parte, no PROMPT 11.6.4.
+  Future<void> compararParaAdmin() async {
+    final perfil = ref.read(authControllerProvider).value?.profile?.perfil;
+    if (perfil != ProfilePerfil.admin) {
+      state = state.copyWith(mensagemErro: () => mensagemComparacaoRestritaAdmin);
+      return;
+    }
+
+    // PROMPT 11.6.4, seção 7/9 — nunca inicia uma nova comparação enquanto a
+    // execução das decisões da comparação anterior ainda não tem um
+    // resultado definitivo para todo item (executando OU com algum item de
+    // resultado desconhecido).
+    if (!ref.read(comparacaoExecucaoControllerProvider).podeIniciarNovaExecucao) {
+      state = state.copyWith(mensagemErro: () => mensagemComparacaoBloqueadaPorExecucaoPendente);
+      return;
+    }
+
+    await analisar();
+    if (state.mensagemErro != null) return; // `analisar()` já registrou o erro — nada a comparar.
+
+    // PROMPT 11.6.3, seção 9 — cada nova comparação invalida qualquer
+    // decisão anterior (nunca reaproveitada de uma planilha/análise
+    // diferente) e volta para a lista sem filtro/busca residual de uma
+    // sessão anterior.
+    state = state.copyWith(
+      comparacao: () => PatrimonioComparador.comparar(state.linhas),
+      decisoes: const {},
+      filtroComparacao: ComparacaoFiltroRevisao.todos,
+      buscaNumeroPatrimonio: '',
+      step: ImportStep.compararRevisao,
+      bumpRevisao: true,
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // PROMPT 11.6.3 — decisões do modo ADMIN "Comparar e Atualizar"
+  // ---------------------------------------------------------------------
+
+  /// Todas as [CampoDivergente] elegíveis para decisão agora — só
+  /// patrimônios [ClassificacaoComparacao.divergente] (nunca novos, que não
+  /// têm cadastro automático — seção 6; nunca bloqueados — seção 7).
+  Iterable<(String patrimonioId, CampoDivergente campo)> _campoDivergenteElegiveis() sync* {
+    final lote = state.comparacao;
+    if (lote == null) return;
+    for (final item in lote.itens) {
+      if (item.classificacao != ClassificacaoComparacao.divergente) continue;
+      final id = item.patrimonioId;
+      if (id == null) continue;
+      for (final divergencia in item.divergencias) {
+        yield (id, divergencia);
+      }
+    }
+  }
+
+  /// Decide UM campo de UM patrimônio (seção 5). Sem efeito se
+  /// (patrimonioId, campo) não corresponder a uma divergência real da
+  /// comparação atual — nunca cria uma decisão "órfã" que a UI não consiga
+  /// mostrar.
+  void decidirCampo(String patrimonioId, String campo, DecisaoCampoValor valor) {
+    final existe = _campoDivergenteElegiveis().any((e) => e.$1 == patrimonioId && e.$2.campo == campo);
+    if (!existe) return;
+    final novoMapa = Map<ChaveDecisaoCampo, DecisaoCampoValor>.from(state.decisoes);
+    novoMapa[ChaveDecisaoCampo(patrimonioId: patrimonioId, campo: campo)] = valor;
+    state = state.copyWith(decisoes: novoMapa, bumpRevisao: true);
+  }
+
+  /// "Ignorar todas as divergências de um patrimônio" (seção 5) — só afeta
+  /// os campos DAQUELE patrimônio, nunca de outro.
+  void ignorarTodosOsCamposDoPatrimonio(String patrimonioId) {
+    final novoMapa = Map<ChaveDecisaoCampo, DecisaoCampoValor>.from(state.decisoes);
+    for (final (id, campo) in _campoDivergenteElegiveis()) {
+      if (id != patrimonioId) continue;
+      novoMapa[ChaveDecisaoCampo(patrimonioId: id, campo: campo.campo)] = DecisaoCampoValor.ignorar;
+    }
+    state = state.copyWith(decisoes: novoMapa, bumpRevisao: true);
+  }
+
+  /// Aplica [valor] a todo [ChaveDecisaoCampo] elegível (seção 6) que
+  /// passar em [filtro] — devolve quantas decisões foram efetivamente
+  /// alteradas, para a UI informar a quantidade afetada (seção 6: "toda
+  /// operação em massa deve apresentar a quantidade de decisões
+  /// afetadas"). Bloqueados e novos NUNCA entram aqui — `_campoDivergenteElegiveis`
+  /// já os exclui estruturalmente.
+  int _aplicarEmMassa(DecisaoCampoValor valor, {bool Function(CampoDivergente campo)? filtro}) {
+    final novoMapa = Map<ChaveDecisaoCampo, DecisaoCampoValor>.from(state.decisoes);
+    var afetadas = 0;
+    for (final (id, campo) in _campoDivergenteElegiveis()) {
+      if (filtro != null && !filtro(campo)) continue;
+      final chave = ChaveDecisaoCampo(patrimonioId: id, campo: campo.campo);
+      if (novoMapa[chave] == valor) continue; // já estava neste valor — não conta como "afetada".
+      novoMapa[chave] = valor;
+      afetadas++;
+    }
+    if (afetadas > 0) state = state.copyWith(decisoes: novoMapa, bumpRevisao: true);
+    return afetadas;
+  }
+
+  /// "Selecionar todos os campos elegíveis para atualização" (seção 6).
+  int selecionarTodosOsElegiveis() => _aplicarEmMassa(DecisaoCampoValor.aplicar);
+
+  /// "Ignorar todos os campos elegíveis" (seção 6).
+  int ignorarTodosOsElegiveis() => _aplicarEmMassa(DecisaoCampoValor.ignorar);
+
+  /// "Selecionar somente divergências de localização" (seção 6) — setor E
+  /// localização (a mesma dupla cautela de [PatrimonioComparador], já que
+  /// ambos exigem resolução contra um catálogo real).
+  int selecionarSomenteLocalizacaoOuSetor() => _aplicarEmMassa(
+    DecisaoCampoValor.aplicar,
+    filtro: (c) => c.tipo == TipoDivergencia.setor || c.tipo == TipoDivergencia.localizacao,
+  );
+
+  /// "Selecionar somente divergências de metadados" (seção 6).
+  int selecionarSomenteMetadados() =>
+      _aplicarEmMassa(DecisaoCampoValor.aplicar, filtro: (c) => c.tipo == TipoDivergencia.metadado);
+
+  /// "Limpar decisões" (seção 6) — volta TODAS as decisões elegíveis para
+  /// [DecisaoCampoValor.pendente].
+  int limparDecisoes() => _aplicarEmMassa(DecisaoCampoValor.pendente);
+
+  void definirFiltroComparacao(ComparacaoFiltroRevisao filtro) {
+    state = state.copyWith(filtroComparacao: filtro);
+  }
+
+  void definirBuscaNumeroPatrimonio(String texto) {
+    state = state.copyWith(buscaNumeroPatrimonio: texto);
+  }
+
+  /// Navega da lista de revisão (seção 3) para o resumo de decisões (seção
+  /// 8) — puramente visual, nenhuma decisão muda.
+  void abrirResumoDeDecisoes() {
+    _historico.add(state.step);
+    state = state.copyWith(step: ImportStep.compararResumo);
   }
 
   /// Passo pós-análise exclusivo do perfil GETEC (seções 4/5/8/23): infere

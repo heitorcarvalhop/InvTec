@@ -4,6 +4,20 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
+import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
+
+/// PROMPT 11.6.4 — exceção genérica (nunca [AppException]/
+/// [ComparacaoExecucaoFalhouException]) usada por [FakePatrimonioRepository]
+/// para simular uma falha de REDE (resultado desconhecido) em
+/// [FakePatrimonioRepository.aplicarDecisaoComparacao] — o mesmo papel que
+/// um `SocketException`/timeout tem contra o Supabase real: nunca uma
+/// recusa síncrona do servidor.
+class FalhaDeRedeSimulada implements Exception {
+  const FalhaDeRedeSimulada();
+
+  @override
+  String toString() => 'FalhaDeRedeSimulada (rede — resultado desconhecido)';
+}
 
 /// `true` quando [texto] é composto só por dígitos (após `trim`) — mesma
 /// regra usada em [PatrimonioRepositorySupabase] (PROMPT 9.1) para decidir,
@@ -21,14 +35,79 @@ const _limiteCorrespondenciaSerie = 10;
 /// real. Reproduz as mesmas mensagens amigáveis que o mapper real
 /// produziria (número duplicado), para o teste validar o texto exibido.
 class FakePatrimonioRepository implements PatrimonioRepository {
-  FakePatrimonioRepository({List<PatrimonioDetalhe>? itens, this.erro})
-    : _itens = [...?itens];
+  FakePatrimonioRepository({
+    List<PatrimonioDetalhe>? itens,
+    this.erro,
+    this.errosExecucaoPorPatrimonioId = const {},
+    this.operacaoIdsComFalhaDeRedeSemEscrita = const {},
+    this.operacaoIdsComRespostaPerdida = const {},
+    this.falhaConsultaExecucao = false,
+    this.aposEscritaDeExecucao,
+    this.autorId = 'user-1',
+  }) : _itens = [...?itens];
 
   final List<PatrimonioDetalhe> _itens;
   final Object? erro;
 
+  /// PROMPT 11.6.5 — quem "executou" cada [aplicarDecisaoComparacao] (grava
+  /// como `criado_por`). Mesmo papel de `autorId` em
+  /// `FakeDocumentosSeiRepository`.
+  final String autorId;
+
+  /// SÓ PARA TESTE — quando definido, [buscarExecucaoComparacaoPorOperacaoId]
+  /// compara `criado_por` contra ESTE valor em vez de [autorId]: simula a
+  /// sessão ATUAL (no momento da reconciliação/consulta) ser diferente de
+  /// quem criou o registro originalmente — mesmo efeito que
+  /// `_client.auth.currentUser` mudar entre duas chamadas na implementação
+  /// real (PROMPT 11.6.5, seção 1: "verificar se um usuário consegue
+  /// consultar indevidamente operações pertencentes a outro usuário").
+  String? usuarioAtualParaTeste;
+
+  /// PROMPT 11.6.4 — patrimonioId → exceção lançada ANTES de qualquer
+  /// escrita em [aplicarDecisaoComparacao] (mesma garantia de
+  /// `ComparacaoExecucaoFalhouException`: recusa síncrona, nada gravado).
+  final Map<String, Object> errosExecucaoPorPatrimonioId;
+
+  /// operacaoId → simula uma falha de rede ANTES de qualquer escrita (nada
+  /// é gravado; um retry com o mesmo operacaoId executa a operação pela
+  /// primeira vez de verdade).
+  final Set<String> operacaoIdsComFalhaDeRedeSemEscrita;
+
+  /// operacaoId → a escrita é efetivada normalmente (e fica registrada,
+  /// pronta para idempotência), mas a chamada LANÇA em vez de devolver —
+  /// simula "a resposta se perdeu depois que o servidor já gravou" (seção
+  /// 6/9: timeout após gravação efetiva). Um retry com o MESMO operacaoId
+  /// encontra a execução já registrada e devolve `jaExecutado: true`, sem
+  /// nenhuma nova escrita.
+  final Set<String> operacaoIdsComRespostaPerdida;
+
+  /// Simula uma falha de LEITURA em [buscarExecucaoComparacaoPorOperacaoId]
+  /// (nunca convertida em `null` — mesma garantia do repositório real).
+  final bool falhaConsultaExecucao;
+
+  /// Chamado logo APÓS uma escrita bem-sucedida (antes de devolver o
+  /// resultado) — só para o teste de "troca de usuário durante
+  /// processamento" (PROMPT 11.6.4, seção 9) provocar deterministicamente a
+  /// troca no meio de um lote, sem depender de timing de `Future.wait`.
+  final void Function(DecisaoItemParaExecutar decisao)? aposEscritaDeExecucao;
+
   int cadastrarCallCount = 0;
   int atualizarCallCount = 0;
+
+  /// PROMPT 11.6.4 — quantas vezes [aplicarDecisaoComparacao] foi chamada
+  /// (idempotência incluída: uma chamada repetida com o mesmo operacaoId
+  /// AINDA conta aqui, mas não soma a [decisoesAplicadas] nem gera uma
+  /// segunda escrita — ver o corpo do método).
+  int aplicarDecisaoComparacaoCallCount = 0;
+
+  /// Uma entrada por escrita EFETIVA (nunca por retorno idempotente
+  /// repetido) — usado para provar tanto "nenhuma chamada de escrita
+  /// inesperada" quanto "retry não duplica movimentação/atualização".
+  final List<DecisaoItemParaExecutar> decisoesAplicadas = [];
+
+  final Map<String, ResultadoAplicacaoDecisao> _execucoesPorOperacaoId = {};
+  final Map<String, String> _criadoPorPorOperacaoId = {};
+  final Map<String, DecisaoItemParaExecutar> _decisaoOriginalPorOperacaoId = {};
 
   /// Quantas vezes cada consulta em lote foi chamada — usado para provar
   /// que a comparação de tombamentos da planilha com o banco (PROMPT 8.10)
@@ -428,5 +507,144 @@ class FakePatrimonioRepository implements PatrimonioRepository {
         .whereType<String>()
         .where(procurados.contains)
         .toSet();
+  }
+
+  @override
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) async {
+    aplicarDecisaoComparacaoCallCount++;
+
+    // Idempotência (mesma disciplina da RPC real, PROMPT 11.6.5 seção 2C):
+    // um operacaoId já processado nunca gera uma nova escrita QUANDO os
+    // parâmetros batem com os da primeira vez — quando algum parâmetro
+    // relevante (patrimônio, campos, justificativa, versão) diverge, é
+    // conflito (`P0041`), nunca reaproveitado silenciosamente.
+    final jaExecutado = _execucoesPorOperacaoId[decisao.operacaoId];
+    if (jaExecutado != null) {
+      final original = _decisaoOriginalPorOperacaoId[decisao.operacaoId]!;
+      final identico =
+          original.patrimonioId == decisao.patrimonioId &&
+          original.versaoEsperada == decisao.versaoEsperada &&
+          original.numeroSerie == decisao.numeroSerie &&
+          original.marca == decisao.marca &&
+          original.modelo == decisao.modelo &&
+          original.descricao == decisao.descricao &&
+          original.observacao == decisao.observacao &&
+          original.novoSetorId == decisao.novoSetorId &&
+          original.novaLocalizacaoId == decisao.novaLocalizacaoId &&
+          original.justificativa == decisao.justificativa;
+      if (!identico) {
+        throw falhaDeExecucaoComparacao(
+          codigo: 'P0041',
+          mensagemDoServidor: 'operacao_id já foi utilizado com parâmetros ou usuário diferentes',
+        );
+      }
+      return ResultadoAplicacaoDecisao(
+        patrimonioId: jaExecutado.patrimonioId,
+        metadadosAtualizados: jaExecutado.metadadosAtualizados,
+        movimentacaoRegistrada: jaExecutado.movimentacaoRegistrada,
+        jaExecutado: true,
+        movimentacaoId: jaExecutado.movimentacaoId,
+        concluidoEm: jaExecutado.concluidoEm,
+      );
+    }
+
+    if (operacaoIdsComFalhaDeRedeSemEscrita.contains(decisao.operacaoId)) {
+      throw const FalhaDeRedeSimulada();
+    }
+
+    final erroDeclarado = errosExecucaoPorPatrimonioId[decisao.patrimonioId];
+    if (erroDeclarado != null) throw erroDeclarado;
+
+    final index = _itens.indexWhere((item) => item.patrimonio.id == decisao.patrimonioId);
+    if (index < 0) {
+      throw falhaDeExecucaoComparacao(codigo: 'P0002', mensagemDoServidor: 'Patrimônio não encontrado');
+    }
+    final atual = _itens[index];
+    if (atual.patrimonio.atualizadoEm != decisao.versaoEsperada) {
+      throw falhaDeExecucaoComparacao(
+        codigo: 'P0040',
+        mensagemDoServidor: 'O patrimônio foi alterado por outra operação desde a comparação',
+      );
+    }
+
+    decisoesAplicadas.add(decisao);
+
+    final metadadosAplicados = atual.patrimonio.copyWith(
+      numeroSerie: decisao.numeroSerie,
+      marca: decisao.marca,
+      modelo: decisao.modelo,
+      descricao: decisao.descricao,
+      observacao: decisao.observacao,
+    );
+    // Setor/localização NUNCA passam por `copyWith` (proibido por design —
+    // ver o comentário do método real): simula aqui o mesmo efeito que
+    // `registrar_movimentacao` teria, incluindo limpar a localização
+    // quando o setor muda sem uma localização nova explícita (mesma regra
+    // já homologada dentro da RPC real para AJUSTE_INVENTARIO).
+    final houveTrocaDeSetor = decisao.novoSetorId != null && decisao.novoSetorId != atual.patrimonio.setorAtualId;
+    final novaLocalizacao = decisao.novaLocalizacaoId ?? (houveTrocaDeSetor ? null : atual.patrimonio.localizacaoAtualId);
+    final patrimonioAtualizado = Patrimonio(
+      id: metadadosAplicados.id,
+      numeroPatrimonio: metadadosAplicados.numeroPatrimonio,
+      numeroSerie: metadadosAplicados.numeroSerie,
+      tipoId: metadadosAplicados.tipoId,
+      marca: metadadosAplicados.marca,
+      modelo: metadadosAplicados.modelo,
+      descricao: metadadosAplicados.descricao,
+      observacao: metadadosAplicados.observacao,
+      status: metadadosAplicados.status,
+      setorAtualId: decisao.novoSetorId ?? metadadosAplicados.setorAtualId,
+      localizacaoAtualId: novaLocalizacao,
+      responsavelAtual: metadadosAplicados.responsavelAtual,
+      dataAquisicao: metadadosAplicados.dataAquisicao,
+      dataCadastro: metadadosAplicados.dataCadastro,
+      criadoPor: metadadosAplicados.criadoPor,
+      atualizadoEm: DateTime.now(),
+    );
+
+    _itens[index] = PatrimonioDetalhe(
+      patrimonio: patrimonioAtualizado,
+      tipoNome: atual.tipoNome,
+      setorNome: atual.setorNome,
+      setorSigla: atual.setorSigla,
+      localizacaoNome: decisao.novaLocalizacaoId != null ? 'Localização fake' : atual.localizacaoNome,
+      criadoPorNome: atual.criadoPorNome,
+    );
+
+    final resultado = ResultadoAplicacaoDecisao(
+      patrimonioId: decisao.patrimonioId,
+      metadadosAtualizados: decisao.temMetadado,
+      movimentacaoRegistrada: decisao.temMovimentacao,
+      jaExecutado: false,
+      movimentacaoId: decisao.temMovimentacao ? 'movimentacao-fake-${decisao.operacaoId}' : null,
+      concluidoEm: DateTime.now(),
+    );
+    _execucoesPorOperacaoId[decisao.operacaoId] = resultado;
+    _criadoPorPorOperacaoId[decisao.operacaoId] = autorId;
+    _decisaoOriginalPorOperacaoId[decisao.operacaoId] = decisao;
+    aposEscritaDeExecucao?.call(decisao);
+
+    if (operacaoIdsComRespostaPerdida.contains(decisao.operacaoId)) {
+      throw const FalhaDeRedeSimulada();
+    }
+
+    return resultado;
+  }
+
+  @override
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) async {
+    if (falhaConsultaExecucao) {
+      throw const AppException('Falha ao consultar o resultado da operação');
+    }
+    final resultado = _execucoesPorOperacaoId[operacaoId];
+    if (resultado == null) return null;
+    // PROMPT 11.6.5, seção 1 — mesma defesa da implementação real: uma
+    // leitura NUNCA é aceita como "a resposta da minha tentativa" quando o
+    // `criado_por` gravado não bate com a sessão atual.
+    final usuarioAtual = usuarioAtualParaTeste ?? autorId;
+    if (_criadoPorPorOperacaoId[operacaoId] != usuarioAtual) {
+      throw const AppException('A operação não pertence à sessão atual.');
+    }
+    return resultado;
   }
 }
