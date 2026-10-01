@@ -5,6 +5,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/validation/app_validators.dart';
 import '../domain/auth_status.dart';
 import 'auth_controller.dart';
 
@@ -167,12 +168,7 @@ class _LoginForm extends StatelessWidget {
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
                         decoration: const InputDecoration(labelText: 'E-mail', prefixIcon: Icon(Icons.mail_outline)),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Informe o e-mail';
-                          }
-                          return null;
-                        },
+                        validator: AppValidators.email,
                       ),
                       const SizedBox(height: AppSpacing.md),
                       TextFormField(

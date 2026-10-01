@@ -665,6 +665,30 @@ void main() {
       expect(repo.ultimoRegistrar!['motivo'], 'Conferência de inventário anual');
     });
 
+    testWidgets('número do chamado bloqueia letras e preserva zeros à esquerda', (tester) async {
+      final repo = FakeMovimentacaoRepository();
+      await _pumpEAbrirWizard(
+        tester,
+        movimentacaoRepo: repo,
+        patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
+      );
+      await _buscarESelecionarPatrimonio(tester);
+      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+      await _avancar(tester);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Número do chamado'), 'CH00042AB');
+      await tester.pumpAndSettle();
+      expect(find.text('00042'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Motivo'), 'Conferência de inventário anual');
+      await tester.pumpAndSettle();
+
+      await _avancar(tester);
+      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+
+      expect(repo.ultimoRegistrar!['numeroChamado'], '00042');
+    });
+
     testWidgets(
       'dropdown de setor e revisão mostram a sigla real, com o nome completo no tooltip',
       (tester) async {

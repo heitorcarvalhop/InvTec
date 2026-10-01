@@ -199,7 +199,7 @@ void main() {
 
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Número patrimonial'),
-        '  00045872  ',
+        '00045872',
       );
       await _selecionarDropdown(tester, 'Tipo *', 'Notebook');
       await _selecionarDropdown(tester, 'Destino / Setor atual *', 'GETEC');
@@ -208,7 +208,7 @@ void main() {
       expect(repo.cadastrarCallCount, 1);
       expect(repo.ultimoCadastro?['tipoId'], 'tipo-1');
       expect(repo.ultimoCadastro?['destinoId'], 'setor-1');
-      expect(repo.ultimoCadastro?['numeroPatrimonio'], '  00045872  ');
+      expect(repo.ultimoCadastro?['numeroPatrimonio'], '00045872');
       // Nunca envia status/setor "corrigido" manualmente: cadastrar() só
       // aceita os parâmetros da RPC, não há como enviar status.
       expect(repo.ultimoCadastro!.containsKey('status'), isFalse);
@@ -217,6 +217,36 @@ void main() {
       expect(find.text('Patrimônio cadastrado com sucesso.'), findsOneWidget);
     },
   );
+
+  testWidgets('número patrimonial bloqueia letras durante a digitação', (
+    tester,
+  ) async {
+    final repo = FakePatrimonioRepository();
+    await _pumpFormPage(tester, patrimonioRepo: repo);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Número patrimonial'),
+      'AB12C3',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('123'), findsOneWidget);
+  });
+
+  testWidgets('número de série continua aceitando letras livremente', (
+    tester,
+  ) async {
+    final repo = FakePatrimonioRepository();
+    await _pumpFormPage(tester, patrimonioRepo: repo);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Número de série'),
+      'SN-AB12C3',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('SN-AB12C3'), findsOneWidget);
+  });
 
   testWidgets('erro de número duplicado é exibido no formulário', (
     tester,

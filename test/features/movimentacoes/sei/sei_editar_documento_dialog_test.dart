@@ -513,6 +513,43 @@ void main() {
       expect(find.text('DADOS DO DOCUMENTO'), findsOneWidget, reason: 'o formulário continua aberto — nada foi salvo');
     });
 
+    testWidgets('número do documento SEI bloqueia letras e preserva zeros à esquerda', (tester) async {
+      final documento = _documento(id: 'doc-1', itens: [_itemPendente()]);
+      final fakeRepo = await _pumpDetalheComEdicao(tester, documento, setores: [_setorGetec, _setorGeasi]);
+      await _abrirFormularioEdicao(tester);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Número do documento SEI'), 'AB00123CD');
+      await tester.pumpAndSettle();
+
+      expect(find.text('00123'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Motivo da edição (obrigatório)'), 'Corrigindo número do documento');
+      await tester.pumpAndSettle();
+      await _tocar(tester, find.widgetWithText(FilledButton, 'Salvar alterações'));
+
+      expect(find.text('Documento SEI atualizado com sucesso.'), findsOneWidget);
+      final atualizado = await fakeRepo.obterPorId('doc-1');
+      expect(atualizado.numeroDocumentoSei, '00123');
+    });
+
+    testWidgets('número do chamado de um item bloqueia letras e preserva zeros à esquerda', (tester) async {
+      final documento = _documento(id: 'doc-1', itens: [_itemPendente()]);
+      final fakeRepo = await _pumpDetalheComEdicao(tester, documento, setores: [_setorGetec, _setorGeasi]);
+      await _abrirFormularioEdicao(tester);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Número do chamado'), 'CH00099XY');
+      await tester.pumpAndSettle();
+
+      expect(find.text('00099'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Motivo da edição (obrigatório)'), 'Corrigindo número do chamado');
+      await tester.pumpAndSettle();
+      await _tocar(tester, find.widgetWithText(FilledButton, 'Salvar alterações'));
+
+      final atualizado = await fakeRepo.obterPorId('doc-1');
+      expect(atualizado.itens.single.numeroChamado.corrigido, '00099');
+    });
+
     testWidgets('descartar fecha o formulário sem nenhuma chamada de escrita ao repositório', (tester) async {
       final documento = _documento(id: 'doc-1', itens: [_itemPendente()]);
       final fakeRepo = await _pumpDetalheComEdicao(tester, documento, setores: [_setorGetec, _setorGeasi]);

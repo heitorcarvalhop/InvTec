@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/utils/text_normalization.dart';
 import '../../../../auth/domain/profile.dart';
 import '../../../../auth/presentation/auth_controller.dart';
 import '../../../../setores/domain/setor.dart';
@@ -146,15 +147,17 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
                     decoration: const InputDecoration(labelText: 'Responsável destino padrão'),
                     onChanged: (valor) => _atualizar(
                       controller,
-                      (p) => p.copyWith(responsavelDestinoPadrao: () => valor),
+                      (p) => p.copyWith(responsavelDestinoPadrao: () => nullIfBlank(valor)),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: _motivoController,
                     decoration: const InputDecoration(labelText: 'Motivo padrão'),
-                    onChanged: (valor) =>
-                        _atualizar(controller, (p) => p.copyWith(motivoPadrao: () => valor)),
+                    onChanged: (valor) => _atualizar(
+                      controller,
+                      (p) => p.copyWith(motivoPadrao: () => nullIfBlank(valor)),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   InkWell(

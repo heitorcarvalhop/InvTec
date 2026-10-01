@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/utils/setor_display.dart';
+import '../../../../../core/validation/app_validators.dart';
 import '../../../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../../../patrimonios/presentation/patrimonio_reference_data.dart';
 import '../../../../setores/domain/setor.dart';
@@ -187,7 +189,11 @@ class _SeiEditarDocumentoDialogState extends ConsumerState<_SeiEditarDocumentoDi
     final setoresAsync = ref.watch(setoresAtivosParaPatrimonioProvider);
     final itensPendentes = documento.itens.where((i) => i.status == SeiItemPendenciaStatus.pendente).toList();
     final itensNaoPendentes = documento.itens.where((i) => i.status != SeiItemPendenciaStatus.pendente).toList();
-    final podeSalvar = !_salvando && _houveAlteracao && _motivoController.text.trim().isNotEmpty;
+    final podeSalvar =
+        !_salvando &&
+        _houveAlteracao &&
+        _motivoController.text.trim().isNotEmpty &&
+        AppValidators.numeroDocumentoSei(_numeroDocumentoSeiController.text) == null;
 
     return Dialog(
       child: ConstrainedBox(
@@ -221,7 +227,12 @@ class _SeiEditarDocumentoDialogState extends ConsumerState<_SeiEditarDocumentoDi
                       const SizedBox(height: AppSpacing.sm),
                       TextField(
                         controller: _numeroDocumentoSeiController,
-                        decoration: const InputDecoration(labelText: 'Número do documento SEI'),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: InputDecoration(
+                          labelText: 'Número do documento SEI',
+                          errorText: AppValidators.numeroDocumentoSei(_numeroDocumentoSeiController.text),
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       TextField(
@@ -538,11 +549,14 @@ class _ItemEdicaoCardState extends State<_ItemEdicaoCard> {
                 Expanded(
                   child: TextField(
                     controller: _numeroChamadoController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: InputDecoration(
                       labelText: 'Número do chamado',
                       helperText: item.numeroChamado.original == null
                           ? null
                           : 'Original: ${item.numeroChamado.original}',
+                      errorText: AppValidators.numeroChamado(_numeroChamadoController.text),
                     ),
                   ),
                 ),

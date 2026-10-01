@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/validation/app_validators.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/page_header.dart';
 import '../../auth/domain/profile.dart';
@@ -299,9 +301,12 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                   TextFormField(
                     controller: _numeroController,
                     enabled: !_isSubmitting,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(
                       labelText: 'Número patrimonial',
                     ),
+                    validator: AppValidators.numeroPatrimonio,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(

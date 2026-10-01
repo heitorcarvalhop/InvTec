@@ -31,5 +31,26 @@ void main() {
       expect(interpretarDataTexto(''), isNull);
       expect(interpretarDataTexto('   '), isNull);
     });
+
+    test('retorna null quando ano de 2 dígitos resultaria em data futura', () {
+      // "98" sempre vira 20xx (regra acima) — sem faixa de sanidade isso
+      // geraria uma data de aquisição no futuro (2098) sem nenhum aviso.
+      expect(interpretarDataTexto('10/03/98'), isNull);
+    });
+
+    test('retorna null para data futura com ano de 4 dígitos', () {
+      expect(interpretarDataTexto('10/03/2099'), isNull);
+    });
+
+    test('retorna null para data anterior a 2000', () {
+      expect(interpretarDataTexto('10/03/1999'), isNull);
+    });
+
+    test('aceita a data de hoje', () {
+      final hoje = DateTime.now();
+      final texto =
+          '${hoje.day.toString().padLeft(2, '0')}/${hoje.month.toString().padLeft(2, '0')}/${hoje.year}';
+      expect(interpretarDataTexto(texto), DateTime(hoje.year, hoje.month, hoje.day));
+    });
   });
 }

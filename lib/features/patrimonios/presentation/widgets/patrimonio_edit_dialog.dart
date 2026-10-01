@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/validation/app_validators.dart';
 import '../../domain/patrimonio.dart';
 import '../../domain/patrimonio_detalhe.dart';
 import '../../domain/tipo_patrimonio.dart';
@@ -11,9 +13,9 @@ import '../patrimonio_reference_data.dart';
 import '../patrimonios_controller.dart';
 import 'date_only_field.dart';
 
-/// Edição de metadados — nunca número/status/setor/responsável (esses só
-/// mudam por movimentação registrada, ver docs/database.md). Retorna
-/// `true` quando a edição é concluída com sucesso.
+/// Edição de metadados — nunca status/setor/responsável (esses só mudam
+/// por movimentação registrada, ver docs/database.md). Retorna `true`
+/// quando a edição é concluída com sucesso.
 Future<bool?> showPatrimonioEditDialog(
   BuildContext context, {
   required PatrimonioDetalhe detalhe,
@@ -137,9 +139,12 @@ class _PatrimonioEditDialogState extends ConsumerState<PatrimonioEditDialog> {
                 TextFormField(
                   controller: _numeroController,
                   enabled: !_isSubmitting,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'Número patrimonial',
                   ),
+                  validator: AppValidators.numeroPatrimonio,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 tiposAsync.when(

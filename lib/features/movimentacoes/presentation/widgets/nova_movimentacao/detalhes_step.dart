@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../core/validation/app_validators.dart';
 import '../../../../localizacoes/domain/localizacao.dart';
 import '../../../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../../../patrimonios/domain/patrimonio.dart';
@@ -175,7 +177,11 @@ class DetalhesStep extends ConsumerWidget {
               child: TextFormField(
                 controller: rascunho.chamadoController,
                 enabled: enabled,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(labelText: 'Número do chamado'),
+                validator: AppValidators.numeroChamado,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
               ),
             ),
           ],

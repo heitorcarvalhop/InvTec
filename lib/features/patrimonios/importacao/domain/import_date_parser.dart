@@ -36,5 +36,18 @@ DateTime? _dataValida(int ano, int mes, int dia) {
   // DateTime "normaliza" datas inválidas (ex.: 31/02) rolando para o mês
   // seguinte — se isso aconteceu, o valor original não era uma data real.
   if (data.year != ano || data.month != mes || data.day != dia) return null;
+  if (!_dentroDaFaixaPlausivel(data)) return null;
   return data;
+}
+
+// Mesma faixa usada pelos seletores de data do app (showDatePicker com
+// firstDate: DateTime(2000), lastDate: hoje). Sem este limite, um ano de 2
+// dígitos mal interpretado (ex.: "98" virando 2098, ver regra acima) seria
+// aceito como data válida sem gerar nenhuma pendência para revisão.
+bool _dentroDaFaixaPlausivel(DateTime data) {
+  final hoje = DateTime.now();
+  final limiteSuperior = DateTime(hoje.year, hoje.month, hoje.day);
+  if (data.isBefore(DateTime(2000, 1, 1))) return false;
+  if (data.isAfter(limiteSuperior)) return false;
+  return true;
 }
