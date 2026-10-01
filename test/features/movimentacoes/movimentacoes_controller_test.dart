@@ -42,7 +42,7 @@ ProviderContainer _criarContainer(FakeMovimentacaoRepository repo) {
 }
 
 void main() {
-  group('PROMPT 10.1 — listagem geral de movimentações', () {
+  group('listagem geral de movimentações', () {
     test('listagem inicial traz os itens do repository', () async {
       final repo = FakeMovimentacaoRepository(
         itens: [_item('1', patrimonioNumero: '100'), _item('2', patrimonioNumero: '200')],
@@ -167,7 +167,7 @@ void main() {
       expect(state.resultado.itens.map((i) => i.id), ['2', '1']);
     });
 
-    test('PROMPT 10.1.1 — Busca + Setor: combinam por AND', () async {
+    test('Busca + Setor: combinam por AND', () async {
       final repo = FakeMovimentacaoRepository(
         itens: [
           // casa a busca ('100') e o setor: deve aparecer.
@@ -191,7 +191,7 @@ void main() {
       expect(state.resultado.total, 1);
     });
 
-    test('PROMPT 10.1.1 — Busca + Setor + Tipo: AND entre os três, count exato', () async {
+    test('Busca + Setor + Tipo: AND entre os três, count exato', () async {
       final repo = FakeMovimentacaoRepository(
         itens: [
           _item('1', patrimonioNumero: '100', tipo: MovimentacaoTipo.entrada, setorDestinoId: 'setor-a'),
@@ -286,7 +286,7 @@ void main() {
     });
   });
 
-  group('PROMPT 10.1 — paginação server-side', () {
+  group('paginação server-side', () {
     test('página padrão é 1 (0-based: 0) e tamanho padrão é 25', () async {
       final container = _criarContainer(FakeMovimentacaoRepository());
       addTearDown(container.dispose);
@@ -319,7 +319,7 @@ void main() {
       expect(state.resultado.itens, hasLength(10));
     });
 
-    test('PROMPT 10.1.1 — paginação: sem duplicação e sem lacunas entre páginas', () async {
+    test('paginação: sem duplicação e sem lacunas entre páginas', () async {
       final itens = List.generate(
         60,
         (i) => _item('$i', patrimonioNumero: 'P$i', dataMovimentacao: DateTime(2026, 1, 1).subtract(Duration(days: i))),

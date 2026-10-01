@@ -7,9 +7,9 @@ import 'sei_item_extraido.dart';
 enum SeiTipoDocumento { despacho, desconhecido }
 
 /// Resultado da extração de um PDF SEI — metadados do documento + itens da
-/// tabela de bens (PROMPT 11.1, seção 6). Puramente o que foi lido do PDF:
-/// nada aqui foi cruzado com o InvTec (ver `SeiAnaliseResultado`) e nada
-/// aqui nunca alimenta uma escrita real.
+/// tabela de bens. Puramente o que foi lido do PDF: nada aqui foi cruzado
+/// com o InvTec (ver `SeiAnaliseResultado`) e nada aqui nunca alimenta uma
+/// escrita real.
 class SeiDocumentoExtraido {
   const SeiDocumentoExtraido({
     required this.nomeArquivo,
@@ -33,16 +33,15 @@ class SeiDocumentoExtraido {
   final int tamanhoBytes;
   final int quantidadePaginas;
 
-  /// SHA-256 do arquivo (seção 27) — mantido só no resultado da análise
-  /// desta sessão, nunca persistido nesta etapa. Permitirá futuramente
-  /// impedir o reprocessamento do mesmo documento.
+  /// SHA-256 do arquivo — mantido só no resultado da análise desta sessão.
+  /// Permitirá futuramente impedir o reprocessamento do mesmo documento.
   final String hashSha256;
 
   /// Número do processo SEI (ex.: "202600017000011").
   final String? numeroProcesso;
 
   /// Número do documento SEI (ex.: "95955192") — vira `numero_documento` na
-  /// prévia de movimentação (seção 15), nunca confundido com o chamado.
+  /// prévia de movimentação, nunca confundido com o chamado.
   final String? numeroDocumentoSei;
 
   final SeiTipoDocumento tipoDocumento;
@@ -56,8 +55,8 @@ class SeiDocumentoExtraido {
   final String? signatario;
   final DateTime? dataDocumento;
 
-  /// Só preenchido quando há evidência suficiente (seção 12) — nunca uma
-  /// adivinhação. V1 só reconhece TRANSFERENCIA.
+  /// Só preenchido quando há evidência suficiente — nunca uma adivinhação.
+  /// V1 só reconhece TRANSFERENCIA.
   final MovimentacaoTipo? tipoMovimentacaoInferido;
 
   final List<SeiItemExtraido> itens;

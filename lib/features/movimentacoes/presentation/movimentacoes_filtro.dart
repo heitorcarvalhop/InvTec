@@ -1,12 +1,11 @@
 import '../domain/movimentacao.dart';
 
 /// Sentinela para distinguir "não mudar este filtro" de "limpar para null"
-/// em [MovimentacoesFiltro.copyWith] — mesmo padrão de `PatrimoniosFiltro`
-/// (PROMPT 9.2).
+/// em [MovimentacoesFiltro.copyWith] — mesmo padrão de `PatrimoniosFiltro`.
 const _unset = Object();
 
-/// Tamanhos de página permitidos pela listagem (PROMPT 10.1, seção
-/// "Paginação") — mesmos valores de Patrimônios.
+/// Tamanhos de página permitidos pela listagem — mesmos valores de
+/// Patrimônios.
 const movimentacoesTamanhosPaginaPermitidos = [25, 50, 100];
 
 const movimentacoesTamanhoPaginaPadrao = 25;
@@ -19,7 +18,7 @@ bool intervaloPeriodoValido(DateTime? de, DateTime? ate) {
 }
 
 /// Estado combinado de busca + filtros + página atual da listagem geral de
-/// movimentações (PROMPT 10.1).
+/// movimentações.
 class MovimentacoesFiltro {
   const MovimentacoesFiltro({
     this.busca = '',
@@ -37,8 +36,8 @@ class MovimentacoesFiltro {
 
   final MovimentacaoTipo? tipo;
 
-  /// Setor de origem OU destino (PROMPT 10.1: "setor" sozinho, sem
-  /// distinguir lado — uma movimentação "envolve" um setor dos dois jeitos).
+  /// Setor de origem OU destino ("setor" sozinho, sem distinguir lado —
+  /// uma movimentação "envolve" um setor dos dois jeitos).
   final String? setorId;
 
   /// Intervalo de `data_movimentacao`, inclusivo nos dois limites.

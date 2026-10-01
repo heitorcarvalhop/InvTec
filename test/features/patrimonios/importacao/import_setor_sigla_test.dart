@@ -20,7 +20,7 @@ import '../../setores/fake_setor_repository.dart';
 import '../fake_patrimonio_repository.dart';
 import '../fake_tipo_patrimonio_repository.dart';
 
-/// PROMPT 11.3.5.4 — os passos "Configurar padrões" e "Revisar" do
+/// Os passos "Configurar padrões" e "Revisar" do
 /// assistente de importação de planilha mostram a sigla real do setor
 /// (nunca o nome completo) nos dropdowns/botões de decisão — mesma regra
 /// já aplicada em Movimentações/Pendências. Monta o estado diretamente

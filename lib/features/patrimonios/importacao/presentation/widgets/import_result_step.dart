@@ -7,9 +7,9 @@ import '../../domain/import_row.dart';
 import '../patrimonio_import_controller.dart';
 import '../patrimonio_import_state.dart';
 
-/// Passo "Resultado" (seção 31): contagens finais e o que fazer a seguir —
-/// nunca trata uma falha parcial como fracasso da importação inteira
-/// (seção 28: os registros já concluídos permanecem).
+/// Passo "Resultado": contagens finais e o que fazer a seguir — nunca
+/// trata uma falha parcial como fracasso da importação inteira, os
+/// registros já concluídos permanecem.
 class ImportResultStep extends ConsumerWidget {
   const ImportResultStep({super.key, required this.state});
 

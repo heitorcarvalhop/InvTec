@@ -16,7 +16,7 @@ import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_pende
 import '../../auth/fake_auth_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.3.10.2 — itens do Documento SEI no diálogo de detalhe.
+/// Itens do Documento SEI no diálogo de detalhe.
 ///
 /// Causa do bug real: a tabela de 7 colunas (~1150px) morava num diálogo de
 /// ~850px atrás de uma rolagem horizontal SEM barra — o Status era cortado na
@@ -193,7 +193,7 @@ void main() {
       }
     });
 
-    // PROMPT 11.4.3 — a coluna de ações agora tem DUAS ações ("Concluir entrega" e
+    // A coluna de ações tem DUAS ações ("Concluir entrega" e
     // "Cancelar"). Com a fonte REAL (Segoe UI, medida num teste descartável) elas
     // ficam lado a lado e a linha mede ~59px; com a fonte Ahem dos testes (~2x mais
     // larga) elas quebram em duas linhas e a linha mede ~75px — daí o limite de 80.
@@ -208,7 +208,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.15 — cabeçalho da tabela desktop nunca quebra linha', () {
+  group('cabeçalho da tabela desktop nunca quebra linha', () {
     testWidgets('"Chamado" e os demais cabeçalhos ficam em UMA linha (maxLines: 1 + ellipsis)', (tester) async {
       _tamanho(tester, const Size(1280, 720));
       final erros = await _coletando(() => _abrirDialogo(tester, _documento([_item(1)])));
@@ -227,13 +227,13 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 11.5.16 — Patrimônio preserva o flex original (5); Chamado continua com o flex ampliado (5); '
+      'Patrimônio preserva o flex original (5); Chamado continua com o flex ampliado (5); '
       'quem cede é Origem→Destino (6)',
       (tester) async {
         _tamanho(tester, const Size(1280, 720));
         await _abrirDialogo(tester, _documento([_item(1)]));
 
-        // Causa do bug residual do PROMPT 11.5.15: `maxLines: 1` parou de
+        // Causa do bug residual: `maxLines: 1` parou de
         // quebrar "Chamado" em duas linhas, mas a coluna (flex: 3 de 16)
         // ainda era estreita demais para a palavra inteira, cortando para
         // "Chama...". A redistribuição (Patrimônio 5→4, Chamado 3→5,
@@ -244,15 +244,13 @@ void main() {
         int flexAncestral(Finder deTexto) =>
             tester.widget<Expanded>(find.ancestor(of: deTexto, matching: find.byType(Expanded)).first).flex;
 
-        // PROMPT 11.5.16 — auditoria final encontrou: a redistribuição de
-        // 11.5.15.1 tirava espaço do Patrimônio (5→4) para dar ao Chamado —
-        // mas o Patrimônio mostra o NÚMERO do patrimônio (dado, não rótulo),
-        // e com flex:4 ele truncava como "DEMO-00..."/"90000..." na tabela
-        // desktop. Correção: Patrimônio volta a 5 (nunca menos), Chamado
-        // continua em 5 (mantém a correção de 11.5.15.1), e quem cede o
-        // espaço extra é Origem→Destino (8→6) — já preparada para isso
-        // (`SetorCompactText`/`_TextoUmaLinha` cortam com reticências e
-        // tooltip, sem perder um dado crítico como o número do patrimônio).
+        // O Patrimônio mostra o NÚMERO do patrimônio (dado, não rótulo) —
+        // com flex menor ele truncaria como "DEMO-00..."/"90000..." na
+        // tabela desktop, por isso mantém flex 5 (nunca menos). Chamado
+        // também fica em 5, e quem cede o espaço extra é Origem→Destino
+        // (6) — já preparada para isso (`SetorCompactText`/`_TextoUmaLinha`
+        // cortam com reticências e tooltip, sem perder um dado crítico como
+        // o número do patrimônio).
         expect(flexAncestral(find.text('Chamado')), 5);
         expect(flexAncestral(find.text('Patrimônio')), 5);
         expect(flexAncestral(find.text('Origem → Destino')), 6);

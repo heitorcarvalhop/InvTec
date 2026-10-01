@@ -11,8 +11,8 @@ abstract class MovimentacaoRepository {
     int offset = 0,
   });
 
-  /// Listagem geral de movimentações (PROMPT 10.1), com busca/filtros e
-  /// paginação resolvidos no servidor — mesmo padrão de
+  /// Listagem geral de movimentações, com busca/filtros e paginação
+  /// resolvidos no servidor — mesmo padrão de
   /// [PatrimonioRepository.listar]: uma única consulta com embed (nunca
   /// N+1), ordenada por `data_movimentacao DESC, id DESC`.
   ///
@@ -39,8 +39,8 @@ abstract class MovimentacaoRepository {
   });
 
   /// TODAS as movimentações cujo `numero_documento` é EXATAMENTE
-  /// [numeroDocumento] (PROMPT 11.2.1, seção 2) — filtro aplicado no banco
-  /// via `eq`, nunca a busca OR genérica de [listar] (que casaria
+  /// [numeroDocumento] — filtro aplicado no banco via `eq`, nunca a busca
+  /// OR genérica de [listar] (que casaria
   /// substring em responsável/chamado por coincidência). Sem limite
   /// arbitrário: pagina internamente até esgotar o total real, então
   /// nenhuma linha relevante pode ficar de fora silenciosamente — usado

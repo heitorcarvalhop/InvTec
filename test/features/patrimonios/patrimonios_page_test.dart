@@ -148,7 +148,7 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 9.1.1 — BUG REAL: Tudo + "2703522" nunca mostra 2703532 como resultado principal; '
+      'BUG REAL: Tudo + "2703522" nunca mostra 2703532 como resultado principal; '
       'aviso separado identifica a correspondência por número de série, com ação para ver',
       (tester) async {
         await _pumpPatrimoniosPage(
@@ -182,7 +182,7 @@ void main() {
     );
 
     testWidgets(
-      'PROMPT 9.1.1 — campo Patrimônio + "2703522" continua mostrando só a mensagem genérica, '
+      'campo Patrimônio + "2703522" continua mostrando só a mensagem genérica, '
       'sem o aviso de correspondência por série',
       (tester) async {
         await _pumpPatrimoniosPage(
@@ -232,8 +232,8 @@ void main() {
         expect(find.text(opcao), findsOneWidget, reason: 'opção "$opcao" deveria existir no seletor');
       }
       // "Localização" aparece duas vezes na tela nesse momento: a opção do
-      // seletor de campo de busca (PROMPT 9.1) e o rótulo do filtro
-      // "Localização" (PROMPT 9.2) — ambos legítimos, por isso `findsWidgets`
+      // seletor de campo de busca e o rótulo do filtro
+      // "Localização" — ambos legítimos, por isso `findsWidgets`
       // em vez de `findsOneWidget` só para esta opção.
       expect(
         find.text('Localização'),
@@ -348,7 +348,7 @@ void main() {
       expect(find.text('P0'), findsNothing);
     });
 
-    testWidgets('PROMPT 9.2 — filtro Localização restringe a listagem por localizacao_atual_id', (
+    testWidgets('filtro Localização restringe a listagem por localizacao_atual_id', (
       tester,
     ) async {
       await _pumpPatrimoniosPage(
@@ -392,7 +392,7 @@ void main() {
       expect(find.text('200'), findsNothing);
     });
 
-    testWidgets('PROMPT 9.2 — "Sem localização" mostra só quem tem localizacao_atual_id nulo', (
+    testWidgets('"Sem localização" mostra só quem tem localizacao_atual_id nulo', (
       tester,
     ) async {
       await _pumpPatrimoniosPage(
@@ -428,7 +428,7 @@ void main() {
       expect(find.text('100'), findsNothing);
     });
 
-    testWidgets('PROMPT 9.2 — resumo "1–N de total" e seletor de itens por página', (
+    testWidgets('resumo "1–N de total" e seletor de itens por página', (
       tester,
     ) async {
       final itens = List.generate(30, (i) => _item('$i', numero: 'P$i'));
@@ -515,7 +515,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.5.4 — siglas de setor na tabela e no filtro', () {
+  group('siglas de setor na tabela e no filtro', () {
     testWidgets('coluna Localização/Setor mostra a sigla, com o nome completo no tooltip', (tester) async {
       await _pumpPatrimoniosPage(
         tester,

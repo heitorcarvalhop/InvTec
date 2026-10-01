@@ -1,31 +1,17 @@
 -- =============================================================================
 -- InvTec — suporte a Localizações dentro de um Setor/Gerência.
 --
--- IMPORTANTE: já aplicada no Supabase remoto (confirmado pelo usuário no
--- PROMPT 10.2) — mantida aqui só como registro histórico de como o schema
--- chegou ao estado atual. Não modifica as migrations anteriores
--- (20260910120000_initial_schema.sql, 20260911130000_update_tipos_...sql).
---
--- CONTEXTO DE NEGÓCIO: `public.setores` passa a representar a unidade
--- organizacional / gerência responsável (ex.: GETEC, GEVEV) — a tabela NÃO
--- é renomeada. Uma localização (ex.: "Home Office", "Datacenter -
--- Universitário") sempre pertence a exatamente uma gerência e é OPCIONAL
--- para um patrimônio. Nenhuma localização real é criada por esta migration
--- (ela é só estrutura) — ver seção "SEED" ausente de propósito.
+-- `public.setores` passa a representar a gerência responsável (ex.: GETEC);
+-- a tabela não é renomeada. Uma localização (ex.: "Home Office") sempre
+-- pertence a exatamente uma gerência e é opcional para um patrimônio.
 --
 -- Esta migration troca a assinatura de `cadastrar_patrimonio` e
 -- `registrar_movimentacao` (novos parâmetros de localização). PostgreSQL
--- `CREATE OR REPLACE FUNCTION` NÃO permite mudar a lista de parâmetros de
+-- `CREATE OR REPLACE FUNCTION` não permite mudar a lista de parâmetros de
 -- uma função existente — usar CREATE OR REPLACE aqui criaria um SEGUNDO
--- overload, deixando a versão antiga (sem validação de localização)
--- chamável e com seus GRANTs intactos. Por isso: DROP explícito da
--- assinatura antiga + CREATE da nova + REAPLICAÇÃO explícita de
--- REVOKE/GRANT (DROP remove os grants da função removida).
---
--- OPERACIONAL (fora do escopo desta migration em si): depois de aplicar,
--- o PostgREST precisa recarregar o cache de esquema para reconhecer as
--- novas assinaturas de RPC — `NOTIFY pgrst, 'reload schema';` ou reiniciar
--- via painel (Settings → API → Reload schema cache).
+-- overload, deixando a versão antiga chamável e com seus GRANTs intactos.
+-- Por isso: DROP explícito da assinatura antiga + CREATE da nova + reaplicação
+-- de REVOKE/GRANT (DROP remove os grants da função removida).
 -- =============================================================================
 
 -- =============================================================================
@@ -54,9 +40,9 @@ create table public.localizacoes (
 -- 2. ÍNDICES
 -- =============================================================================
 
--- Unicidade é POR GERÊNCIA, nunca global (seção 4 da especificação): a
--- mesma "Home Office" pode existir em GETEC e em GEVEV como localizações
--- distintas; duas "Home Office" dentro da MESMA gerência é que é inválido.
+-- Unicidade é POR GERÊNCIA, nunca global: a mesma "Home Office" pode existir
+-- em GETEC e em GEVEV como localizações distintas; duas "Home Office" dentro
+-- da MESMA gerência é que é inválido.
 create unique index localizacoes_setor_nome_key
   on public.localizacoes (setor_id, lower(nome));
 
@@ -82,13 +68,10 @@ begin
 end;
 $$;
 
--- Seção 5: depois de criada, a gerência de uma localização é imutável —
--- sem exceção (nem para ADMIN via edição direta). Se foi cadastrada na
--- gerência errada, o fluxo correto é desativar e recriar na gerência
--- certa (preserva coerência histórica das movimentações que já a
--- referenciam). Diferente de `protect_patrimonio_columns`, não existe
--- aqui um "caminho administrativo" que possa contornar isso — a regra é
--- absoluta, então não checamos current_user.
+-- A gerência de uma localização é imutável depois de criada, sem exceção
+-- (nem para ADMIN): se foi cadastrada errada, o fluxo é desativar e recriar
+-- na gerência certa (preserva coerência histórica das movimentações que já
+-- a referenciam). Regra absoluta, por isso não checa current_user.
 create or replace function public.protect_localizacao_setor()
 returns trigger
 language plpgsql
@@ -104,10 +87,9 @@ begin
 end;
 $$;
 
--- Seção 6: mesma filosofia de `private.prevent_deactivate_setor_em_uso` —
--- Trigger (não CHECK, que não pode consultar outra tabela). SECURITY
--- DEFINER para contar patrimônios independentemente da RLS do chamador.
--- Fica em `private`: função de trigger, nunca endpoint RPC.
+-- Mesma filosofia de `private.prevent_deactivate_setor_em_uso`: trigger (não
+-- CHECK, que não pode consultar outra tabela), SECURITY DEFINER para contar
+-- patrimônios independentemente da RLS do chamador.
 create or replace function private.prevent_deactivate_localizacao_em_uso()
 returns trigger
 language plpgsql
@@ -134,13 +116,10 @@ begin
 end;
 $$;
 
--- Revisão pós-entrega (seção 1 da correção): uma gerência inativa não pode
--- ganhar localização ativa — nem por criação (localização nasce ativa por
--- padrão) nem por reativação (ativo false → true). FOR SHARE na linha de
--- public.setores: uma desativação concorrente do setor faz UPDATE, que
--- toma lock de linha automaticamente — então esta checagem sempre
--- serializa contra ela, em qualquer ordem de entrelaçamento das duas
--- transações. Resultado: nunca sobra setor inativo + localização ativa.
+-- Uma gerência inativa não pode ganhar localização ativa — nem por criação
+-- nem por reativação. FOR SHARE na linha de public.setores serializa contra
+-- uma desativação concorrente do setor (que toma lock via UPDATE), em
+-- qualquer ordem de entrelaçamento das duas transações.
 create or replace function private.validate_setor_ativo_para_localizacao()
 returns trigger
 language plpgsql
@@ -198,24 +177,20 @@ create trigger trg_localizacoes_validate_setor_ativo
   for each row execute function private.validate_setor_ativo_para_localizacao();
 
 -- =============================================================================
--- 5. ALTERAÇÃO: public.patrimonios (seção 8)
+-- 5. ALTERAÇÃO: public.patrimonios
 -- =============================================================================
--- Nullable: localização é sempre OPCIONAL. Patrimônios já existentes
--- continuam válidos com localizacao_atual_id = null (seção 41) — ALTER
--- TABLE ADD COLUMN nullable sem DEFAULT não reescreve/bloqueia a tabela
--- para valores existentes, todos nascem null.
+-- Nullable: localização é sempre OPCIONAL. ALTER TABLE ADD COLUMN nullable
+-- sem DEFAULT não reescreve/bloqueia a tabela — valores existentes nascem null.
 
 alter table public.patrimonios
   add column localizacao_atual_id uuid references public.localizacoes (id) on delete restrict;
 
 create index patrimonios_localizacao_atual_idx on public.patrimonios (localizacao_atual_id);
 
--- Seção 9: quando localizacao_atual_id não é null, ela DEVE pertencer ao
+-- Quando localizacao_atual_id não é null, ela DEVE pertencer ao
 -- setor_atual_id do mesmo patrimônio — CHECK não pode consultar outra
--- tabela, então isso é uma trigger. Dispara em INSERT (cadastrar_patrimonio)
--- e sempre que setor_atual_id OU localizacao_atual_id mudar (UPDATE feito
--- por registrar_movimentacao) — defesa em profundidade mesmo que a lógica
--- da RPC tenha um bug futuro.
+-- tabela, então isso é uma trigger: defesa em profundidade mesmo que a
+-- lógica das RPCs tenha um bug futuro.
 create or replace function private.validate_localizacao_pertence_ao_setor()
 returns trigger
 language plpgsql
@@ -249,12 +224,9 @@ create trigger trg_patrimonios_validate_localizacao
   before insert or update of localizacao_atual_id, setor_atual_id on public.patrimonios
   for each row execute function private.validate_localizacao_pertence_ao_setor();
 
--- Seção 10: mesma proteção já aplicada a status/setor_atual_id/
--- responsavel_atual — localizacao_atual_id só muda por movimentação
--- registrada (RPC SECURITY DEFINER), nunca por UPDATE direto do cliente.
--- Reaplica a função inteira (CREATE OR REPLACE mantém o mesmo nome e a
--- mesma trigger `trg_patrimonios_protect_columns` já criada na migration
--- inicial passa a usar este corpo automaticamente).
+-- Mesma proteção já aplicada a status/setor_atual_id/responsavel_atual —
+-- localizacao_atual_id só muda por movimentação registrada. Reaplica a
+-- função inteira: a trigger já existente passa a usar este corpo.
 create or replace function public.protect_patrimonio_columns()
 returns trigger
 language plpgsql
@@ -278,13 +250,12 @@ begin
 end;
 $$;
 -- Nenhuma mudança de GRANT necessária: localizacao_atual_id nunca entra na
--- lista de colunas de UPDATE liberadas ao cliente (ver seção 8 dos GRANTS
--- abaixo) — igual a setor_atual_id/status hoje.
+-- lista de colunas de UPDATE liberadas ao cliente — igual a
+-- setor_atual_id/status hoje.
 
--- Seção 7: setor/gerência não pode ser desativado com localização ATIVA
--- vinculada (além da regra já existente de patrimônio não baixado).
--- Reaplica a função inteira (mesma trigger já existente passa a usar este
--- corpo).
+-- Setor/gerência não pode ser desativado com localização ATIVA vinculada
+-- (além da regra já existente de patrimônio não baixado). Reaplica a função
+-- inteira: a trigger já existente passa a usar este corpo.
 create or replace function private.prevent_deactivate_setor_em_uso()
 returns trigger
 language plpgsql
@@ -325,22 +296,15 @@ end;
 $$;
 
 -- =============================================================================
--- 6. ALTERAÇÃO: public.movimentacoes (seções 11/12)
+-- 6. ALTERAÇÃO: public.movimentacoes
 -- =============================================================================
--- Nullable: histórico já existente continua válido com null (seção 41).
--- ON DELETE RESTRICT, nunca CASCADE — e localizacoes nunca é apagada de
--- fato (exclusão lógica).
+-- Nullable: histórico já existente continua válido com null. ON DELETE
+-- RESTRICT, nunca CASCADE — localizacoes nunca é apagada de fato.
 --
--- IMPORTANTE sobre o que a FK realmente preserva (seção 6 da correção): ela
--- preserva a IDENTIDADE da localização (o id), não um retrato textual do
--- nome no momento da movimentação. localizacao_origem_id/destino_id
--- continuam válidos e consultáveis mesmo depois de a localização ser
--- desativada (ela nunca é apagada), mas se ela for RENOMEADA, uma consulta
--- futura do histórico (join por id) mostra o nome ATUAL da entidade, não o
--- nome que existia quando a movimentação foi registrada. Esta migration não
--- implementa snapshot textual (ex.: gravar o nome como string solta na
--- movimentação) — se isso vier a ser necessário, é uma etapa futura
--- separada, não faz parte desta correção.
+-- A FK preserva a IDENTIDADE da localização (o id), não um retrato textual
+-- do nome no momento da movimentação: se a localização for renomeada, uma
+-- consulta futura do histórico (join por id) mostra o nome ATUAL, não o
+-- nome de quando a movimentação foi registrada. Não há snapshot textual.
 
 alter table public.movimentacoes
   add column localizacao_origem_id uuid references public.localizacoes (id) on delete restrict,
@@ -398,13 +362,11 @@ declare
   v_localizacao_origem_setor uuid;
   v_patrimonio public.patrimonios;
 begin
-  -- 1-2. usuário e permissão
   if private.has_perfil('ADMIN', 'GESTOR', 'OPERADOR') is not true then
     raise exception 'Usuário sem permissão para cadastrar patrimônio'
       using errcode = '42501';
   end if;
 
-  -- 3. dados
   if p_tipo_id is null or p_destino_id is null then
     raise exception 'tipo_id e destino_id são obrigatórios'
       using errcode = 'P0001';
@@ -429,8 +391,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 4. origem/destino. FOR SHARE: o destino não pode ser desativado até
-  -- este cadastro terminar
+  -- FOR SHARE: o destino não pode ser desativado até este cadastro terminar
   select s.ativo into v_destino_ativo
   from public.setores s
   where s.id = p_destino_id
@@ -441,10 +402,10 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- Localização de destino (seção 9/13 da spec de localizações): opcional,
-  -- mas quando informada precisa estar ativa e pertencer ao MESMO setor de
-  -- destino — nunca uma localização "solta" de outra gerência. FOR SHARE
-  -- trava contra desativação concorrente (seção 20), igual ao setor.
+  -- Localização de destino: opcional, mas quando informada precisa estar
+  -- ativa e pertencer ao MESMO setor de destino — nunca uma localização
+  -- "solta" de outra gerência. FOR SHARE trava contra desativação
+  -- concorrente, igual ao setor.
   if p_localizacao_destino_id is not null then
     select l.setor_id, l.ativo into v_localizacao_destino_setor, v_localizacao_destino_ativo
     from public.localizacoes l
@@ -478,9 +439,7 @@ begin
   end if;
 
   -- Localização de origem: também histórica (pode estar inativa), mas só
-  -- faz sentido junto de uma origem, e precisa pertencer a ELA — carga
-  -- inicial com origem totalmente desconhecida usa as duas como null
-  -- (ver perfil GETEC no importador).
+  -- faz sentido junto de uma origem, e precisa pertencer a ELA.
   if p_localizacao_origem_id is not null then
     if p_origem_id is null then
       raise exception 'localizacao_origem_id informado sem origem_id'
@@ -508,7 +467,7 @@ begin
       using errcode = '23505';
   end if;
 
-  -- 5 e 7. patrimônio: setor = destino, responsável = responsável de destino
+  -- setor = destino, responsável = responsável de destino
   insert into public.patrimonios (
     numero_patrimonio, numero_serie, tipo_id, marca, modelo, descricao,
     observacao, status, setor_atual_id, localizacao_atual_id, responsavel_atual,
@@ -522,7 +481,7 @@ begin
   )
   returning * into v_patrimonio;
 
-  -- 6. movimentação inicial
+  -- movimentação inicial
   insert into public.movimentacoes (
     patrimonio_id, tipo, origem_id, localizacao_origem_id, responsavel_origem,
     destino_id, localizacao_destino_id, responsavel_destino, motivo, observacao,
@@ -533,7 +492,6 @@ begin
     auth.uid(), v_data
   );
 
-  -- 8.
   return v_patrimonio;
 end;
 $$;
@@ -544,10 +502,7 @@ grant execute on function public.cadastrar_patrimonio to authenticated;
 -- =============================================================================
 -- 8. RPC: public.registrar_movimentacao — nova assinatura
 -- =============================================================================
--- DROP visa a assinatura REALMENTE aplicada em produção (9 parâmetros) —
--- esta migration nunca foi aplicada, então não existe uma versão
--- intermediária de 10 parâmetros a se preocupar em remover; vai direto da
--- assinatura de produção para a final abaixo (11 parâmetros).
+-- DROP da assinatura anterior (9 parâmetros), ver cabeçalho do arquivo.
 drop function if exists public.registrar_movimentacao(
   uuid, public.movimentacao_tipo, uuid, text, text, text, text, text, timestamptz
 );
@@ -563,12 +518,10 @@ create function public.registrar_movimentacao(
   p_numero_chamado text default null,
   p_data_movimentacao timestamptz default null,
   p_localizacao_destino_id uuid default null,
-  -- Seção 2/3 da correção: null NÃO significa "limpar" — significa
-  -- "preservar o valor atual" (semântica já usada por todos os outros
-  -- campos opcionais desta função). Para representar "gerência mantida,
-  -- localização passa a Não informada" é preciso um sinal explícito e
-  -- inequívoco, daí este booleano dedicado em vez de sobrecarregar
-  -- p_localizacao_destino_id com um terceiro estado.
+  -- null NÃO significa "limpar" — significa "preservar o valor atual"
+  -- (semântica já usada pelos outros campos opcionais). Para "limpar a
+  -- localização sem mudar de setor" é preciso um sinal explícito, daí este
+  -- booleano em vez de sobrecarregar p_localizacao_destino_id.
   p_limpar_localizacao boolean default false
 )
 returns public.movimentacoes
@@ -603,8 +556,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- Seção 3 da correção: p_limpar_localizacao só existe para representar
-  -- "localização passa a Não informada" em AJUSTE_INVENTARIO — checagem
+  -- p_limpar_localizacao só existe para AJUSTE_INVENTARIO; checagem
   -- independente de setor/patrimônio, então roda antes de travar a linha.
   if p_limpar_localizacao is true and p_tipo <> 'AJUSTE_INVENTARIO' then
     raise exception 'limpar_localizacao só é permitido em AJUSTE_INVENTARIO'
@@ -647,7 +599,7 @@ begin
   v_data := least(coalesce(p_data_movimentacao, v_agora), v_agora);
 
   -- -------------------------------------------------------------------------
-  -- Matriz de transição (status atual → tipos permitidos) — inalterada.
+  -- Matriz de transição (status atual → tipos permitidos)
   -- -------------------------------------------------------------------------
   v_transicao_permitida := case
     when p_tipo in (
@@ -691,8 +643,8 @@ begin
     'ENTRADA', 'SAIDA', 'EMPRESTIMO', 'DEVOLUCAO', 'MANUTENCAO', 'RETORNO_MANUTENCAO'
   ) then
     -- deslocamento físico entre setores: destino obrigatório e diferente
-    -- do setor atual — regra INALTERADA (estes tipos não ganharam o
-    -- conceito de "movimentação interna"; só TRANSFERENCIA, abaixo).
+    -- do setor atual (estes tipos não têm o conceito de "movimentação
+    -- interna"; só TRANSFERENCIA, abaixo).
     if p_destino_id is null then
       raise exception 'O tipo % exige destino_id', p_tipo
         using errcode = 'P0001';
@@ -702,12 +654,10 @@ begin
         using errcode = 'P0001';
     end if;
   elsif p_tipo = 'TRANSFERENCIA' then
-    -- Seções 17/18: TRANSFERENCIA agora cobre dois cenários sem novo enum.
-    -- destino_id é sempre obrigatório: para "movimentação interna" o
-    -- cliente envia explicitamente o MESMO setor atual (nunca null), para
-    -- deixar a intenção inequívoca — quem decide o rótulo (Transferência
-    -- entre gerências vs. Movimentação interna) é a UI, comparando
-    -- origem/destino.
+    -- TRANSFERENCIA cobre dois cenários sem novo enum: destino_id é sempre
+    -- obrigatório, e para "movimentação interna" o cliente envia
+    -- explicitamente o MESMO setor atual (nunca null), deixando a intenção
+    -- inequívoca — quem decide o rótulo é a UI, comparando origem/destino.
     if p_destino_id is null then
       raise exception 'TRANSFERENCIA exige destino_id (o mesmo setor atual para movimentação interna, ou outro setor para transferência entre gerências)'
         using errcode = 'P0001';
@@ -715,7 +665,7 @@ begin
 
     if p_destino_id = v_patrimonio.setor_atual_id then
       -- movimentação interna: setor não muda, então TEM que mudar a
-      -- localização — senão a "transferência" não faz nada (seção 18).
+      -- localização — senão a "transferência" não faz nada.
       if p_localizacao_destino_id is null then
         raise exception 'Movimentação interna (mesmo setor) exige localizacao_destino_id'
           using errcode = 'P0001';
@@ -738,11 +688,9 @@ begin
       raise exception 'AJUSTE_INVENTARIO não altera o responsável'
         using errcode = 'P0001';
     end if;
-    -- Seção 4 da correção: BAIXADO pode registrar AJUSTE_INVENTARIO (ex.:
-    -- só para documentar motivo/observação), mas o ajuste NUNCA pode
-    -- alterar o estado operacional preservado pela BAIXA — nem setor, nem
-    -- localização (trocar OU limpar). Responsável já é rejeitado acima
-    -- incondicionalmente, para qualquer status.
+    -- BAIXADO pode registrar AJUSTE_INVENTARIO (ex.: só para documentar
+    -- motivo/observação), mas o ajuste NUNCA pode alterar o estado
+    -- operacional preservado pela BAIXA — nem setor, nem localização.
     if v_patrimonio.status = 'BAIXADO' then
       if p_destino_id is not null and p_destino_id <> v_patrimonio.setor_atual_id then
         raise exception 'Patrimônio baixado não pode mudar de setor'
@@ -798,11 +746,10 @@ begin
     end if;
   end if;
 
-  -- Localização de destino (quando informada, para qualquer tipo que a
-  -- aceite): precisa estar ativa e pertencer ao setor-alvo calculado
-  -- acima. BAIXA/ALTERACAO_RESPONSAVEL já garantiram acima que este
-  -- parâmetro chega null, então este bloco não afeta esses dois tipos.
-  -- FOR SHARE: mesma proteção de concorrência do setor (seção 20).
+  -- Localização de destino (quando informada): precisa estar ativa e
+  -- pertencer ao setor-alvo calculado acima. BAIXA/ALTERACAO_RESPONSAVEL já
+  -- garantiram acima que este parâmetro chega null. FOR SHARE: mesma
+  -- proteção de concorrência do setor.
   if p_localizacao_destino_id is not null then
     select l.setor_id, l.ativo into v_localizacao_destino_setor, v_localizacao_destino_ativo
     from public.localizacoes l
@@ -856,22 +803,15 @@ begin
     when 'AJUSTE_INVENTARIO' then
       -- em BAIXADO, destino só pode ser nulo ou o próprio setor atual
       -- (validado acima), então setor nunca muda nesse caso; status nunca
-      -- muda (sem reativação por ajuste, seção 19).
+      -- muda (sem reativação por ajuste).
       v_novo_setor := coalesce(p_destino_id, v_patrimonio.setor_atual_id);
-      -- Seção 3 da correção — regras (a)-(d), nesta ordem de prioridade:
+      -- ordem de prioridade: localização nova explícita > limpeza explícita
+      -- > setor mudou sem localização nova (limpa, para não deixar
+      -- referência órfã de outra gerência) > nada mudou (preserva).
       v_novo_localizacao := case
-        -- (c) localização nova explícita: usa (já validada acima; e
-        -- limpar/localizacao_destino_id são mutuamente exclusivos, então
-        -- p_limpar_localizacao é sempre false aqui)
         when p_localizacao_destino_id is not null then p_localizacao_destino_id
-        -- (a) limpeza explícita: "Não informada", mesmo sem trocar de setor
         when p_limpar_localizacao is true then null
-        -- (b) setor mudou sem localização nova nem limpeza explícita: limpa
-        -- de qualquer forma, para não deixar uma referência órfã de outra
-        -- gerência (a trigger de consistência rejeitaria mesmo assim, mas
-        -- de forma confusa)
         when p_destino_id is not null and p_destino_id <> v_patrimonio.setor_atual_id then null
-        -- (d) nada mudou e limpar=false: preserva a localização atual
         else v_patrimonio.localizacao_atual_id
       end;
       v_novo_responsavel := v_patrimonio.responsavel_atual;
@@ -907,7 +847,7 @@ revoke all on function public.registrar_movimentacao from public, anon, authenti
 grant execute on function public.registrar_movimentacao to authenticated;
 
 -- =============================================================================
--- 9. GRANTS E RLS: public.localizacoes (seções 21/22)
+-- 9. GRANTS E RLS: public.localizacoes
 -- =============================================================================
 -- Mesmo tratamento de `public.setores`: revoga tudo primeiro (default
 -- privileges de projetos Supabase podem conceder acesso amplo por
@@ -947,82 +887,7 @@ create policy localizacoes_update on public.localizacoes
 -- =============================================================================
 -- 10. DEFAULT PRIVILEGES
 -- =============================================================================
--- Não precisa repetir aqui: a migration inicial já rodou
+-- Não precisa repetir aqui: a migration inicial já roda
 -- `alter default privileges for role postgres in schema public/private
--- revoke ...` para TODOS os objetos futuros criados pelo role `postgres`
--- (o role usado para aplicar migrations no Supabase) — isso já cobre a
--- tabela e as funções criadas por ESTA migration automaticamente. Os
--- GRANTs explícitos das seções 7-9 acima é que liberam o necessário.
-
--- =============================================================================
--- 11. TESTES CONCEITUAIS (revisão pós-entrega)
--- =============================================================================
--- Este ambiente não tem CLI/psql/pgTAP conectados a um Postgres real (nem
--- local nem remoto) — não há como rodar testes de integração de fato sem
--- violar a restrição de "não aplicar a migration, não escrever no Supabase
--- real". Os cenários abaixo documentam explicitamente o comportamento
--- esperado de cada regra desta migration, para serem executados como teste
--- de integração (ex.: pgTAP, ou script manual via SQL Editor) assim que a
--- migration for aplicada em um ambiente de staging/local — antes disso,
--- servem como especificação executável em prosa e já orientaram a
--- implementação acima.
---
--- --- Seção 1 — gerência inativa × localização ativa -------------------------
--- 1a. insert em localizacoes(setor_id = <setor ativo>, ativo = true)
---     → permitido.
--- 1b. insert em localizacoes(setor_id = <setor INATIVO>, ativo = true)
---     → rejeitado com "Não é possível criar ou reativar uma localização em
---       uma gerência inexistente ou inativa" (P0001).
--- 1c. update localizacoes set ativo = true where id = <localização
---     desativada de um setor ATIVO> → permitido.
--- 1d. update localizacoes set ativo = true where id = <localização
---     desativada de um setor INATIVO> → rejeitado, mesma mensagem de 1b.
--- 1e. corrida conceitual: sessão A abre transação e faz
---     `update setores set ativo = false where id = :setor` sem dar commit
---     ainda; sessão B tenta `insert into localizacoes (setor_id, ativo, ...)
---     values (:setor, true, ...)` nesse meio-tempo → B bloqueia no `for
---     share` até A terminar; se A der commit, B falha com a mensagem de 1b;
---     se A der rollback, B prossegue normalmente. Em nenhum caminho o
---     estado final tem setor inativo + localização ativa simultâneos.
---
--- --- Seções 2/3 — p_limpar_localizacao --------------------------------------
--- 2a. registrar_movimentacao(..., p_tipo => 'TRANSFERENCIA', ...,
---     p_limpar_localizacao => true) → rejeitado: "limpar_localizacao só é
---     permitido em AJUSTE_INVENTARIO".
--- 2b. registrar_movimentacao(..., p_tipo => 'AJUSTE_INVENTARIO',
---     p_localizacao_destino_id => <alguma localização>,
---     p_limpar_localizacao => true) → rejeitado: "limpar_localizacao e
---     localizacao_destino_id não podem ser usados juntos".
--- 3a. AJUSTE_INVENTARIO, patrimônio em GETEC/Home Office, p_destino_id =>
---     null, p_limpar_localizacao => true → patrimônio fica em
---     GETEC/localizacao_atual_id = null.
--- 3b. AJUSTE_INVENTARIO, p_destino_id => <outro setor>,
---     p_localizacao_destino_id => null, p_limpar_localizacao => false →
---     setor muda, localizacao_atual_id vira null (regra pré-existente,
---     evita referência órfã entre gerências).
--- 3c. AJUSTE_INVENTARIO, p_destino_id => null, p_localizacao_destino_id =>
---     <nova localização da mesma gerência> → troca só a localização,
---     mantém o setor.
--- 3d. AJUSTE_INVENTARIO, p_destino_id => null, p_localizacao_destino_id =>
---     null, p_limpar_localizacao => false → localizacao_atual_id
---     inalterada (preserva).
---
--- --- Seção 4 — patrimônio BAIXADO -------------------------------------------
--- 4a. patrimônio BAIXADO, AJUSTE_INVENTARIO com p_destino_id => <setor
---     diferente do atual> → rejeitado: "Patrimônio baixado não pode mudar
---     de setor" (já existia antes desta correção).
--- 4b. patrimônio BAIXADO, AJUSTE_INVENTARIO com p_localizacao_destino_id =>
---     <localização diferente da atual> → rejeitado: "Patrimônio baixado
---     não pode mudar de localização".
--- 4c. patrimônio BAIXADO, AJUSTE_INVENTARIO com p_limpar_localizacao =>
---     true → rejeitado: "Patrimônio baixado não pode limpar a
---     localização".
--- 4d. patrimônio BAIXADO, AJUSTE_INVENTARIO só com p_motivo/p_observacao
---     preenchidos (sem destino/localização/limpar) → permitido; setor,
---     localização, responsável e status do patrimônio permanecem
---     idênticos depois da chamada.
--- 4e. BAIXA em qualquer patrimônio não baixado → confere que o registro
---     resultante em patrimonios preserva setor_atual_id,
---     localizacao_atual_id e responsavel_atual do estado imediatamente
---     anterior (comportamento pré-existente, reconfirmado nesta revisão).
--- =============================================================================
+-- revoke ...` para TODOS os objetos futuros criados pelo role `postgres` —
+-- isso já cobre a tabela e as funções criadas por esta migration.

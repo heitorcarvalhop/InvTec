@@ -64,7 +64,7 @@ class ImportLocationsStep extends ConsumerWidget {
             children: [
               OutlinedButton(onPressed: controller.voltar, child: const Text('Voltar')),
               FilledButton(
-              // PROMPT 11.6.3 — mesma bifurcação de `avancarAposPadroes`:
+              // mesma bifurcação de `avancarAposPadroes`:
               // este botão é o ÚLTIMO passo compartilhado entre a
               // importação convencional e o modo ADMIN "Comparar e
               // Atualizar" para o perfil GETEC (que sempre passa por este
@@ -126,20 +126,10 @@ class ImportLocationsStep extends ConsumerWidget {
                     final semLocalizacaoEscolhido = state.localizacoesSemMapeamento.contains(chave);
                     final idEscolhido = state.mapeamentoLocalizacoes[chave];
 
-                    // PROMPT 8.9: diferencia claramente as 3 categorias no
-                    // preview — resolvida (manual ou automática, com ou sem
-                    // canonicalização de apelido conhecido), sem localização
-                    // por regra conhecida (nunca pendência), e não resolvida.
-                    //
-                    // PROMPT 8.13.1: `valorDropdown` é calculado NA MESMA
-                    // passagem que decide `status`/`detalhe`, nunca
-                    // separadamente — antes disso era possível o texto à
-                    // esquerda dizer "Localização resolvida" (por resolução
-                    // automática) enquanto o dropdown mostrava "Deixar
-                    // pendente", uma contradição visual. O dropdown agora
-                    // sempre reflete a decisão EFETIVA, mesmo quando ela veio
-                    // de uma resolução automática/regra conhecida, não só de
-                    // uma escolha manual anterior.
+                    // `valorDropdown` é calculado NA MESMA passagem que
+                    // decide `status`/`detalhe`, nunca separadamente —
+                    // senão o texto podia dizer "resolvida" enquanto o
+                    // dropdown mostrava "Deixar pendente".
                     final _StatusPreviewLocalizacao status;
                     String? detalhe;
                     String? valorDropdown;
@@ -261,7 +251,7 @@ class ImportLocationsStep extends ConsumerWidget {
           children: [
             OutlinedButton(onPressed: controller.voltar, child: const Text('Voltar')),
             FilledButton(
-              // PROMPT 11.6.3 — mesma bifurcação de `avancarAposPadroes`:
+              // mesma bifurcação de `avancarAposPadroes`:
               // este botão é o ÚLTIMO passo compartilhado entre a
               // importação convencional e o modo ADMIN "Comparar e
               // Atualizar" para o perfil GETEC (que sempre passa por este
@@ -284,9 +274,9 @@ Localizacao? _localizacaoPorId(List<Localizacao> localizacoes, String id) {
   return null;
 }
 
-/// As 3 categorias de status do preview de localização (PROMPT 8.9) —
-/// nunca um "não resolvido" disfarçado de resolvido, nem uma regra
-/// conhecida disfarçada de pendência.
+/// As 3 categorias de status do preview de localização — nunca um "não
+/// resolvido" disfarçado de resolvido, nem uma regra conhecida disfarçada
+/// de pendência.
 enum _StatusPreviewLocalizacao { resolvida, semLocalizacaoRegra, naoResolvida }
 
 extension on _StatusPreviewLocalizacao {

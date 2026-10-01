@@ -19,10 +19,9 @@ Future<bool> confirmarDesativacao(BuildContext context, Setor setor) async {
           onPressed: () => Navigator.of(context).pop(false),
           child: const Text('Cancelar'),
         ),
-        // Único botão "danger" do app (PROMPT 9.3.3, seção 10) — usa
-        // colorScheme.error em vez do azul primário padrão, para uma ação
-        // destrutiva nunca parecer visualmente idêntica a uma confirmação
-        // comum.
+        // Único botão "danger" do app — usa colorScheme.error em vez do
+        // azul primário padrão, para uma ação destrutiva nunca parecer
+        // visualmente idêntica a uma confirmação comum.
         FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: colorScheme.error,

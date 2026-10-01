@@ -6,14 +6,14 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 
 import 'sei_lote_preview_app.dart';
 
-/// PROMPT 11.5.9.1 — regressão para o bug relatado ao testar a prévia
-/// Windows do PROMPT 11.5.9: os fakes de `test/tools/sei_lote_preview_app.dart`
+/// Regressão para o bug relatado ao testar a prévia
+/// Windows: os fakes de `test/tools/sei_lote_preview_app.dart`
 /// geravam o `origemSetorId` do item e o `setorAtualId` do patrimônio
 /// fictício de formas INDEPENDENTES, então a maioria dos itens "elegíveis"
 /// (inclusive DEMO-0001/DEMO-0002) ficava bloqueada por "Origem divergente"
 /// sem nenhuma intenção disso.
 ///
-/// PROMPT 11.5.10 — cobre também a correção de "Concluir todos os aptos"
+/// Cobre também a correção de "Concluir todos os aptos"
 /// (`_SeiPendenciaDetalheDialogState._concluirTodosAptos`), que agora
 /// reavalia os candidatos da triagem por item contra o patrimônio ATUAL
 /// antes de propor a seleção automática — DEMO-0018 (origem divergente)
@@ -23,7 +23,7 @@ import 'sei_lote_preview_app.dart';
 /// prévia pelas MESMAS funções reais (`planejarConclusaoLote`,
 /// `selecionarAptosParaLote`) que a tela usa — só prova que os DADOS
 /// fictícios continuam coerentes com essas regras, nunca as regras em si
-/// (`planejarConclusaoEntrega` não é tocado por este prompt).
+/// (`planejarConclusaoEntrega` não é tocado aqui).
 void main() {
   final documento = documentoPreviewDemo();
   final patrimonios = {for (final p in patrimoniosPreviewDemo()) p.patrimonio.id: p};
@@ -35,7 +35,7 @@ void main() {
     };
   }
 
-  group('PROMPT 11.5.9.1 — coerência das fixtures da prévia', () {
+  group('coerência das fixtures da prévia', () {
     test('25 itens no total: 23 PENDENTES, 1 CONCLUÍDO, 1 CANCELADO', () {
       expect(documento.itens.length, 25);
       expect(documento.itens.where((i) => i.status == SeiItemPendenciaStatus.pendente).length, 23);
@@ -97,7 +97,7 @@ void main() {
       expect(selecao.naoIncluidos.length, 4);
       expect(selecao.aptos.any((i) => i.linha == 1), isTrue);
       expect(selecao.aptos.any((i) => i.linha == 2), isTrue);
-      // Confirma a premissa do PROMPT 11.5.10: esta triagem, sozinha, NÃO
+      // Confirma a premissa: esta triagem, sozinha, NÃO
       // detecta a origem divergente do item 18 (por isso a ação real
       // reavalia com o patrimônio, no teste seguinte).
       expect(selecao.aptos.any((i) => i.linha == 18), isTrue);
@@ -107,7 +107,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.5.10/11.5.10.1 — "Concluir todos os aptos" final (selecionarAptosParaLoteComPatrimonios): '
+      '"Concluir todos os aptos" final (selecionarAptosParaLoteComPatrimonios): '
       '20 aptos, 5 não incluídos, DEMO-0018 EXCLUÍDO por origem divergente',
       () {
         // Chama DIRETO a função real usada por

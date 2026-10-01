@@ -61,7 +61,7 @@ class MovimentacaoHistoricoItem {
   final String? observacao;
   final DateTime dataMovimentacao;
 
-  /// PROMPT 11.3.5.4 — texto COMPACTO de origem/destino: a sigla real do
+  /// texto COMPACTO de origem/destino: a sigla real do
   /// setor quando cadastrada, senão o nome completo. [setorOrigemNome]/
   /// [setorDestinoNome] continuam disponíveis para tooltip/detalhamento.
   String? get setorOrigemExibidoCompacto => siglaOuNomeSetor(sigla: setorOrigemSigla, nome: setorOrigemNome);

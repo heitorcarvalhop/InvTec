@@ -1,16 +1,16 @@
 /// Decisão humana explícita para um campo de destino que o documento SEI
-/// nunca informa — localização e responsável (PROMPT 11.2.1, seção 4).
+/// nunca informa — localização e responsável.
 ///
 /// A RPC real de TRANSFERENCIA grava `p_localizacao_destino_id`/
 /// `p_responsavel_destino` EXATAMENTE como enviados: omitir (`null`) não
-/// preserva o valor atual, ele APAGA (ver auditoria do PROMPT 11.2). Como o
-/// PDF nunca traz esses dois campos, "ausência de informação no documento"
-/// NUNCA pode ser tratada como "autorização automática para limpar" — por
-/// isso todo item começa [pendente] e só sai desse estado por uma ação
-/// explícita do usuário, nunca por inferência do parser/analyzer.
+/// preserva o valor atual, ele APAGA. Como o PDF nunca traz esses dois
+/// campos, "ausência de informação no documento" NUNCA pode ser tratada
+/// como "autorização automática para limpar" — por isso todo item começa
+/// [pendente] e só sai desse estado por uma ação explícita do usuário,
+/// nunca por inferência do parser/analyzer.
 enum SeiDecisaoCampo {
   /// Nenhuma decisão tomada ainda — bloqueia a elegibilidade do item no
-  /// plano de execução (seção 5).
+  /// plano de execução.
   pendente,
 
   /// O usuário escolheu um valor explícito (uma localização real do setor

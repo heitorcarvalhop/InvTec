@@ -9,7 +9,7 @@ import 'import_defaults.dart';
 import 'import_row.dart';
 import 'text_similarity.dart';
 
-/// Linhas → validações/duplicidades/resoluções (seção 35). Não faz nenhuma
+/// Linhas → validações/duplicidades/resoluções. Não faz nenhuma
 /// chamada de rede: recebe tipos/setores ativos e os conjuntos de
 /// "já existe no banco" já resolvidos em lote pelo controller, e devolve
 /// [ImportRow]s totalmente classificados. Puro e testável com fakes.
@@ -67,7 +67,7 @@ class ImportAnalyzer {
   /// resolvidos (id de tipo/setor, decisão de existente, flag de ignorada,
   /// flag de duplicidade de arquivo). Chamada tanto pela análise completa
   /// quanto depois de qualquer decisão manual do usuário — única fonte de
-  /// verdade da classificação (seção 20).
+  /// verdade da classificação.
   static void classificar(ImportRow linha) {
     linha.issues.clear();
 
@@ -77,9 +77,9 @@ class ImportAnalyzer {
     }
 
     // Duplicidade dentro do arquivo é sempre resolvida ANTES de qualquer
-    // outra coisa (seção 15 é explícita: crítica) — mesmo que o número já
-    // exista no banco, nunca deixamos duas linhas do arquivo apontarem
-    // "atualizar" para o mesmo registro simultaneamente sem decisão.
+    // outra coisa — mesmo que o número já exista no banco, nunca deixamos
+    // duas linhas do arquivo apontarem "atualizar" para o mesmo registro
+    // simultaneamente sem decisão.
     if (linha.duplicadoNoArquivo) {
       linha.issues.add(
         const ImportIssue(ImportIssueSeverity.erro, 'Número patrimonial duplicado dentro da planilha.'),
@@ -218,10 +218,10 @@ class ImportAnalyzer {
     }
 
     if (linha.possivelDuplicidadeSerial) {
-      // PROMPT 8.14, seção 3: número de série NÃO é chave única (ex.: um
-      // notebook e a licença de software vendidos juntos podem
-      // compartilhar o mesmo serial na planilha) — deixa explícito que
-      // isto nunca bloqueia o envio, só avisa.
+      // Número de série NÃO é chave única (ex.: um notebook e a licença de
+      // software vendidos juntos podem compartilhar o mesmo serial na
+      // planilha) — deixa explícito que isto nunca bloqueia o envio, só
+      // avisa.
       linha.issues.add(
         ImportIssue(
           ImportIssueSeverity.aviso,
@@ -243,12 +243,12 @@ class ImportAnalyzer {
     }
 
     if (linha.localizacaoPendente) {
-      // PROMPT 8.9.1: um texto de localização genuinamente desconhecido
-      // (não é um dos 15 nomes oficiais, nem um dos 3 valores sem
-      // localização) NUNCA pode ser enviado sem decisão explícita do
-      // usuário — por isso ERRO (bloqueia), não aviso. Não é um erro
-      // permanente: assim que o usuário mapear o texto para uma localização
-      // existente (definirMapeamentoLocalizacao) ou confirmar "importar sem
+      // Um texto de localização genuinamente desconhecido (não é um dos 15
+      // nomes oficiais, nem um dos 3 valores sem localização) NUNCA pode
+      // ser enviado sem decisão explícita do usuário — por isso ERRO
+      // (bloqueia), não aviso. Não é um erro permanente: assim que o
+      // usuário mapear o texto para uma localização existente
+      // (definirMapeamentoLocalizacao) ou confirmar "importar sem
       // localização" (definirImportarSemLocalizacao), `analisar()`
       // reclassifica a linha e este erro desaparece.
       linha.issues.add(
@@ -322,7 +322,7 @@ class ImportAnalyzer {
     } else {
       // Só é "não reconhecida" quando havia texto e ele não pôde ser
       // interpretado — célula vazia/coluna não mapeada é simplesmente
-      // "sem data informada", não um valor inválido (seção 4).
+      // "sem data informada", não um valor inválido.
       linha.dataEntradaNaoReconhecida = textoDataEntrada != null;
       final padraoData = padroes.dataPadrao;
       if (padraoData != null) {
@@ -379,7 +379,7 @@ class ImportAnalyzer {
   /// ativos; se o texto não bater com nada (ou estiver ausente), cai para
   /// o padrão da importação quando configurado. "Usou padrão" só fica
   /// marcado quando o padrão foi de fato necessário — nunca quando o
-  /// texto já resolveu sozinho (seções 1/2: linha > padrão > manual).
+  /// texto já resolveu sozinho (prioridade: linha > padrão > manual).
   static _ResolucaoSetor _resolverSetorComPadrao(
     String? texto,
     String? padraoId,
@@ -521,7 +521,7 @@ class ImportAnalyzer {
 /// Resultado de [ImportAnalyzer._resolverSetorComPadrao]: o id resolvido
 /// (da linha ou do padrão), uma sugestão por similaridade quando o texto da
 /// linha não bateu com nada, e se o padrão foi realmente usado (para
-/// diferenciar "OK direto" de "OK via padrão" na revisão — seção 6).
+/// diferenciar "OK direto" de "OK via padrão" na revisão).
 class _ResolucaoSetor {
   const _ResolucaoSetor({this.id, this.sugerido, this.usouPadrao = false});
 

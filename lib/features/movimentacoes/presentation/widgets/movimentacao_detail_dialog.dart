@@ -8,8 +8,8 @@ import '../../domain/movimentacao.dart';
 import '../../domain/movimentacao_listagem_item.dart';
 import 'movimentacao_tipo_visual.dart';
 
-/// Detalhe somente leitura de uma movimentação (PROMPT 10.1) — nenhum
-/// campo é editável aqui; histórico é imutável (ver docs/database.md).
+/// Detalhe somente leitura de uma movimentação — nenhum campo é editável
+/// aqui; histórico é imutável (ver docs/database.md).
 Future<void> showMovimentacaoDetailDialog(BuildContext context, MovimentacaoListagemItem item) {
   return showDialog<void>(
     context: context,
@@ -45,8 +45,7 @@ class MovimentacaoDetailDialog extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               _Field(label: 'Patrimônio', value: item.patrimonioNumero),
               if (item.patrimonioTipoNome != null) _Field(label: 'Equipamento', value: item.patrimonioTipoNome),
-              // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
-              // tooltip.
+              // Sigla cadastrada, nome completo por tooltip.
               _Field(
                 label: 'Origem',
                 value: siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome),
@@ -103,7 +102,7 @@ class _Field extends StatelessWidget {
   final String label;
   final String? value;
 
-  /// PROMPT 11.3.5.4 — nome completo de um setor exibido pela sigla.
+  /// nome completo de um setor exibido pela sigla.
   final String? valueTooltip;
 
   @override

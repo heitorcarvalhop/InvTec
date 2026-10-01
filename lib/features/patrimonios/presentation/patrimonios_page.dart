@@ -48,9 +48,9 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
     ref.read(patrimoniosControllerProvider.notifier).definirCampoBusca(campo);
   }
 
-  /// Seção 9: limpar filtros limpa texto + campo de busca (-> Tudo) + Tipo +
-  /// Status + Setor — nunca só o lado do controller, senão o texto digitado
-  /// e o seletor ficariam visualmente "presos" no valor antigo.
+  /// Limpar filtros limpa texto + campo de busca (-> Tudo) + Tipo + Status
+  /// + Setor — nunca só o lado do controller, senão o texto digitado e o
+  /// seletor ficariam visualmente "presos" no valor antigo.
   void _limparFiltros() {
     _searchController.clear();
     setState(() => _campoBusca = PatrimonioSearchField.tudo);
@@ -113,9 +113,7 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
                   : const [],
             ),
             const SizedBox(height: AppSpacing.md),
-            // Busca + filtros + filtros avançados agrupados num único
-            // painel (PROMPT 9.3.3, seção 6) — antes eram controles soltos
-            // direto no fundo da página.
+            // Busca + filtros + filtros avançados agrupados num único painel.
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
@@ -216,10 +214,10 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
   }
 }
 
-/// Barra de busca (PROMPT 9.1, seção 2): seletor de campo + texto livre,
-/// lado a lado — `[ Tudo ▼ ] [ Buscar... ]`. O seletor nunca dispara
-/// consulta sozinho pelo `TextField` (que continua com debounce): a
-/// mudança de campo é imediata, via [onCampoBuscaChanged].
+/// Barra de busca: seletor de campo + texto livre, lado a lado —
+/// `[ Tudo ▼ ] [ Buscar... ]`. O seletor nunca dispara consulta sozinho
+/// pelo `TextField` (que continua com debounce): a mudança de campo é
+/// imediata, via [onCampoBuscaChanged].
 class _SearchBar extends StatelessWidget {
   const _SearchBar({
     required this.controller,
@@ -291,11 +289,11 @@ class _EmptyList extends StatelessWidget {
   final bool temFiltroOuBusca;
   final String termoBusca;
 
-  /// PROMPT 9.1.1: quantidade de patrimônios cujo NÚMERO DE SÉRIE (nunca o
-  /// número de patrimônio) coincide com [termoBusca] — só populado quando
-  /// não há nenhum patrimônio com esse número exato. Nunca aparece
-  /// misturado com a listagem principal, nem é apresentado como se fosse
-  /// "o patrimônio pesquisado".
+  /// Quantidade de patrimônios cujo NÚMERO DE SÉRIE (nunca o número de
+  /// patrimônio) coincide com [termoBusca] — só populado quando não há
+  /// nenhum patrimônio com esse número exato. Nunca aparece misturado com
+  /// a listagem principal, nem é apresentado como se fosse "o patrimônio
+  /// pesquisado".
   final int correspondenciasPorNumeroSerie;
   final VoidCallback onVerCorrespondenciaSerie;
   final bool canManage;
@@ -304,15 +302,14 @@ class _EmptyList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (temFiltroOuBusca) {
-      // Seção 7 (PROMPT 9.1): mensagem específica com o termo digitado,
-      // quando houver — nunca uma mensagem genérica que esconda o que foi
-      // pesquisado.
+      // Mensagem específica com o termo digitado, quando houver — nunca
+      // uma mensagem genérica que esconda o que foi pesquisado.
       final mensagem = termoBusca.isEmpty
           ? 'Nenhum patrimônio encontrado.'
           : correspondenciasPorNumeroSerie > 0
-          // PROMPT 9.1.1: deixa explícito que o termo NÃO é o número de um
-          // patrimônio encontrado — nunca silenciosamente mostrar outro
-          // patrimônio como se fosse a resposta.
+          // Deixa explícito que o termo NÃO é o número de um patrimônio
+          // encontrado — nunca silenciosamente mostrar outro patrimônio
+          // como se fosse a resposta.
           ? 'Nenhum patrimônio nº "$termoBusca" encontrado.'
           : 'Nenhum patrimônio encontrado para "$termoBusca".';
       return Card(

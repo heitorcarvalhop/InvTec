@@ -1,8 +1,8 @@
 /// Um valor extraído do PDF que a GETEC pode corrigir manualmente antes da
-/// primeira conclusão (PROMPT 11.3, seção 13) — guarda os dois lados
-/// SEMPRE: nunca sobrescreve [original] com [corrigido] para "fazer parecer
-/// que o parser acertou de primeira". [valorEfetivo] é o que a UI/plano
-/// deve usar; [original] fica preservado só para auditoria/consulta.
+/// primeira conclusão — guarda os dois lados SEMPRE: nunca sobrescreve
+/// [original] com [corrigido] para "fazer parecer que o parser acertou de
+/// primeira". [valorEfetivo] é o que a UI/plano deve usar; [original] fica
+/// preservado só para auditoria/consulta.
 class SeiValorCorrigivel<T> {
   const SeiValorCorrigivel({
     required this.original,

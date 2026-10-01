@@ -1,100 +1,48 @@
 -- =============================================================================
--- PROMPT 11.5.2 — public.concluir_itens_documento_sei_lote
+-- public.concluir_itens_documento_sei_lote
 -- Concluir a ENTREGA de VÁRIOS itens de um mesmo Documento SEI, de forma
 -- atômica (tudo ou nada), reaproveitando `concluir_item_documento_sei` sem
 -- alterá-la.
 -- =============================================================================
--- STATUS: PREPARADA PARA REVISÃO — NÃO APLICADA. Nada foi executado no
--- Supabase. Nenhum patrimônio real foi movimentado; nenhum item foi
--- concluído; o Despacho 577 e o documento fictício encerrado não foram
--- usados nem tocados.
+-- Um único `documento_id` por chamada: trava o documento e os N itens,
+-- valida o CONJUNTO inteiro e só então chama `concluir_item_documento_sei`
+-- uma vez por item, dentro da MESMA transação. Uma exceção em qualquer item
+-- desfaz TUDO: itens já concluídos por chamadas anteriores do mesmo laço, o
+-- registro do lote (só inserido no fim) e a versão do documento.
 --
--- ORDEM DE APLICAÇÃO: depois de 20260925140000 (que instala
--- `concluir_item_documento_sei`). ESTA MIGRATION NÃO TOCA NELA: nenhum
--- DROP, nenhum CREATE OR REPLACE, nenhuma mudança de assinatura, regra ou
--- GRANT. `registrar_movimentacao` também não é tocada.
+-- A versão do documento avança uma vez POR ITEM concluído (não uma vez para
+-- o lote inteiro) — a função de lote só encadeia o valor devolvido de uma
+-- chamada para a próxima.
 --
--- REGRA CENTRAL: um único documento por chamada. `concluir_itens_documento_
--- sei_lote` trava o documento e os N itens, valida o CONJUNTO inteiro e só
--- então chama `concluir_item_documento_sei` uma vez por item, dentro da
--- MESMA transação (funções PL/pgSQL comuns nunca abrem uma transação
--- própria — só uma PROCEDURE poderia commitar sozinha, e este não é o
--- caso). Uma exceção em qualquer item desfaz TUDO: os itens já concluídos
--- por chamadas anteriores do mesmo laço, o registro do lote (que só é
--- inserido no fim) e a versão do documento.
+-- Idempotência real (não "todos concluídos = sucesso", que aceitaria itens
+-- concluídos por OUTRAS operações como se fossem deste lote): `p_lote_id` é
+-- gerado pelo cliente e registrado em `documentos_sei_lotes_conclusao` só
+-- depois que TODOS os itens concluíram. Um retry com o MESMO `lote_id` E os
+-- MESMOS parâmetros devolve o resultado já registrado, sem travar ou
+-- escrever nada; com parâmetro diferente é recusado (P0037).
 --
--- V1 (decisões aprovadas nos PROMPTs 11.5.1/11.5.1.1/11.5.1.2):
---   * escopo: um único `documento_id` por chamada (nunca lote entre
---     documentos diferentes);
---   * a versão do documento avança UMA VEZ POR ITEM concluído (não uma vez
---     só para o lote inteiro) — aceito: versão é só um contador opaco de
---     concorrência otimista, e `concluir_item_documento_sei` já a
---     incrementa a cada chamada; a função de lote apenas encadeia o valor
---     devolvido de uma chamada para a próxima;
---   * `p_confirmar_limpeza_destino` é uma única flag para o lote inteiro
---     (repassada, sem alteração, a cada chamada individual — a decisão de
---     limpar ou não continua sendo tomada, item a item, por
---     `concluir_item_documento_sei`, exatamente como hoje);
---   * idempotência real (não "todos concluídos = sucesso", que aceitaria
---     itens concluídos por OUTRAS operações como se fossem deste lote):
---     `p_lote_id` é gerado pelo Flutter, uma vez por decisão confirmada, e
---     registrado em `documentos_sei_lotes_conclusao` só depois que TODOS os
---     itens foram concluídos com sucesso. Um retry com o MESMO `lote_id` E
---     os MESMOS parâmetros (documento, itens, versão inicial, observação,
---     confirmação de limpeza, usuário) devolve o resultado já registrado,
---     sem travar nada e sem escrever nada. O MESMO `lote_id` com qualquer
---     parâmetro diferente é recusado (P0037) — nunca reaproveitado
---     silenciosamente para uma operação diferente;
---   * consistência do conjunto ANTES de concluir qualquer item: todos os N
---     itens precisam existir, pertencer ao documento e estar PENDENTE
---     (P0036 se algum já foi concluído/cancelado por fora deste lote — um
---     item concluído individualmente NUNCA conta como sucesso do lote); o
---     mesmo patrimônio não pode aparecer duas vezes no lote (P0001); limite
---     de 200 itens por chamada (P0001);
---   * eventos: `ITEM_CONCLUIDO` continua sendo gravado, uma vez por item,
---     EXATAMENTE como `concluir_item_documento_sei` já grava hoje — esta
---     migration não adiciona nenhuma coluna nem tipo de evento novo. A
---     relação "estes itens foram concluídos pela mesma operação em lote"
---     fica só em `documentos_sei_lotes_conclusao.item_ids` (uma consulta,
---     não uma cópia de dado).
---
--- ORDEM DE LOCKS: advisory lock por `lote_id` (não é lock de linha; só
--- serializa chamadas concorrentes com o MESMO `lote_id`, mesmo que apontem
--- para documentos diferentes) -> DOCUMENTO -> ITENS (ordenados por `id`)
--- -> dentro de cada chamada a `concluir_item_documento_sei`: o mesmo
--- DOCUMENTO e o mesmo ITEM (já travados, sem espera) -> PATRIMÔNIO (a
--- ordem em que os itens são processados no laço é pelo `patrimonio_id`
--- resolvido, então os PATRIMÔNIOS acabam travados em ordem ascendente de
--- id — minimiza deadlock contra outra transação que toque um subconjunto
--- sobreposto de patrimônios; o detector de deadlock do Postgres continua
--- sendo a rede de segurança final, e como a operação é idempotente por
--- `lote_id`, reenviar a mesma chamada depois de um "deadlock detected" é
--- seguro).
+-- ORDEM DE LOCKS: advisory lock por `lote_id` (serializa chamadas
+-- concorrentes com o MESMO `lote_id`, mesmo entre documentos diferentes) ->
+-- DOCUMENTO -> ITENS (ordenados por `id`) -> dentro de cada chamada a
+-- `concluir_item_documento_sei`: PATRIMÔNIO (itera por `patrimonio_id`
+-- resolvido, não pela ordem recebida, para que os locks de patrimônio
+-- saiam sempre na mesma ordem relativa entre execuções concorrentes).
 --
 -- ERROS (SQLSTATE) NOVOS DESTA FUNÇÃO:
---   P0036  um ou mais itens do lote não estão PENDENTE (já concluídos ou
---          cancelados por uma operação diferente deste lote_id)
---   P0037  o mesmo p_lote_id já foi usado para uma operação com parâmetros
---          diferentes (documento, itens, versão esperada, observação,
---          confirmação de limpeza ou usuário)
--- (os demais erros — 42501, P0001, P0002, P0010, P0030-P0035 — são os
--- mesmos códigos de `concluir_item_documento_sei`, propagados sem
--- alteração quando um item específico falha nas validações dela.)
---
--- PERMISSÕES: mesmo padrão das demais funções de escrita SEI — REVOKE de
--- tudo, GRANT EXECUTE só para `authenticated`. A tabela de controle nunca
--- recebe INSERT/UPDATE/DELETE de `authenticated`: só a função (SECURITY
--- DEFINER) escreve nela; `authenticated` só tem SELECT.
+--   P0036  um ou mais itens do lote não estão PENDENTE
+--   P0037  o mesmo p_lote_id já foi usado com parâmetros diferentes
+-- (os demais códigos são os de `concluir_item_documento_sei`, propagados
+-- sem alteração.)
 -- =============================================================================
 
 -- =============================================================================
 -- 1. TABELA DE CONTROLE — public.documentos_sei_lotes_conclusao
 -- =============================================================================
 -- Uma linha por lote CONCLUÍDO COM SUCESSO (nunca por tentativa: o INSERT só
--- acontece depois que todos os itens foram concluídos — ver a função,
--- passo 12). Guarda os parâmetros ORIGINAIS da chamada, não só o resultado,
--- porque a identidade real da operação (seção 2 do PROMPT 11.5.1.2) exige
--- comparar TODOS eles num retry, não só `lote_id`+documento+itens.
+-- acontece depois que todos os itens foram concluídos). Guarda os
+-- parâmetros ORIGINAIS da chamada, não só o resultado, porque a identidade
+-- real da operação exige comparar TODOS eles num retry, não só
+-- `lote_id`+documento+itens.
 create table public.documentos_sei_lotes_conclusao (
   -- gerado pelo cliente (Flutter), uma vez por decisão confirmada — nunca
   -- pelo banco (`gen_random_uuid()` aqui produziria uma chave nova a cada
@@ -152,7 +100,7 @@ set search_path = ''
 as $$
 declare
   v_limite_itens constant integer := 200;
-  -- PROMPT 11.5.2.1 — MESMA normalização que `concluir_item_documento_sei`
+  -- MESMA normalização que `concluir_item_documento_sei`
   -- já aplica internamente (`v_observacao text := public.normalize_text(
   -- p_observacao);`, repassada a `registrar_movimentacao`): aparar
   -- espaço/tab/CR/LF nas pontas e transformar "" em `null`. `normalize_text`
@@ -186,7 +134,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- PROMPT 11.5.2.1 — `p_confirmar_limpeza_destino` tem default `false`,
+  -- `p_confirmar_limpeza_destino` tem default `false`,
   -- mas um cliente pode enviar `null` explicitamente (ex.: JSON `null`),
   -- que sobrescreve o default. `null` é ambíguo (nem confirma nem nega a
   -- limpeza) e, sem esta checagem, só seria percebido tarde: na comparação

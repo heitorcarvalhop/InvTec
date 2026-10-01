@@ -5,7 +5,7 @@ import 'package:invtec/features/patrimonios/importacao/domain/import_column_fiel
 import 'package:invtec/features/patrimonios/importacao/domain/import_row.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/patrimonio_comparacao.dart';
 
-/// PROMPT 11.6.2 — testes do motor de comparação PURO
+/// Testes do motor de comparação PURO
 /// ([PatrimonioComparador]), operando diretamente sobre [ImportRow]s
 /// montadas à mão (mesmo padrão de [ImportAnalyzer] em
 /// `import_analyzer_test.dart`: sem Excel/CSV real, sem repositório, sem

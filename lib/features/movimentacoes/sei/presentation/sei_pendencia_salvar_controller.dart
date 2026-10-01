@@ -7,11 +7,10 @@ import '../domain/sei_documento_pendente.dart';
 import '../domain/sei_item_execucao_estado.dart';
 import '../domain/sei_pendencia_exceptions.dart';
 
-/// PROMPT 11.3 — "Salvar como pendência": SEPARADO de `SeiImportController`
-/// de propósito (mesmo padrão de isolamento de `SeiPlanoExecucaoBuilder`
-/// vs. o restante do assistente) para que a garantia "nunca registra uma
-/// movimentação" permaneça auditável olhando só para este arquivo — nenhum
-/// método aqui lê `MovimentacaoRepository`, só
+/// "Salvar como pendência": SEPARADO de `SeiImportController` de propósito,
+/// para que a garantia "nunca registra uma movimentação" permaneça
+/// auditável olhando só para este arquivo — nenhum método aqui lê
+/// `MovimentacaoRepository`, só
 /// `DocumentosSeiRepository.buscarPossivelDuplicata`/`salvarRascunho`.
 /// Importar e salvar um despacho SEMPRE cria uma solicitação PENDENTE;
 /// nunca altera um patrimônio.
@@ -19,8 +18,8 @@ enum SeiSalvarPendenciaStatus {
   ocioso,
   verificandoDuplicidade,
 
-  /// Seção 5: já existe ao menos um documento com o mesmo número SEI (e,
-  /// quando informado, o mesmo processo) — nunca bloqueado sozinho; exige
+  /// Já existe ao menos um documento com o mesmo número SEI (e, quando
+  /// informado, o mesmo processo) — nunca bloqueado sozinho; exige
   /// confirmação explícita do usuário (`confirmarApesarDeDuplicata`) para
   /// prosseguir mesmo assim.
   aguardandoConfirmacaoDuplicidade,
@@ -68,10 +67,9 @@ class SeiPendenciaSalvarController extends Notifier<SeiSalvarPendenciaState> {
   @override
   SeiSalvarPendenciaState build() => const SeiSalvarPendenciaState();
 
-  /// Seção 5: checagem READ-ONLY de possível duplicata pelo número do
-  /// documento SEI (nunca pelo hash) ANTES de salvar. Sem número de
-  /// documento SEI reconhecido, não há o que comparar — segue direto para
-  /// salvar (o usuário já vê essa ausência na revisão da análise).
+  /// Checagem READ-ONLY de possível duplicata pelo número do documento SEI
+  /// (nunca pelo hash) ANTES de salvar. Sem número de documento SEI
+  /// reconhecido, não há o que comparar — segue direto para salvar.
   Future<void> salvar({
     required SeiAnaliseResultado resultado,
     required Map<int, SeiItemExecucaoEstado> execucao,
@@ -117,8 +115,8 @@ class SeiPendenciaSalvarController extends Notifier<SeiSalvarPendenciaState> {
     }
   }
 
-  /// Seção 5: prosseguir MESMO ASSIM depois de ver a lista de possíveis
-  /// duplicatas — nunca automático.
+  /// Prosseguir MESMO ASSIM depois de ver a lista de possíveis duplicatas
+  /// — nunca automático.
   Future<void> confirmarApesarDeDuplicata() async {
     final rascunho = _rascunhoPendente;
     if (rascunho == null) return;
@@ -137,11 +135,10 @@ class SeiPendenciaSalvarController extends Notifier<SeiSalvarPendenciaState> {
       final documento = await repositorio.salvarRascunho(rascunho, confirmarDuplicata: confirmarDuplicata);
       state = state.copyWith(status: SeiSalvarPendenciaStatus.sucesso, documentoSalvo: () => documento);
     } on SeiDocumentoDuplicadoException {
-      // PROMPT 11.3.1, seção 8 — a corrida real: a checagem em `salvar()`
-      // não encontrou nada, mas outra sessão criou o documento entre essa
-      // leitura e esta escrita. O banco (não o cliente) barrou — relê as
-      // duplicatas e volta para a mesma confirmação explícita, nunca falha
-      // silenciosamente nem sobrescreve.
+      // Corrida real: a checagem em `salvar()` não encontrou nada, mas outra
+      // sessão criou o documento entre essa leitura e esta escrita. O banco
+      // barrou — relê as duplicatas e volta para a confirmação explícita,
+      // nunca falha silenciosamente nem sobrescreve.
       try {
         final repositorio = ref.read(documentosSeiRepositoryProvider);
         final duplicatas = await repositorio.buscarPossivelDuplicata(

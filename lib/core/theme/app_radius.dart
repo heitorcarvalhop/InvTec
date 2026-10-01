@@ -1,6 +1,6 @@
-/// Escala de raio de borda do InvTec (PROMPT 9.3) — os mesmos poucos
-/// valores em toda a aplicação, nunca `BorderRadius.circular(...)` com um
-/// número arbitrário espalhado pelas páginas.
+/// Escala de raio de borda do InvTec — os mesmos poucos valores em toda a
+/// aplicação, nunca `BorderRadius.circular(...)` com um número arbitrário
+/// espalhado pelas páginas.
 class AppRadius {
   AppRadius._();
 

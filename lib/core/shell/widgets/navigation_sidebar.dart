@@ -6,10 +6,10 @@ import '../../theme/app_spacing.dart';
 import '../navigation_items.dart';
 import 'nav_tile.dart';
 
-/// Sidebar fixa usada em tablet/desktop (largura de janela >= 600) —
-/// PROMPT 9.3: fundo azul-marinho fixo (mesma identidade nos dois temas,
-/// ver [AppColors.sidebarBackground]), independente do restante da tela
-/// estar clara ou escura.
+/// Sidebar fixa usada em tablet/desktop (largura de janela >= 600) — fundo
+/// azul-marinho fixo (mesma identidade nos dois temas, ver
+/// [AppColors.sidebarBackground]), independente do restante da tela estar
+/// clara ou escura.
 class NavigationSidebar extends StatelessWidget {
   const NavigationSidebar({
     super.key,
@@ -39,18 +39,10 @@ class NavigationSidebar extends StatelessWidget {
             const _BrandHeader(),
             Divider(height: 1, color: AppColors.sidebarBorder),
             const SizedBox(height: AppSpacing.sm),
-            // PROMPT 11.3.9.1 — antes, só a lista de navegação (o `ListView`
-            // do meio) rolava; o cabeçalho e o bloco fixo de
-            // "Configurações"/"Sair" no fim NUNCA rolavam. Numa janela
-            // baixa (altura reduzida), o `Expanded` do meio já chegava a
-            // zero e ainda faltava espaço para esse bloco fixo — o `Column`
-            // estourava por baixo ("BOTTOM OVERFLOWED BY 71 PIXELS",
-            // exatamente o erro do vídeo), e "Configurações"/"Sair" ficavam
-            // cortados sem nenhum jeito de alcançá-los. Agora a lista de
-            // navegação E o bloco fixo dividem o MESMO
-            // `SingleChildScrollView`: quando cabe tudo, nada rola (visual
-            // idêntico a antes); quando não cabe, a área inteira passa a
-            // rolar — nenhuma ação fica escondida permanentemente.
+            // A lista de navegação e o bloco fixo de "Configurações"/"Sair"
+            // dividem o mesmo `SingleChildScrollView`: quando cabe tudo,
+            // nada rola; numa janela baixa, a área inteira passa a rolar em
+            // vez de cortar essas ações.
             Expanded(
               child: Scrollbar(
                 child: SingleChildScrollView(

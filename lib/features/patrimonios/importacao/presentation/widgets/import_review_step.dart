@@ -79,14 +79,10 @@ class ImportReviewStep extends ConsumerWidget {
     );
   }
 
-  /// PROMPT 8.14, seção 7/9: a confirmação NUNCA fica disponível sem antes
-  /// revalidar contra o Supabase real — a análise pode ter sido feita
-  /// minutos antes, e outra pessoa pode ter cadastrado um dos mesmos
-  /// números nesse intervalo. `revalidarAntesDeConfirmar` é sempre chamado
-  /// aqui, no início deste fluxo, antes de mostrar o diálogo de
-  /// confirmação — é assim, estruturalmente, que a "permissão de
-  /// confirmar" fica condicionada à revalidação (nunca uma escrita: só
-  /// leitura em lote).
+  /// A confirmação nunca fica disponível sem antes revalidar contra o
+  /// Supabase real — `revalidarAntesDeConfirmar` é sempre chamado aqui,
+  /// antes do diálogo de confirmação (nunca uma escrita: só leitura em
+  /// lote).
   Future<void> _iniciarConfirmacao(BuildContext context, WidgetRef ref, PatrimonioImportController controller) async {
     await controller.revalidarAntesDeConfirmar();
     if (!context.mounted) return;
@@ -167,11 +163,9 @@ class ImportReviewStep extends ConsumerWidget {
   }
 }
 
-/// Resumo final da revisão (PROMPT 8.14, seção 4) — cada linha deste painel
-/// vem de [ImportSummary] (calculado do estado EFETIVO das linhas, nunca de
-/// uma fórmula separada), então nunca pode divergir do que os filtros abaixo
-/// mostram. "Serão enviados" é sempre [ImportSummary.totalParaEnviar]: só
-/// conta o que efetivamente vai para `cadastrar`/`atualizar`.
+/// Resumo final da revisão — cada linha vem de [ImportSummary] (calculado
+/// do estado efetivo das linhas, nunca de uma fórmula separada), então nunca
+/// diverge do que os filtros abaixo mostram.
 class _ResumoFinalPanel extends StatelessWidget {
   const _ResumoFinalPanel({required this.resumo});
 
@@ -424,8 +418,8 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
           children: [
             Text('Linha ${linha.numeroLinha}', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
-            // PROMPT 8.14, seção 6: decisão de importação sempre visível e
-            // explícita — nunca deixar o usuário adivinhar pelo status.
+            // Decisão de importação sempre visível e explícita — nunca
+            // deixar o usuário adivinhar pelo status.
             Text(
               _decisaoImportacaoLabel(linha),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -526,9 +520,8 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text('Patrimônio ${linha.numeroPatrimonio}', style: Theme.of(context).textTheme.bodySmall),
-              // PROMPT 8.14, seção 1: mostra explicitamente QUAIS linhas do
-              // arquivo têm o mesmo número — nunca escolhe "a primeira" ou
-              // "a última" sozinho, só lista para o usuário decidir.
+              // Mostra explicitamente quais linhas têm o mesmo número —
+              // nunca escolhe "a primeira" sozinho, só lista para decidir.
               for (final outra in todasAsLinhas.where(
                 (l) => l.numeroPatrimonioNormalizado == linha.numeroPatrimonioNormalizado,
               ))
@@ -643,8 +636,7 @@ class _ImportRowDecisionSheet extends ConsumerWidget {
                           child: OutlinedButton(
                             onPressed: () => controller.definirDestinoDaLinha(linha, linha.destinoIdSugerido),
                             child: Text(
-                              // PROMPT 11.3.5.4: sigla cadastrada, nome
-                              // completo por tooltip.
+                              // Sigla cadastrada, nome completo por tooltip.
                               'Usar ${setores.firstWhere((s) => s.id == linha.destinoIdSugerido).rotuloCompacto}',
                             ),
                           ),
@@ -696,19 +688,14 @@ class _ComparacaoExistente extends StatelessWidget {
   Widget build(BuildContext context) {
     final detalhe = linha.existenteNoBanco!;
     final existente = detalhe.patrimonio;
-    // PROMPT 8.14, seção 2: comparação completa o suficiente para o
-    // usuário decidir com segurança — número patrimonial (título do painel,
-    // já mostrado acima), descrição, tipo, setor atual, localização atual e
-    // status atual, além dos campos que já existiam.
     final linhas = <(String, String?, String?)>[
       ('Descrição', existente.descricao, linha.descricao),
       ('Marca', existente.marca, linha.marca),
       ('Modelo', existente.modelo, linha.modelo),
       ('Série', existente.numeroSerie, linha.numeroSerie),
       ('Tipo atual', detalhe.tipoNome, null),
-      // PROMPT 11.3.5.4: sigla cadastrada (fallback nome completo) — esta
-      // tabela renderiza toda linha como texto simples (sem tooltip por
-      // célula).
+      // Sigla cadastrada (fallback nome completo) — esta tabela renderiza
+      // toda linha como texto simples, sem tooltip por célula.
       ('Setor atual', detalhe.setorExibidoCompacto, null),
       ('Localização atual', detalhe.localizacaoNome ?? '(sem localização)', null),
       ('Status atual', existente.status.label, null),
@@ -763,7 +750,7 @@ class _CampoComOrigem extends StatelessWidget {
   final String? valor;
   final bool usouPadrao;
 
-  /// PROMPT 11.3.5.4 — nome completo de um setor exibido pela sigla.
+  /// nome completo de um setor exibido pela sigla.
   final String? valorTooltip;
 
   @override
@@ -858,8 +845,8 @@ String? _nomeLocalizacao(AsyncValue<List<Localizacao>>? localizacoesAsync, Strin
   );
 }
 
-/// Decisão de importação em uma frase (PROMPT 8.14, seção 6) — nunca deixa
-/// o usuário adivinhar pelo status técnico sozinho.
+/// Decisão de importação em uma frase — nunca deixa o usuário adivinhar
+/// pelo status técnico sozinho.
 String _decisaoImportacaoLabel(ImportRow linha) {
   if (linha.ignoradaManualmente) return 'Ignorado manualmente — não será enviado.';
   if (linha.duplicadoNoArquivo) return 'DUPLICADO NO ARQUIVO — bloqueado até decisão do usuário.';

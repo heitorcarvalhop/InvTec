@@ -5,7 +5,7 @@ import 'package:invtec/core/widgets/page_header.dart';
 import 'package:invtec/core/widgets/stat_card.dart';
 import 'package:invtec/core/widgets/status_chip.dart';
 
-/// Componentes principais do design system (PROMPT 9.3) renderizando sem
+/// Componentes principais do design system renderizando sem
 /// erro nos dois temas — não valida pixel a pixel, só que o widget
 /// constrói normalmente sob `AppTheme.light`/`AppTheme.dark`.
 void main() {

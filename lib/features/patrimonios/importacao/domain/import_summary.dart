@@ -1,7 +1,7 @@
 import 'import_row.dart';
 
-/// Contagens por categoria (seção 21) — exibidas como cards/chips no passo
-/// de resumo e usadas na confirmação final (seção 24).
+/// Contagens por categoria — exibidas como cards/chips no passo de resumo e
+/// usadas na confirmação final.
 class ImportSummary {
   const ImportSummary({
     required this.total,

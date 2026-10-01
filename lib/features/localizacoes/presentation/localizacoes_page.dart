@@ -14,7 +14,7 @@ import 'localizacoes_controller.dart';
 import 'widgets/localizacao_form_dialog.dart';
 
 /// Tela de gestão das localizações de UMA gerência (`/setores/:setorId/
-/// localizacoes`) — seção 24. ADMIN/GESTOR podem criar/editar/desativar;
+/// localizacoes`). ADMIN/GESTOR podem criar/editar/desativar;
 /// OPERADOR/CONSULTA só leitura. Nunca DELETE.
 class LocalizacoesPage extends ConsumerStatefulWidget {
   const LocalizacoesPage({super.key, required this.setor});

@@ -23,8 +23,7 @@ import '../domain/sei_validacao_item.dart';
 
 /// Providers isolados (nunca instanciados diretamente pelo controller) para
 /// que os testes troquem por dublês via `ProviderScope.overrides` — mesmo
-/// padrão já usado para os repositórios (PROMPT 11.1, seção 17: nenhum
-/// teste chama produção).
+/// padrão já usado para os repositórios.
 final seiPdfTextExtractorProvider = Provider<SeiPdfTextExtractor>((ref) => const SeiPdfTextExtractorPdfrx());
 final seiDocumentoParserProvider = Provider<SeiDocumentoParser>((ref) => const SeiDeterministicParser());
 final seiDocumentoAnalyzerProvider = Provider<SeiDocumentoAnalyzer>((ref) => const SeiDocumentoAnalyzer());
@@ -54,26 +53,26 @@ class SeiImportState {
   final SeiFiltroRevisao filtro;
 
   /// Estado de seleção/confirmação/decisão por linha (chave =
-  /// `SeiItemExtraido.linha`) — PROMPT 11.2/11.2.1. Nunca confundido com o
-  /// resultado puro da análise: é decisão do usuário, recalculado só em
-  /// pontos explícitos (nova análise, revalidação).
+  /// `SeiItemExtraido.linha`). Nunca confundido com o resultado puro da
+  /// análise: é decisão do usuário, recalculado só em pontos explícitos
+  /// (nova análise, revalidação).
   final Map<int, SeiItemExecucaoEstado> execucao;
 
-  /// Seção 2 (PROMPT 11.2): confirmação explícita de que "o procedimento
-  /// patrimonial foi efetivamente autorizado" — nunca concedida pela
-  /// simples seleção do arquivo ou pelo status PRONTO do parser.
+  /// Confirmação explícita de que "o procedimento patrimonial foi
+  /// efetivamente autorizado" — nunca concedida pela simples seleção do
+  /// arquivo ou pelo status PRONTO do parser.
   ///
-  /// PROMPT 11.2.1, seção 5: esta flag é uma autorização GERAL do
-  /// procedimento — NUNCA resolve, sozinha, nenhuma pendência individual
-  /// (bloqueio, aviso não conferido, duplicidade, decisão de
-  /// localização/responsável pendente). "Documento autorizado" e "itens
-  /// efetivamente aptos" (ver [itensAptos]) são conceitos distintos.
+  /// É uma autorização GERAL do procedimento — NUNCA resolve, sozinha,
+  /// nenhuma pendência individual (bloqueio, aviso não conferido,
+  /// duplicidade, decisão de localização/responsável pendente). "Documento
+  /// autorizado" e "itens efetivamente aptos" (ver [itensAptos]) são
+  /// conceitos distintos.
   final bool autorizacaoConfirmada;
 
   final bool revalidando;
 
-  /// PROMPT 11.2, seção 2: nenhum destes estágios, isolado ou combinado,
-  /// habilita nenhuma escrita nesta versão — ver `SeiEstagioPreparacao`.
+  /// Nenhum destes estágios, isolado ou combinado, habilita nenhuma escrita
+  /// nesta versão — ver `SeiEstagioPreparacao`.
   SeiEstagioPreparacao get estagio {
     if (resultado == null) return SeiEstagioPreparacao.documentoInterpretado;
     if (autorizacaoConfirmada) return SeiEstagioPreparacao.autorizado;
@@ -82,20 +81,19 @@ class SeiImportState {
     return SeiEstagioPreparacao.patrimoniosConferidos;
   }
 
-  /// PROMPT 11.2.1, seção 5: itens tecnicamente APTOS a um lote futuro —
-  /// independente de já terem sido selecionados. Distinto de [plano]
-  /// (que só contém os efetivamente SELECIONADOS) e de
-  /// [autorizacaoConfirmada] (uma confirmação geral, não uma elegibilidade
-  /// por item).
+  /// Itens tecnicamente APTOS a um lote futuro — independente de já terem
+  /// sido selecionados. Distinto de [plano] (que só contém os efetivamente
+  /// SELECIONADOS) e de [autorizacaoConfirmada] (uma confirmação geral, não
+  /// uma elegibilidade por item).
   List<SeiValidacaoItem> get itensAptos {
     final resultadoAtual = resultado;
     if (resultadoAtual == null) return const [];
     return itensElegiveis(resultado: resultadoAtual, execucao: execucao);
   }
 
-  /// Plano somente leitura (seção 9) dos itens atualmente SELECIONADOS e
-  /// elegíveis — recalculado sob demanda, nunca armazenado separadamente
-  /// (evita os dois ficarem dessincronizados).
+  /// Plano somente leitura dos itens atualmente SELECIONADOS e elegíveis —
+  /// recalculado sob demanda, nunca armazenado separadamente (evita os dois
+  /// ficarem dessincronizados).
   SeiPlanoExecucao get plano {
     final resultadoAtual = resultado;
     if (resultadoAtual == null) return const SeiPlanoExecucao(itens: []);
@@ -132,31 +130,25 @@ final seiImportControllerProvider = NotifierProvider.autoDispose<SeiImportContro
 );
 
 /// Orquestra extração → parsing → cruzamento READ-ONLY → checagem de
-/// duplicidade READ-ONLY (PROMPT 11.1/11.2/11.2.1) — arquiteturalmente
-/// incapaz de registrar uma movimentação: em nenhum método deste arquivo é
-/// chamado `MovimentacaoRepository.registrarMovimentacao`, só
+/// duplicidade READ-ONLY — arquiteturalmente incapaz de registrar uma
+/// movimentação: em nenhum método deste arquivo é chamado
+/// `MovimentacaoRepository.registrarMovimentacao`, só
 /// `patrimonioRepositoryProvider`/`setoresAtivosParaPatrimonioProvider`
-/// (leitura em lote, PROMPT 11.1) e `movimentacaoRepositoryProvider.listarPorNumeroDocumento`
-/// (também leitura — PROMPT 11.2.1, seção 2: filtro exato no banco, nunca a
-/// busca OR genérica, sem limite arbitrário). Ler o arquivo, extrair,
-/// cruzar, checar duplicidade e mostrar a revisão — e PARA. "Concluir
-/// análise" só fecha o diálogo; não existe nesta versão nenhum botão que
-/// grave nada, mesmo com o documento "autorizado" (seção 2) e todos os
-/// itens "aptos" (PROMPT 11.2.1, seção 5).
+/// (leitura em lote) e `movimentacaoRepositoryProvider.listarPorNumeroDocumento`
+/// (também leitura, com filtro exato no banco, sem limite arbitrário). Ler
+/// o arquivo, extrair, cruzar, checar duplicidade e mostrar a revisão — e
+/// PARA. "Concluir análise" só fecha o diálogo; não existe nesta versão
+/// nenhum botão que grave nada, mesmo com o documento "autorizado" e todos
+/// os itens "aptos".
 ///
-/// PROMPT 11.2.1, seção 3 — LIMITAÇÃO DE IDEMPOTÊNCIA (documentada aqui
-/// porque é uma propriedade do DESENHO, não um bug a corrigir nesta
-/// versão): a checagem de duplicidade é uma leitura feita ANTES de uma
-/// futura escrita, nunca dentro da mesma transação dela. Duas sessões
-/// concorrentes (dois usuários, ou a mesma pessoa em duas abas) podem
+/// LIMITAÇÃO DE IDEMPOTÊNCIA (propriedade do DESENHO, não um bug): a
+/// checagem de duplicidade é uma leitura feita ANTES de uma futura escrita,
+/// nunca dentro da mesma transação dela. Duas sessões concorrentes podem
 /// LER "sem duplicidade" ao mesmo tempo e, se um dia esta versão vier a
-/// escrever, ambas poderiam registrar a mesma movimentação — a leitura
-/// não é uma trava. A única garantia definitiva viria de uma restrição
-/// no próprio banco (ex.: índice único em
-/// `(patrimonio_id, numero_documento, tipo, destino_id)`, ou uma RPC de
-/// lote que fizesse a checagem e a escrita atomicamente) — mudança de
-/// schema/RPC que NÃO foi feita nesta etapa e só deve ser proposta e
-/// aprovada antes de qualquer execução real existir.
+/// escrever, ambas poderiam registrar a mesma movimentação — a leitura não
+/// é uma trava. A garantia definitiva viria de uma restrição no próprio
+/// banco (índice único, ou uma RPC de lote que checasse e escrevesse
+/// atomicamente).
 class SeiImportController extends Notifier<SeiImportState> {
   @override
   SeiImportState build() => const SeiImportState();
@@ -176,8 +168,8 @@ class SeiImportController extends Notifier<SeiImportState> {
         textoPorPagina: lido.textoPorPagina,
       );
 
-      // Cruzamento em LOTE (seção 16) — nunca uma consulta por linha, igual
-      // ao importador de planilha (`PatrimonioRepository.buscarPorNumerosPatrimonio`
+      // Cruzamento em LOTE — nunca uma consulta por linha, igual ao
+      // importador de planilha (`PatrimonioRepository.buscarPorNumerosPatrimonio`
       // já é a mesma consulta reaproveitada de lá).
       final numeros = documento.itens.map((item) => item.numeroPatrimonio).whereType<String>().toSet().toList();
       final patrimonioRepositorio = ref.read(patrimonioRepositoryProvider);
@@ -217,17 +209,15 @@ class SeiImportController extends Notifier<SeiImportState> {
     }
   }
 
-  /// PROMPT 11.2, seção 5 / PROMPT 11.2.1, seção 7: revalidação READ-ONLY
-  /// do estado atual — re-busca patrimônios/setores E REPETE A CONSULTA
-  /// COMPLETA de duplicidade (nunca reaproveita o resultado anterior: um
-  /// outro usuário pode ter registrado uma movimentação para este mesmo
-  /// documento entre a análise original e agora). Uma linha cujo veredito
-  /// mudou desde a última análise é marcada desatualizada e perde a
-  /// seleção (nunca fica selecionável de novo até nova revisão explícita).
-  /// A RPC continua sendo a autoridade final no momento de uma futura
-  /// escrita — isto é só uma segunda checagem de leitura, para reduzir
-  /// (nunca eliminar — ver limitação de idempotência na doc da classe) a
-  /// chance de agir sobre dado obsoleto.
+  /// Revalidação READ-ONLY do estado atual — re-busca patrimônios/setores E
+  /// REPETE A CONSULTA COMPLETA de duplicidade (nunca reaproveita o
+  /// resultado anterior: outro usuário pode ter registrado uma
+  /// movimentação para este mesmo documento entre a análise original e
+  /// agora). Uma linha cujo veredito mudou é marcada desatualizada e perde
+  /// a seleção (nunca fica selecionável de novo até nova revisão
+  /// explícita). A RPC continua sendo a autoridade final no momento de uma
+  /// futura escrita — isto só reduz (nunca elimina — ver limitação de
+  /// idempotência na doc da classe) a chance de agir sobre dado obsoleto.
   Future<void> revalidar() async {
     final resultadoAnterior = state.resultado;
     final documento = resultadoAnterior?.documento;
@@ -254,8 +244,8 @@ class SeiImportController extends Notifier<SeiImportState> {
         setoresAtivos: setoresAtivos,
       );
 
-      // Seção 7: consulta de duplicidade INTEIRAMENTE repetida — nunca o
-      // resultado computado na análise/revalidação anterior.
+      // Consulta de duplicidade INTEIRAMENTE repetida — nunca o resultado
+      // computado na análise/revalidação anterior.
       final historico = await _buscarHistoricoDoDocumento(documento.numeroDocumentoSei, patrimoniosPorNumero);
 
       final antigasPorLinha = {for (final v in resultadoAnterior!.itens) v.item.linha: v};
@@ -276,9 +266,9 @@ class SeiImportController extends Notifier<SeiImportState> {
                 numeroChamadoProposto: novaValidacao.item.numeroChamado,
                 historicoDoDocumento: historico,
               );
-        // Seção 7: uma duplicidade nova (ex.: outro usuário registrou este
-        // mesmo item entretanto) também conta como "mudou" — nunca fica
-        // escondida atrás de um snapshot que não olhava duplicidade.
+        // Uma duplicidade nova (ex.: outro usuário registrou este mesmo
+        // item entretanto) também conta como "mudou" — nunca fica escondida
+        // atrás de um snapshot que não olhava duplicidade.
         final duplicidadeMudou = duplicidade?.status != estadoAnterior.duplicidade?.status;
 
         novaExecucao[linha] = estadoAnterior.copyWith(
@@ -302,10 +292,9 @@ class SeiImportController extends Notifier<SeiImportState> {
     }
   }
 
-  /// Seção 8 (PROMPT 11.2) + seção 5 (PROMPT 11.2.1): alterna a seleção de
-  /// uma linha para um futuro lote — usa o MESMO critério de elegibilidade
-  /// do plano ([itemEstaApto]), para os dois nunca divergirem. Sempre
-  /// permite DESSELECIONAR.
+  /// Alterna a seleção de uma linha para um futuro lote — usa o MESMO
+  /// critério de elegibilidade do plano ([itemEstaApto]), para os dois
+  /// nunca divergirem. Sempre permite DESSELECIONAR.
   void alternarSelecao(int linha) {
     final resultado = state.resultado;
     if (resultado == null) return;
@@ -327,9 +316,9 @@ class SeiImportController extends Notifier<SeiImportState> {
     state = state.copyWith(execucao: novaExecucao);
   }
 
-  /// Seção 7 (PROMPT 11.2): "Conferi o número deste patrimônio no documento
-  /// original". Revogar a confirmação também tira a linha da seleção — uma
-  /// linha não conferida nunca pode entrar em uma futura execução.
+  /// "Conferi o número deste patrimônio no documento original". Revogar a
+  /// confirmação também tira a linha da seleção — uma linha não conferida
+  /// nunca pode entrar em uma futura execução.
   void confirmarAviso(int linha, bool confirmado) {
     _atualizarLinha(
       linha,
@@ -337,10 +326,10 @@ class SeiImportController extends Notifier<SeiImportState> {
     );
   }
 
-  /// PROMPT 11.2.1, seção 4: decisão EXPLÍCITA de localização de destino —
-  /// [localizacaoId] deve ser uma localização real e ATIVA do setor de
-  /// destino (a UI só oferece essas, nunca inventa). Nunca chamado
-  /// implicitamente pela autorização geral do documento.
+  /// Decisão EXPLÍCITA de localização de destino — [localizacaoId] deve ser
+  /// uma localização real e ATIVA do setor de destino (a UI só oferece
+  /// essas, nunca inventa). Nunca chamado implicitamente pela autorização
+  /// geral do documento.
   void definirLocalizacaoDestino(int linha, {required String localizacaoId, required String localizacaoNome}) {
     _atualizarLinha(
       linha,
@@ -355,8 +344,8 @@ class SeiImportController extends Notifier<SeiImportState> {
     );
   }
 
-  /// PROMPT 11.2.1, seção 4: confirmação EXPLÍCITA de que a localização de
-  /// destino fica sem informação — distinto de nunca ter decidido
+  /// Confirmação EXPLÍCITA de que a localização de destino fica sem
+  /// informação — distinto de nunca ter decidido
   /// ([SeiDecisaoCampo.pendente]).
   void confirmarSemLocalizacao(int linha) {
     _atualizarLinha(
@@ -370,9 +359,8 @@ class SeiImportController extends Notifier<SeiImportState> {
     );
   }
 
-  /// PROMPT 11.2.1, seção 4: decisão EXPLÍCITA de responsável de destino —
-  /// texto vazio/só espaço não conta como definido (usar
-  /// [confirmarSemResponsavel] para isso).
+  /// Decisão EXPLÍCITA de responsável de destino — texto vazio/só espaço
+  /// não conta como definido (usar [confirmarSemResponsavel] para isso).
   void definirResponsavelDestino(int linha, String responsavel) {
     final normalizado = nullIfBlank(responsavel);
     _atualizarLinha(
@@ -385,8 +373,8 @@ class SeiImportController extends Notifier<SeiImportState> {
     );
   }
 
-  /// PROMPT 11.2.1, seção 4: confirmação EXPLÍCITA de que o responsável de
-  /// destino fica sem informação.
+  /// Confirmação EXPLÍCITA de que o responsável de destino fica sem
+  /// informação.
   void confirmarSemResponsavel(int linha) {
     _atualizarLinha(
       linha,
@@ -398,12 +386,12 @@ class SeiImportController extends Notifier<SeiImportState> {
     );
   }
 
-  /// Seção 2: o aviso "Este documento foi analisado com sucesso. Confirme
-  /// que o procedimento patrimonial foi efetivamente autorizado…" precisa
-  /// de uma ação explícita do usuário — nunca concedido pela simples
-  /// seleção do arquivo ou pelo status PRONTO do parser. Mesmo confirmado,
-  /// nenhum botão de escrita fica disponível nesta versão, e nenhuma
-  /// pendência individual (PROMPT 11.2.1, seção 5) é resolvida por isso.
+  /// O aviso "Este documento foi analisado com sucesso. Confirme que o
+  /// procedimento patrimonial foi efetivamente autorizado…" precisa de uma
+  /// ação explícita do usuário — nunca concedido pela simples seleção do
+  /// arquivo ou pelo status PRONTO do parser. Mesmo confirmado, nenhum
+  /// botão de escrita fica disponível nesta versão, e nenhuma pendência
+  /// individual é resolvida por isso.
   void confirmarAutorizacao(bool valor) => state = state.copyWith(autorizacaoConfirmada: valor);
 
   void filtrar(SeiFiltroRevisao filtro) => state = state.copyWith(filtro: filtro);
@@ -439,14 +427,13 @@ class SeiImportController extends Notifier<SeiImportState> {
     };
   }
 
-  /// PROMPT 11.2.1, seção 2: única leitura em lote do histórico relacionado
-  /// a este documento SEI (nunca uma consulta por item) — usa
+  /// Única leitura em lote do histórico relacionado a este documento SEI
+  /// (nunca uma consulta por item) — usa
   /// `MovimentacaoRepository.listarPorNumeroDocumento`, que filtra
-  /// `numero_documento = X` diretamente no banco (nunca a busca OR
-  /// genérica de `.listar`) e pagina internamente até o total real (nunca
-  /// um limite fixo que possa omitir linha). Esta é a ÚNICA leitura que
-  /// este controller faz em `MovimentacaoRepository`, e é sempre
-  /// `.listarPorNumeroDocumento` — nunca `.registrarMovimentacao`.
+  /// `numero_documento = X` diretamente no banco (nunca a busca OR genérica
+  /// de `.listar`) e pagina internamente até o total real. Esta é a ÚNICA
+  /// leitura que este controller faz em `MovimentacaoRepository`, e é
+  /// sempre `.listarPorNumeroDocumento` — nunca `.registrarMovimentacao`.
   Future<List<MovimentacaoListagemItem>> _buscarHistoricoDoDocumento(
     String? numeroDocumentoSei,
     Map<String, PatrimonioDetalhe> patrimoniosPorNumero,
@@ -461,8 +448,8 @@ class SeiImportController extends Notifier<SeiImportState> {
 }
 
 /// Retrato comparável de uma linha, usado só para detectar mudança na
-/// revalidação (seção 5) — dois retratos iguais (`==` de record) significam
-/// "nada relevante mudou desde a análise anterior".
+/// revalidação — dois retratos iguais (`==` de record) significam "nada
+/// relevante mudou desde a análise anterior".
 (SeiStatusLinha, dynamic, dynamic, dynamic, String?, dynamic) _snapshot(SeiValidacaoItem v) => (
   v.status,
   v.patrimonioEncontrado?.patrimonio.status,

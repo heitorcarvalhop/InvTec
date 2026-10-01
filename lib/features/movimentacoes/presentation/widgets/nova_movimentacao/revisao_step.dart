@@ -13,9 +13,9 @@ import '../../nova_movimentacao_regras.dart';
 import '../movimentacao_tipo_visual.dart';
 import 'nova_movimentacao_rascunho.dart';
 
-/// Passo 4 do wizard (PROMPT 10.2, seção 10): mostra exatamente o que vai
-/// ser enviado à RPC antes de qualquer escrita — nenhuma RPC é chamada
-/// antes deste passo. Resolve nomes (setor/localização) sob demanda: o
+/// Passo 4 do wizard: mostra exatamente o que vai ser enviado à RPC antes
+/// de qualquer escrita — nenhuma RPC é chamada antes deste passo. Resolve
+/// nomes (setor/localização) sob demanda: o
 /// wizard nunca pré-carrega todos os setores/localizações só para exibir
 /// aqui, e resolver aqui (não guardar o nome desde o passo Detalhes) também
 /// garante que o rótulo mostrado é sempre coerente com o id realmente
@@ -80,8 +80,7 @@ class RevisaoStep extends ConsumerWidget {
                 ] else ...[
                   _CampoRevisao(
                     rotulo: 'De',
-                    // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
-                    // tooltip.
+                    // Sigla cadastrada, nome completo por tooltip.
                     valor: detalhe.setorExibidoCompacto,
                     valorTooltip: detalhe.setorExibidoCompacto == detalhe.setorNome ? null : detalhe.setorNome,
                   ),
@@ -149,7 +148,7 @@ class _NomeSetor extends ConsumerWidget {
     }
     return _CampoRevisao(
       rotulo: 'Para',
-      // PROMPT 11.3.5.4: sigla cadastrada, nome completo por tooltip.
+      // Sigla cadastrada, nome completo por tooltip.
       valor: setorEncontrado?.rotuloCompacto ?? '...',
       valorTooltip: setorEncontrado == null || setorEncontrado.rotuloCompacto == setorEncontrado.nome
           ? null
@@ -163,11 +162,11 @@ class _LocalizacaoDestinoResumo extends ConsumerWidget {
 
   final NovaMovimentacaoRascunho rascunho;
 
-  /// PROMPT 10.2.2, seção 5: quando AJUSTE_INVENTARIO trocou de setor e
-  /// nenhuma localização foi escolhida, a RPC real ainda assim zera a
-  /// localização (regra "(b)" — setor mudou sem localização nova). A
-  /// revisão deixa isso explícito em vez de simplesmente omitir a linha,
-  /// para nunca dar a entender que "nada muda".
+  /// Quando AJUSTE_INVENTARIO trocou de setor e nenhuma localização foi
+  /// escolhida, a RPC real ainda assim zera a localização (setor mudou sem
+  /// localização nova). A revisão deixa isso explícito em vez de
+  /// simplesmente omitir a linha, para nunca dar a entender que "nada
+  /// muda".
   final bool mostrarNaoInformadaQuandoVazio;
 
   @override
@@ -240,7 +239,7 @@ class _CampoRevisao extends StatelessWidget {
   final String rotulo;
   final String valor;
 
-  /// PROMPT 11.3.5.4 — quando informado, mostra um `Tooltip` no valor (ex.:
+  /// quando informado, mostra um `Tooltip` no valor (ex.:
   /// o nome completo de um setor exibido pela sigla).
   final String? valorTooltip;
 

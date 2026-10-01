@@ -1,10 +1,9 @@
 /// Texto por página reconstruído a partir do PDF real de referência
-/// (`SEI_95955192_Despacho_577.pdf`, fornecido pelo usuário no PROMPT
-/// 11.1) — o binário do documento institucional NÃO é versionado no
-/// repositório (seção 30: "se não for apropriado versionar documento
-/// institucional no Git, criar uma fixture equivalente"). Este texto
-/// reproduz fielmente o conteúdo e a ordem de extração observados,
-/// incluindo a imperfeição real de camada de texto descrita na seção 9
+/// (`SEI_95955192_Despacho_577.pdf`, fornecido pelo usuário) — o binário do
+/// documento institucional NÃO é versionado no repositório ("se não for
+/// apropriado versionar documento institucional no Git, criar uma fixture
+/// equivalente"). Este texto reproduz fielmente o conteúdo e a ordem de
+/// extração observados, incluindo a imperfeição real de camada de texto
 /// (ex.: "Estabilizador" + patrimônio saindo intercalados como
 /// "Estabilizado3r152941").
 const seiFixtureTextoPorPagina = <String>[

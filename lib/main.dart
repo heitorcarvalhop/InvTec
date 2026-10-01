@@ -9,11 +9,9 @@ import 'core/config/env_config.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // PROMPT 11.3.4.1 — quando o ambiente foi selecionado explicitamente via
-  // `--dart-define-from-file` (ver `EnvConfig.usaDartDefine`), `.env`
-  // NUNCA é lido: nem para preencher valores ausentes, nem por engano. Um
-  // build de homologação nunca toca o arquivo de produção; um build de
-  // produção rodado sem a flag continua exatamente como antes.
+  // Quando o ambiente foi selecionado via `--dart-define-from-file` (ver
+  // `EnvConfig.usaDartDefine`), `.env` nunca é lido, nem para preencher
+  // valores ausentes.
   if (!EnvConfig.usaDartDefine) {
     await dotenv.load(fileName: '.env');
   }
@@ -23,12 +21,9 @@ Future<void> main() async {
     return;
   }
 
-  // PROMPT 11.3.4, seção 2/3 — nunca "mostra" qual projeto está em uso só
-  // implicitamente: todo start imprime o resumo seguro (rótulo de
-  // ambiente + prévia do project ref, nunca a URL/chave completas — ver
-  // `EnvConfig.resumoSeguroParaLog`). Um `.env` sem `SUPABASE_ENV`
-  // declarado (ex.: o `.env` histórico deste projeto) aparece como
-  // "AMBIENTE NÃO DECLARADO", nunca é presumido como produção.
+  // Loga um resumo seguro do ambiente Supabase em uso (rótulo + prévia do
+  // project ref, nunca a URL/chave completas — ver
+  // `EnvConfig.resumoSeguroParaLog`).
   debugPrint('[InvTec] Ambiente Supabase em uso: ${EnvConfig.resumoSeguroParaLog}');
 
   await Supabase.initialize(

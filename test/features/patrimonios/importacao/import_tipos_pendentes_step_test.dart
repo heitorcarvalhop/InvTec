@@ -22,9 +22,9 @@ import '../../setores/fake_setor_repository.dart';
 import '../fake_patrimonio_repository.dart';
 import '../fake_tipo_patrimonio_repository.dart';
 
-/// Widget test dedicado à confirmação da aplicação em lote (PROMPT 8.13,
-/// seção 4) — comportamento que só existe na UI (o controller nunca exige
-/// confirmação sozinho; quem decide interromper para perguntar é a tela).
+/// Widget test dedicado à confirmação da aplicação em lote — comportamento
+/// que só existe na UI (o controller nunca exige confirmação sozinho; quem
+/// decide interromper para perguntar é a tela).
 ///
 /// Monta as linhas diretamente (em vez de `carregarArquivo`, que usa
 /// `compute()` para decodificar o arquivo num isolate real): sob
@@ -71,9 +71,9 @@ void main() {
   testWidgets(
     'aplicar aos semelhantes exige confirmação, respeita o cancelamento e só afeta o grupo escolhido',
     (tester) async {
-      // Viewport alto o bastante para o indicador de passos (PROMPT 9.3) +
-      // o conteúdo do passo não empurrar os elementos tocados abaixo da
-      // área visível do teste.
+      // Viewport alto o bastante para o indicador de passos + o conteúdo do
+      // passo não empurrar os elementos tocados abaixo da área visível do
+      // teste.
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);

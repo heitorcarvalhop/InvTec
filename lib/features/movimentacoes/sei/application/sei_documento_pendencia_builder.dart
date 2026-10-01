@@ -5,16 +5,15 @@ import '../domain/sei_item_execucao_estado.dart';
 import '../domain/sei_item_pendente.dart';
 
 /// Constrói o rascunho a persistir quando o usuário escolhe "Salvar como
-/// pendência" (PROMPT 11.3, seção 1/5) — função PURA: nenhum I/O, nunca
-/// chama o repositório nem decide se deve haver confirmação de duplicidade
-/// (isso é responsabilidade do controller, que lê
-/// `DocumentosSeiRepository.buscarPossivelDuplicata` antes de chamar esta
-/// função).
+/// pendência" — função pura: nenhum I/O, nunca chama o repositório nem
+/// decide se deve haver confirmação de duplicidade (isso é responsabilidade
+/// do controller, que lê `DocumentosSeiRepository.buscarPossivelDuplicata`
+/// antes de chamar esta função).
 ///
 /// Retorna `null` quando o documento não tem um tipo de movimentação
-/// inferido (seção 12): a estrutura persistente comporta qualquer tipo de
-/// operação, mas o parser desta versão só reconhece despachos de
-/// TRANSFERENCIA — nunca inventamos um tipo para poder salvar mesmo assim.
+/// inferido: a estrutura persistente comporta qualquer tipo de operação,
+/// mas o parser desta versão só reconhece despachos de TRANSFERENCIA —
+/// nunca inventamos um tipo para poder salvar mesmo assim.
 SeiDocumentoPendenteRascunho? construirDocumentoPendenteRascunho({
   required SeiAnaliseResultado resultado,
   required Map<int, SeiItemExecucaoEstado> execucao,

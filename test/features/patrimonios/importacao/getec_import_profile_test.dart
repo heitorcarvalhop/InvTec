@@ -53,7 +53,7 @@ void main() {
     });
   });
 
-  group('GetecImportProfile.ehBaixasLocalizadas (PROMPT 8.12)', () {
+  group('GetecImportProfile.ehBaixasLocalizadas', () {
     test('"BAIXAS LOCALIZADAS" é reconhecido, com tolerância a caixa/espaços', () {
       expect(GetecImportProfile.ehBaixasLocalizadas('BAIXAS LOCALIZADAS'), isTrue);
       expect(GetecImportProfile.ehBaixasLocalizadas('  baixas   localizadas  '), isTrue);
@@ -68,7 +68,7 @@ void main() {
     });
   });
 
-  group('GetecImportProfile.mesclarObservacaoComRecuperacaoBaixasLocalizadas (PROMPT 8.12)', () {
+  group('GetecImportProfile.mesclarObservacaoComRecuperacaoBaixasLocalizadas', () {
     test('não era BAIXAS LOCALIZADAS: observação não muda', () {
       expect(
         GetecImportProfile.mesclarObservacaoComRecuperacaoBaixasLocalizadas(
@@ -238,7 +238,7 @@ void main() {
     });
   });
 
-  group('GetecImportProfile — mapeamento oficial de localizações (PROMPT 8.9)', () {
+  group('GetecImportProfile — mapeamento oficial de localizações', () {
     // Localizações ATIVAS carregadas do Supabase, cobrindo os 15 nomes
     // oficiais conhecidos, exceto "GETEC - CANIDÉ" — deliberadamente
     // ausente para testar o cenário "nome oficial conhecido, mas não
@@ -350,7 +350,6 @@ void main() {
         mapeamento: mapeamento,
       );
 
-      // cabeçalho preservado sem alteração
       expect(preparo.linhas[0], linhas[0]);
 
       // linha 1 (índice 1 = linha de arquivo nº 2): "10" virou null nos dois
@@ -361,7 +360,7 @@ void main() {
 
       // linha 2 (índice 2 = linha de arquivo nº 3): tombamento anterior real
       // preservado; "BAIXAS LOCALIZADAS" NÃO é mais sinalizada aqui como
-      // possível baixa (PROMPT 8.12) — a coluna de localização segue intocada.
+      // possível baixa — a coluna de localização segue intocada.
       expect(preparo.linhas[2][1], '0008593');
       expect(preparo.linhas[2][3], 'BAIXAS LOCALIZADAS');
     });

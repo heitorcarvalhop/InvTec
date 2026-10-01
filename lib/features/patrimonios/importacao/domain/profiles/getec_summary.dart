@@ -1,8 +1,8 @@
 import '../import_column_field.dart';
 import '../import_row.dart';
 
-/// Resumo específico do perfil GETEC (seção 28) — complementa o resumo
-/// genérico (Prontos/Avisos/Erros/...), nunca o substitui.
+/// Resumo específico do perfil GETEC — complementa o resumo genérico
+/// (Prontos/Avisos/Erros/...), nunca o substitui.
 class GetecResumo {
   const GetecResumo({
     required this.tiposIdentificados,

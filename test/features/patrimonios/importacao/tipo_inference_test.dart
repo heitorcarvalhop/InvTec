@@ -169,20 +169,20 @@ void main() {
     });
 
     test(
-      'ESCADA continua Não identificado (fora das 26 regras seguras aprovadas no PROMPT 8.12)',
+      'ESCADA continua Não identificado (fora das 26 regras seguras aprovadas)',
       () {
         expect(inferirTipoPorDescricao('ESCADA ALUMÍNIO 8 DEGRAUS').confianca, InferenciaTipoConfianca.naoIdentificada);
       },
     );
 
-    test('MULTÍMETRO agora resolve para Outros (regra segura do PROMPT 8.12, auditoria 8.11)', () {
+    test('MULTÍMETRO agora resolve para Outros (regra segura aprovada)', () {
       final resultado = inferirTipoPorDescricao('MULTÍMETRO FLUKE 107');
       expect(resultado.confianca, InferenciaTipoConfianca.confirmada);
       expect(resultado.nomeTipo, 'Outros');
     });
   });
 
-  group('inferirTipoPorDescricao — 26 regras seguras do PROMPT 8.12 (auditoria 8.11)', () {
+  group('inferirTipoPorDescricao — 26 regras seguras aprovadas', () {
     // Uma descrição real (ou representativa) da planilha por regra —
     // confirma exatamente os 13 grupos aprovados, cobrindo as duas
     // variantes de grafia quando existirem (typo real + forma correta).

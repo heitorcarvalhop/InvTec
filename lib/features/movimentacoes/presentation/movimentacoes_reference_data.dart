@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../setores/data/setor_repository_supabase.dart';
 import '../../setores/domain/setor.dart';
 
-/// Setores para o filtro da listagem HISTÓRICA de movimentações (PROMPT
-/// 10.1.1). Diferente do cadastro de patrimônio — que só pode apontar para
-/// setores ativos e por isso usa `setoresAtivosParaPatrimonioProvider` — o
+/// Setores para o filtro da listagem HISTÓRICA de movimentações. Diferente
+/// do cadastro de patrimônio — que só pode apontar para setores ativos e
+/// por isso usa `setoresAtivosParaPatrimonioProvider` — o
 /// histórico pode conter movimentações de/para um setor já desativado, e
 /// esse registro continua válido. Filtrar só por `listarAtivos()` esconderia
 /// essas movimentações do filtro sem nenhum jeito de encontrá-las de volta.

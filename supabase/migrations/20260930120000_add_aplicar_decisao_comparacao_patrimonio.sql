@@ -1,110 +1,22 @@
--- =============================================================================
--- PROMPT 11.6.4 — execução segura das decisões do modo ADMIN "Comparar e
--- Atualizar" (PROMPT 11.6.2/11.6.3): aplica, PATRIMÔNIO POR PATRIMÔNIO, os
--- campos que o administrador marcou como "aplicar valor da planilha".
+-- Aplica decisões de comparação patrimonial (planilha x cadastro), uma
+-- chamada por patrimônio, dentro de uma única transação: metadados e/ou
+-- movimentação de ajuste são tudo-ou-nada. Operação idempotente por
+-- operacao_id e exclusiva para ADMIN.
 --
--- PROMPT 11.6.5 — CORRIGIDA durante a auditoria de homologação, ANTES de
--- qualquer aplicação real (o arquivo nunca chegou a rodar em produção nem em
--- homologação — por isso as correções foram feitas neste MESMO arquivo, em
--- vez de uma migration de correção em cima de algo já aplicado, seguindo o
--- mesmo raciocínio documentado nas migrations SEI quando uma correção
--- acontece ANTES da primeira aplicação real):
---  1. (seção 2 do PROMPT 11.6.5) trava consultiva `pg_advisory_xact_lock`
---     sobre o `operacao_id` ANTES da checagem de idempotência — duas
---     chamadas concorrentes com o MESMO `operacao_id` agora são serializadas
---     de verdade (a versão anterior só tinha um SELECT antes do INSERT, sem
---     nenhuma proteção transacional: duas chamadas simultâneas passariam as
---     duas pelo SELECT "não encontrado" e uma delas quebraria com violação
---     de chave primária DEPOIS de já ter feito a escrita real);
---  2. (seção 2C) `p_justificativa` agora entra na checagem de identidade de
---     um retry — reenviar o mesmo `operacao_id` com uma justificativa
---     DIFERENTE agora é `P0041` (conflito), nunca silenciosamente aceito;
---  3. (seção 4) `p_numero_patrimonio` foi REMOVIDO da função inteiramente —
---     ver a justificativa completa abaixo, antes da assinatura.
--- =============================================================================
---
--- STATUS: PREPARADA PARA REVISÃO — NÃO APLICADA em produção nesta etapa
--- (restrição explícita do PROMPT 11.6.4, seção 10, reafirmada no PROMPT
--- 11.6.5, seção 9: "não aplicar a migration em produção para contornar a
--- limitação [de não haver Postgres disponível]").
---
--- DESENHO (por que uma função POR PATRIMÔNIO, chamada uma vez por item, em
--- vez de uma única função que recebe o lote inteiro):
---  * seção 4 exige garantia TRANSACIONAL só por patrimônio (nunca metadados
---    aplicados com a movimentação correspondente falhando à parte) — uma
---    função plpgsql é sempre UMA transação, então "uma chamada = um
---    patrimônio" já entrega isso sem savepoints manuais;
---  * seção 6 pede lotes de tamanho CONTROLADO com progresso e resultado
---    IDENTIFICÁVEL por item, nunca uma operação monolítica — o cliente
---    (`ComparacaoExecucaoController`) chama esta função várias vezes, com
---    concorrência limitada (mesmo padrão de `_executarLote`/
---    `importConcorrenciaMaxima` já usado pela importação convencional),
---    preservando cada resultado individualmente;
---  * evita reescrever a máquina de estados inteira de
---    `concluir_itens_documento_sei_lote` (pensada para um lote de ATÉ 200
---    itens processados como uma ÚNICA operação atômica) para um cenário
---    onde o requisito é o OPOSTO: falhas isoladas por item, nunca a falha
---    de um patrimônio invalidando os outros 1.999.
---
--- REAPROVEITAMENTO (seção 2): esta função NUNCA atualiza `setor_atual_id`
--- nem `localizacao_atual_id` diretamente — qualquer alteração de setor/
--- localização é sempre uma chamada a `public.registrar_movimentacao` já
--- existente e homologada (tipo `AJUSTE_INVENTARIO`, que já cobre setor,
--- localização ou os dois ao mesmo tempo, sem nenhuma regra nova). Metadados
--- de texto simples (mesmos campos de `PatrimonioRepository.atualizar`,
--- EXCETO `numero_patrimonio` — ver seção 4 abaixo) são gravados por um
--- UPDATE direto, exatamente como `atualizar()` já faz hoje.
---
--- SEÇÃO 4 DO PROMPT 11.6.5 — por que `numero_patrimonio` NÃO é um campo
--- aplicável por esta função (diferente da versão original desta migration,
--- que o incluía por espelhar `PatrimonioRepository.atualizar`):
--- `numero_patrimonio` é a CHAVE usada para casar cada linha da planilha com
--- um patrimônio existente (`ImportAnalyzer`/`PatrimonioComparador` — ver
--- `buscarPorNumerosPatrimonio`) — é o que TORNA a linha "a mesma" que o
--- registro do banco. Permitir sua alteração pelo MESMO fluxo que decide
--- "isto é o mesmo bem, com estes campos divergentes" mistura identidade do
--- registro com o conteúdo do registro: uma correção de tombamento mal
--- pensada poderia (a) fazer uma planilha futura deixar de casar com o
--- patrimônio corrigido (por comparar contra o número ANTIGO), (b) colidir
--- com a identidade de outra linha da MESMA planilha, e (c) confundir a
--- leitura do histórico de movimentações (que não guarda um "número
--- patrimonial no momento", só referencia o patrimônio por id). Uma correção
--- de tombamento legítima continua possível — pelo formulário de edição
--- normal (`PatrimonioRepository.atualizar`, tela de detalhe do patrimônio),
--- nunca por aqui. `tombamento_anterior` (`ImportColumnField
--- .tombamentoAnterior`) é um campo DIFERENTE (histórico livre, nunca
--- comparado/aplicado por este fluxo) e continua sem nenhuma relação com
--- `numero_patrimonio` — ver `_compararMetadados` em `patrimonio_comparacao
--- .dart`, que nunca o usa.
--- =============================================================================
+-- `numero_patrimonio` nunca é um campo aplicável aqui: é a chave usada para
+-- casar a linha da planilha com o patrimônio existente, então alterá-la por
+-- este fluxo misturaria identidade do registro com conteúdo do registro.
+-- Correção de tombamento é feita pelo formulário de edição normal.
 
--- =============================================================================
--- 1. Tabela de controle: uma linha por OPERAÇÃO (= uma chamada bem-sucedida
---    desta função para UM patrimônio), nunca reaproveitando
---    `documentos_sei_lotes_conclusao` (que pertence exclusivamente ao fluxo
---    SEI — restrição explícita da seção 6). `operacao_id` é gerado no
---    CLIENTE (mesmo padrão de `lote_id` em `documentos_sei_lotes_conclusao`)
---    e nunca recriado num retry — é ele que torna um retry seguro: uma
---    segunda chamada com o MESMO `operacao_id` encontra esta linha e
---    devolve o resultado já gravado, sem repetir a escrita.
+-- 1. Tabela de controle: uma linha por operação (chamada bem-sucedida desta
+-- função para um patrimônio). operacao_id é gerado no cliente e nunca
+-- recriado num retry — uma segunda chamada com o mesmo id devolve o
+-- resultado já gravado, sem repetir a escrita.
 --
--- VISIBILIDADE (PROMPT 11.6.5, seção 1 — "verificar se um usuário consegue
--- consultar indevidamente operações de outro usuário"): a policy abaixo
--- deixa QUALQUER ADMIN ler QUALQUER linha (não só as suas), DE PROPÓSITO —
--- mesma decisão já tomada e revisada para `documentos_sei_lotes_conclusao`
--- (`has_perfil('ADMIN','GESTOR','OPERADOR','CONSULTA')`, sem filtro por
--- `criado_por`): esta tabela é uma trilha de auditoria administrativa
--- (quem regularizou o quê, quando, com qual justificativa), não um dado
--- pessoal do usuário que a criou — um ADMIN precisa poder auditar
--- regularizações feitas por OUTRO ADMIN. A defesa de que uma leitura nunca
--- é confundida com "esta é a MINHA operação em andamento" fica no
--- CLIENTE, que confere `criado_por` contra a sessão atual antes de tratar
--- um resultado de `buscarExecucaoComparacaoPorOperacaoId` como a resposta
--- da própria tentativa pendente (ver o comentário em
--- `PatrimonioRepositorySupabase.buscarExecucaoComparacaoPorOperacaoId`) —
--- mesmo padrão de defesa em profundidade de
--- `DocumentosSeiRepositorySupabase.buscarLotePorId`.
--- =============================================================================
+-- Qualquer ADMIN pode ler qualquer linha (trilha de auditoria administrativa,
+-- não dado pessoal do usuário que criou); o cliente confere `criado_por`
+-- contra a sessão atual antes de tratar uma leitura como a própria tentativa
+-- pendente.
 create table public.patrimonio_comparacao_execucoes (
   operacao_id uuid primary key,
   -- agrupa todos os itens de uma mesma "rodada" de execução (só para
@@ -147,31 +59,13 @@ create policy patrimonio_comparacao_execucoes_select on public.patrimonio_compar
 revoke all on table public.patrimonio_comparacao_execucoes from public, anon, authenticated;
 grant select on table public.patrimonio_comparacao_execucoes to authenticated;
 
--- =============================================================================
 -- 2. RPC principal.
 --
--- Parâmetros de metadado (p_numero_serie.. p_observacao): mesma semântica de
--- `PatrimonioRepository.atualizar` — um valor NÃO NULO significa "aplicar
--- este novo valor"; NULO significa "preservar o valor atual" (nunca apaga
--- por omissão — seção 4: "ausência de decisão significa preservar o valor
--- atual"). Em nenhum caso um valor NULO ou vazio some com um valor
--- existente: o Flutter nunca envia string vazia (só omite o parâmetro) e,
--- em defesa adicional, `nullif(btrim(...), '')` trata uma string vazia
--- exatamente como ausência. `numero_patrimonio` NÃO é um parâmetro desta
--- função — ver a justificativa da seção 4 no cabeçalho do arquivo.
---
--- p_novo_setor_id / p_nova_localizacao_id: quando informados, tornam-se
--- `p_destino_id`/`p_localizacao_destino_id` de UMA chamada a
--- `registrar_movimentacao` com `p_tipo = 'AJUSTE_INVENTARIO'` — nunca um
--- UPDATE direto das colunas de setor/localização (seção 2, restrição
--- explícita). Uma troca de setor SEM uma nova localização explícita limpa a
--- localização atual (mesma regra (b) já existente e homologada dentro de
--- `registrar_movimentacao` para AJUSTE_INVENTARIO: uma localização
--- pertence a exatamente um setor, então a localização antiga nunca pode
--- permanecer válida sob o setor novo) — o cliente deve avisar isso
--- explicitamente ao administrador ANTES de confirmar (ver
--- `import_comparacao_resumo_step.dart`), nunca como uma surpresa silenciosa
--- depois.
+-- Parâmetros de metadado: valor não nulo aplica; nulo preserva o atual
+-- (nunca apaga por omissão). p_novo_setor_id/p_nova_localizacao_id sempre
+-- passam por `registrar_movimentacao` (AJUSTE_INVENTARIO), nunca por UPDATE
+-- direto de setor/localização. Trocar de setor sem nova localização limpa a
+-- localização atual (uma localização pertence a um único setor).
 create function public.aplicar_decisao_comparacao_patrimonio(
   p_operacao_id uuid,
   p_lote_id uuid,
@@ -231,25 +125,14 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- PROMPT 11.6.5, seção 2D — trava CONSULTIVA pelo próprio operacao_id,
-  -- ANTES de qualquer leitura/escrita: duas chamadas concorrentes com o
-  -- MESMO operacao_id agora são SERIALIZADAS de verdade (a primeira a
-  -- chegar aqui trava; a segunda espera até a primeira commitar/abortar).
-  -- Sem isto, a checagem de idempotência abaixo era só um SELECT antes do
-  -- INSERT: duas chamadas simultâneas passariam as duas pela checagem
-  -- "não encontrado ainda" e a segunda quebraria com violação de chave
-  -- primária DEPOIS de já ter aplicado metadados/movimentação de verdade —
-  -- nunca uma duplicação silenciosa, mas um erro confuso e uma escrita já
-  -- feita sem o retorno idempotente limpo. `hashtextextended` com o mesmo
-  -- padrão de `concluir_itens_documento_sei_lote`
-  -- (`pg_advisory_xact_lock`, liberada automaticamente no fim da
-  -- transação — nunca precisa de um unlock manual).
+  -- Trava pelo operacao_id ANTES de ler/escrever: serializa duas chamadas
+  -- concorrentes com o mesmo id (sem isso, as duas passariam pela checagem
+  -- de idempotência abaixo e uma quebraria com violação de chave primária
+  -- depois de já ter escrito). Liberada automaticamente no fim da transação.
   perform pg_advisory_xact_lock(hashtextextended('comparacao_patrimonio:' || p_operacao_id::text, 0));
 
-  -- Forma canônica dos campos solicitados: usada, junto com lote_id/
-  -- justificativa/patrimonio_id/versao_esperada/criado_por, SÓ para a
-  -- checagem de identidade de um retry — nunca para decidir o que gravar
-  -- (isso sempre vem dos parâmetros normalizados acima).
+  -- Forma canônica dos campos, usada só para a checagem de identidade de um
+  -- retry (nunca para decidir o que gravar).
   v_campos := jsonb_strip_nulls(jsonb_build_object(
     'numero_serie', v_numero_serie,
     'marca', v_marca,
@@ -260,10 +143,8 @@ begin
     'nova_localizacao_id', p_nova_localizacao_id
   ));
 
-  -- Idempotência (seção 6): mesmo operacao_id já processado antes (agora
-  -- protegido pela trava acima contra a corrida de duas primeiras
-  -- chamadas simultâneas) — nenhuma nova escrita, devolve exatamente o
-  -- que foi gravado da primeira vez.
+  -- Idempotência: mesmo operacao_id já processado antes — nenhuma nova
+  -- escrita, devolve exatamente o que foi gravado da primeira vez.
   select e.lote_id, e.patrimonio_id, e.versao_esperada, e.campos_solicitados, e.justificativa, e.criado_por, e.resultado
     into v_existente
   from public.patrimonio_comparacao_execucoes e
@@ -274,10 +155,6 @@ begin
        or v_existente.patrimonio_id <> p_patrimonio_id
        or v_existente.versao_esperada <> p_versao_esperada
        or v_existente.campos_solicitados <> v_campos
-       -- PROMPT 11.6.5, seção 2C — justificativa agora faz parte da
-       -- identidade da operação: reenviar o mesmo operacao_id com uma
-       -- justificativa diferente é tão inaceitável quanto com um campo
-       -- diferente.
        or v_existente.justificativa is distinct from v_justificativa
        or v_existente.criado_por <> auth.uid() then
       raise exception 'operacao_id já foi utilizado com parâmetros ou usuário diferentes'
@@ -286,13 +163,10 @@ begin
     return v_existente.resultado || jsonb_build_object('ja_executado', true);
   end if;
 
-  -- trava o patrimônio: mesma disciplina de `registrar_movimentacao`
-  -- (serializa operações concorrentes sobre o mesmo item — PROMPT 11.6.5,
-  -- seção 2E: entre duas operações com operacao_id DIFERENTES mirando o
-  -- MESMO patrimônio a partir do mesmo snapshot, a primeira a chegar aqui
-  -- trava, conclui e commita; a segunda só prossegue depois, relê
-  -- `atualizado_em` já alterado pela primeira e cai no conflito de versão
-  -- abaixo — nunca as duas aplicam por cima uma da outra).
+  -- Trava a linha do patrimônio: entre duas operações com operacao_id
+  -- diferentes mirando o mesmo patrimônio a partir do mesmo snapshot, a
+  -- primeira a chegar aqui conclui; a segunda relê `atualizado_em` já
+  -- alterado e cai no conflito de versão abaixo.
   select p.* into v_patrimonio
   from public.patrimonios p
   where p.id = p_patrimonio_id
@@ -303,20 +177,15 @@ begin
       using errcode = 'P0002';
   end if;
 
-  -- Revalidação (seção 5): a comparação inicial não é autorização
-  -- suficiente para gravar — se o patrimônio mudou desde a referência usada
-  -- na decisão do administrador, é um CONFLITO, nunca uma sobrescrita
-  -- silenciosa.
+  -- Revalidação: se o patrimônio mudou desde a referência usada na decisão
+  -- do administrador, é conflito — nunca uma sobrescrita silenciosa.
   if v_patrimonio.atualizado_em is distinct from p_versao_esperada then
     raise exception 'O patrimônio foi alterado por outra operação desde a comparação — revise antes de aplicar'
       using errcode = 'P0040';
   end if;
 
-  -- Pendência SEI incompatível (seção 5): nunca abrir um caminho
-  -- administrativo que contorne, sem querer, as proteções do módulo SEI —
-  -- só bloqueia quando a decisão realmente muda setor/localização (uma
-  -- correção de metadados isolada não interfere com uma entrega SEI
-  -- pendente).
+  -- Pendência SEI bloqueia só quando a decisão muda setor/localização — uma
+  -- correção de metadados isolada não interfere com uma entrega SEI pendente.
   if v_tem_movimentacao then
     select exists (
       select 1
@@ -342,12 +211,9 @@ begin
   end if;
 
   if v_tem_movimentacao then
-    -- Reaproveita INTEIRAMENTE `registrar_movimentacao` — nenhuma regra de
-    -- transição/validação de setor/localização duplicada aqui (seção 2).
-    -- Uma exceção levantada aqui desfaz TAMBÉM o UPDATE de metadados
-    -- acima (mesma transação, sem handler capturando no meio — PROMPT
-    -- 11.6.5, seção 3: "se a movimentação falhar, nenhuma alteração de
-    -- metadados poderá permanecer gravada").
+    -- Reaproveita registrar_movimentacao (nenhuma regra de setor/localização
+    -- duplicada aqui). Uma exceção aqui desfaz também o UPDATE de metadados
+    -- acima, por estarem na mesma transação.
     v_movimentacao := public.registrar_movimentacao(
       p_patrimonio_id := p_patrimonio_id,
       p_tipo := 'AJUSTE_INVENTARIO',

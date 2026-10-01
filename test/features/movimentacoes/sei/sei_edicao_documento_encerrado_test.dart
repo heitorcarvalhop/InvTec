@@ -18,8 +18,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import '../../auth/fake_auth_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.3.13 — `editar_documento_sei_pendente` deve recusar documento
-/// ENCERRADO (nenhum item PENDENTE), além do bloqueio por item CONCLUÍDO.
+/// `editar_documento_sei_pendente` deve recusar documento ENCERRADO (nenhum
+/// item PENDENTE), além do bloqueio por item CONCLUÍDO.
 ///
 /// A migration está PREPARADA, NÃO aplicada: nada aqui fala com o Supabase.
 /// Os testes cobrem (1) o comportamento esperado no fake, que espelha a
@@ -83,9 +83,11 @@ String _funcaoEditar(String sql) {
   return sql.substring(inicio, fim + '\n\$\$;'.length);
 }
 
-/// Bloco do guard novo (do comentário do PROMPT 11.3.13 até o `end if;`).
+/// Bloco do guard novo — ancorado em SQL real (nunca em texto de
+/// comentário, que pode mudar): do `if not exists` que checa ausência de
+/// item PENDENTE até o `end if;` correspondente.
 final _blocoGuard = RegExp(
-  r'\n  -- PROMPT 11\.3\.13 — documento ENCERRADO.*?using errcode = .42501.;\n  end if;\n',
+  r"\n(  --[^\n]*\n)*  if not exists \(\s*select 1\s*from public\.documentos_sei_itens\s*where documento_id = p_documento_id\s*and status = 'PENDENTE'\s*\) then.*?using errcode = .42501.;\n  end if;\n",
   dotAll: true,
 );
 
@@ -278,7 +280,7 @@ void main() {
 
     test('a migration antiga NÃO foi editada (não contém o guard)', () {
       expect(antigo, isNot(contains('encerrado (nenhum item pendente)')));
-      expect(antigo, isNot(contains('PROMPT 11.3.13')));
+      expect(_blocoGuard.hasMatch(funcaoAntiga), isFalse);
     });
 
     test('define UMA única função: a mesma, com mesma assinatura, retorno, SECURITY DEFINER e search_path', () {
@@ -293,9 +295,12 @@ void main() {
       expect(cabecalho(funcaoNova), contains("set search_path = ''"));
     });
 
-    test('o corpo é IDÊNTICO ao antigo, exceto pelo bloco novo', () {
+    test('o corpo (sem comentários) é IDÊNTICO ao antigo, exceto pelo bloco novo', () {
       expect(_blocoGuard.allMatches(funcaoNova).length, 1);
-      expect(funcaoNova.replaceFirst(_blocoGuard, ''), funcaoAntiga);
+      expect(
+        semComentarios(funcaoNova.replaceFirst(_blocoGuard, '')).trim(),
+        semComentarios(funcaoAntiga).trim(),
+      );
     });
 
     test('o guard usa a consulta e o errcode acordados', () {

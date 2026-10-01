@@ -1,10 +1,10 @@
 import '../text_similarity.dart';
 
-/// Nível de confiança da inferência de tipo a partir da descrição (seção 11
-/// do perfil GETEC). Não existe um nível "sugerido" à parte: as regras desta
-/// primeira fase são determinísticas (palavra-chave presente ou não), então
-/// o resultado é sempre CONFIRMADO ou NÃO IDENTIFICADO — nunca aplicamos
-/// "Outros" só para esconder incerteza fora das regras explícitas do item 9.
+/// Nível de confiança da inferência de tipo a partir da descrição. Não
+/// existe um nível "sugerido" à parte: as regras desta primeira fase são
+/// determinísticas (palavra-chave presente ou não), então o resultado é
+/// sempre CONFIRMADO ou NÃO IDENTIFICADO — nunca aplicamos "Outros" só
+/// para esconder incerteza fora das regras explícitas.
 enum InferenciaTipoConfianca { confirmada, naoIdentificada }
 
 class InferenciaTipoResultado {
@@ -16,9 +16,9 @@ class InferenciaTipoResultado {
 
   final InferenciaTipoConfianca confianca;
 
-  /// Nome exato do catálogo oficial (seção 6) — ainda precisa ser resolvido
-  /// contra os tipos realmente ativos no banco por quem chamar esta função;
-  /// este módulo não conhece o banco.
+  /// Nome exato do catálogo oficial — ainda precisa ser resolvido contra os
+  /// tipos realmente ativos no banco por quem chamar esta função; este
+  /// módulo não conhece o banco.
   final String? nomeTipo;
 }
 
@@ -29,9 +29,9 @@ class _RegraInferencia {
   final List<String> palavrasChave;
 }
 
-/// Ordem importa (seção 10): categorias mais específicas primeiro, para que
-/// "LICENÇA MICROSOFT OFFICE PARA NOTEBOOK" vire Software / Licença em vez
-/// de Notebook só porque a palavra "notebook" aparece na descrição.
+/// Ordem importa: categorias mais específicas primeiro, para que "LICENÇA
+/// MICROSOFT OFFICE PARA NOTEBOOK" vire Software / Licença em vez de
+/// Notebook só porque a palavra "notebook" aparece na descrição.
 final _regras = <_RegraInferencia>[
   const _RegraInferencia('Certificado Digital', ['certificado digital']),
   const _RegraInferencia('Software / Licença', [
@@ -49,8 +49,8 @@ final _regras = <_RegraInferencia>[
     'office professional',
     'office 365',
     // Erro de digitação real encontrado na planilha da GETEC ("BUSSINES"
-    // em vez de "BUSINESS") — variante de grafia exata (PROMPT 8.12,
-    // auditoria 8.11), não uma regra genérica de "office" isolado.
+    // em vez de "BUSINESS") — variante de grafia exata, não uma regra
+    // genérica de "office" isolado.
     'office home and bussines',
   ]),
   const _RegraInferencia('Nobreak', ['nobreak', 'ups']),
@@ -63,8 +63,7 @@ final _regras = <_RegraInferencia>[
   const _RegraInferencia('TV', [
     'televisao',
     'tv',
-    // Erro de digitação real encontrado na planilha da GETEC ("ii" duplo)
-    // — variante de grafia exata (PROMPT 8.12, auditoria 8.11).
+    // Erro de digitação real encontrado na planilha da GETEC ("ii" duplo).
     'televiisor',
   ]),
   const _RegraInferencia('Equipamento de Rede', [
@@ -74,7 +73,7 @@ final _regras = <_RegraInferencia>[
     'switches',
     'access point',
     // Equivalente em português de "access point", achado real da planilha
-    // GETEC (PROMPT 8.12) — frase específica, não a palavra "acesso" isolada.
+    // GETEC — frase específica, não a palavra "acesso" isolada.
     'ponto de acesso',
     'roteador',
     'router',
@@ -91,8 +90,8 @@ final _regras = <_RegraInferencia>[
     'computador desktop',
     'cpu',
     // Nomes de linha de produto que são SEMPRE um computador desktop —
-    // achados reais da planilha GETEC (PROMPT 8.12, auditoria 8.11): risco
-    // de falso positivo virtualmente nulo, são nomes de modelo específicos.
+    // achados reais da planilha GETEC: risco de falso positivo
+    // virtualmente nulo, são nomes de modelo específicos.
     'optiplex',
     // Erro de digitação real encontrado na planilha ("OPTPLEX", sem o "I").
     'optplex',
@@ -106,13 +105,13 @@ final _regras = <_RegraInferencia>[
     'mac mini',
   ]),
   const _RegraInferencia('Monitor', ['monitor']),
-  // Itens que o catálogo GETEC explicitamente NÃO quer como tipo próprio
-  // (seção 6) — mapeados para "Outros" por regra explícita, não por
-  // incerteza (seção 11). Fica ANTES de Mobiliário de propósito: um achado
-  // real da planilha ("SCANNER DE MESA, COLOR, DUPLEX 35 PPM") virava
-  // Mobiliário porque a palavra "mesa" batia antes da regra de Scanner —
-  // termos explícitos de "Outros" têm precedência sobre regras genéricas
-  // de Mobiliário que possam capturar uma palavra solta da descrição.
+  // Itens que o catálogo GETEC explicitamente NÃO quer como tipo próprio —
+  // mapeados para "Outros" por regra explícita, não por incerteza. Fica
+  // ANTES de Mobiliário de propósito: um achado real da planilha ("SCANNER
+  // DE MESA, COLOR, DUPLEX 35 PPM") virava Mobiliário porque a palavra
+  // "mesa" batia antes da regra de Scanner — termos explícitos de "Outros"
+  // têm precedência sobre regras genéricas de Mobiliário que possam
+  // capturar uma palavra solta da descrição.
   const _RegraInferencia('Outros', [
     'teclado',
     'mouse',
@@ -128,9 +127,9 @@ final _regras = <_RegraInferencia>[
     'video conferencia',
     'logitech group',
     'expansion mic',
-    // Achados reais da planilha GETEC (PROMPT 8.12, auditoria 8.11): nomes
-    // de equipamento/eletrodoméstico/ferramenta específicos, claramente
-    // fora de todas as outras categorias — risco de falso positivo nulo.
+    // Achados reais da planilha GETEC: nomes de equipamento/eletrodoméstico/
+    // ferramenta específicos, claramente fora de todas as outras
+    // categorias — risco de falso positivo nulo.
     'frigobar',
     'multimetro',
     'parafusadeira',
@@ -152,8 +151,8 @@ final _regras = <_RegraInferencia>[
 ];
 
 /// Infere o tipo de patrimônio a partir do texto livre de [descricao]
-/// (seção 8/9) usando só regras determinísticas locais — nenhuma IA externa,
-/// nenhuma chamada de rede. Retorna [InferenciaTipoConfianca.naoIdentificada]
+/// usando só regras determinísticas locais — nenhuma IA externa, nenhuma
+/// chamada de rede. Retorna [InferenciaTipoConfianca.naoIdentificada]
 /// quando nenhuma regra bate, em vez de adivinhar.
 InferenciaTipoResultado inferirTipoPorDescricao(String? descricao) {
   if (descricao == null) return const InferenciaTipoResultado.naoIdentificada();

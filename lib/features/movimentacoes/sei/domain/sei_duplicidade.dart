@@ -1,8 +1,8 @@
 import '../../domain/movimentacao_listagem_item.dart';
 
 /// Resultado da pré-checagem READ-ONLY de duplicidade contra o histórico já
-/// registrado no InvTec (PROMPT 11.2, seção 4) — nunca cria nem altera
-/// nada, só classifica. Nem o hash do PDF sozinho, nem o número do
+/// registrado no InvTec — nunca cria nem altera nada, só classifica. Nem o
+/// hash do PDF sozinho, nem o número do
 /// documento SEI sozinho, bastam para decidir duplicidade: o mesmo
 /// documento legitimamente cobre vários patrimônios diferentes, e o mesmo
 /// PDF pode ser reexportado com bytes distintos (hash muda) — por isso a

@@ -64,7 +64,7 @@ SeiAnaliseResultado _resultado() {
 }
 
 void main() {
-  group('PROMPT 11.3 — SeiPendenciaSalvarController', () {
+  group('SeiPendenciaSalvarController', () {
     test('sem duplicata: salva direto e o documento sai como sucesso', () async {
       final docRepo = FakeDocumentosSeiRepository();
       final container = ProviderContainer(overrides: [documentosSeiRepositoryProvider.overrideWithValue(docRepo)]);
@@ -123,7 +123,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.3, seção 19 — nenhuma ação de salvar/cancelar pendência chama registrar_movimentacao',
+      'nenhuma ação de salvar/cancelar pendência chama registrar_movimentacao',
       () async {
         final docRepo = FakeDocumentosSeiRepository();
         final movimentacaoRepo = FakeMovimentacaoRepository();

@@ -21,7 +21,7 @@ Patrimonio _patrimonio({
 }
 
 void main() {
-  group('PROMPT 10.2 — tiposCompativeisComStatus (matriz de transição, só UX)', () {
+  group('tiposCompativeisComStatus (matriz de transição, só UX)', () {
     test('DISPONIVEL e EM_USO oferecem os mesmos 8 tipos', () {
       expect(tiposCompativeisComStatus(PatrimonioStatus.disponivel), tiposCompativeisComStatus(PatrimonioStatus.emUso));
       expect(tiposCompativeisComStatus(PatrimonioStatus.disponivel), isNot(contains(MovimentacaoTipo.devolucao)));
@@ -47,7 +47,7 @@ void main() {
     });
   });
 
-  group('PROMPT 10.2 — regras por tipo (docs/database.md, "Regras por tipo")', () {
+  group('regras por tipo (docs/database.md, "Regras por tipo")', () {
     test('destino obrigatório: ENTRADA/SAIDA/TRANSFERENCIA/EMPRESTIMO/DEVOLUCAO/MANUTENCAO/RETORNO_MANUTENCAO', () {
       for (final tipo in [
         MovimentacaoTipo.entrada,
@@ -102,7 +102,7 @@ void main() {
     });
   });
 
-  group('PROMPT 10.2.2 — tipoExigeDestinoDiferente (RPC real auditada em produção)', () {
+  group('tipoExigeDestinoDiferente (RPC real auditada em produção)', () {
     test('ENTRADA permanece disponível para DISPONIVEL', () {
       expect(tiposCompativeisComStatus(PatrimonioStatus.disponivel), contains(MovimentacaoTipo.entrada));
     });
@@ -139,7 +139,7 @@ void main() {
     });
   });
 
-  group('PROMPT 10.2.2 — ajusteInventarioTrocouSetor', () {
+  group('ajusteInventarioTrocouSetor', () {
     test('destino nulo ("Manter o setor atual"): não trocou', () {
       expect(ajusteInventarioTrocouSetor(destinoId: null, setorAtualId: 'setor-a'), isFalse);
     });
@@ -153,7 +153,7 @@ void main() {
     });
   });
 
-  group('PROMPT 10.2 — ehTransferenciaInterna (TRANSFERENCIA sem novo enum)', () {
+  group('ehTransferenciaInterna (TRANSFERENCIA sem novo enum)', () {
     test('destino igual ao setor atual em TRANSFERENCIA é interna', () {
       expect(
         ehTransferenciaInterna(tipo: MovimentacaoTipo.transferencia, destinoId: 'setor-a', setorAtualId: 'setor-a'),
@@ -183,7 +183,7 @@ void main() {
     });
   });
 
-  group('PROMPT 10.2 — detalhesValidos (seção 15: nunca confundir null/vazio/false)', () {
+  group('detalhesValidos (seção 15: nunca confundir null/vazio/false)', () {
     test('sem tipo escolhido: inválido', () {
       final r = NovaMovimentacaoRascunho();
       expect(detalhesValidos(r, _patrimonio()), isFalse);
@@ -212,7 +212,7 @@ void main() {
       expect(detalhesValidos(r, _patrimonio(setorAtualId: 'setor-atual')), isFalse);
     });
 
-    test('MANUTENCAO com destino igual ao setor atual: inválido (PROMPT 10.2.2, seção 3)', () {
+    test('MANUTENCAO com destino igual ao setor atual: inválido', () {
       final r = NovaMovimentacaoRascunho()
         ..tipo = MovimentacaoTipo.manutencao
         ..destinoSetorId = 'setor-atual';
@@ -221,7 +221,7 @@ void main() {
       expect(detalhesValidos(r, _patrimonio(setorAtualId: 'setor-atual')), isTrue);
     });
 
-    test('TRANSFERENCIA interna com a MESMA localização atual: inválido (PROMPT 10.2.2, seção 4)', () {
+    test('TRANSFERENCIA interna com a MESMA localização atual: inválido', () {
       final r = NovaMovimentacaoRascunho()
         ..tipo = MovimentacaoTipo.transferencia
         ..destinoSetorId = 'setor-atual'

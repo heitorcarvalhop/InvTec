@@ -9,17 +9,16 @@ import '../../domain/movimentacao.dart';
 import '../../domain/movimentacao_listagem_item.dart';
 import 'movimentacao_tipo_visual.dart';
 
-/// Altura mínima confortável de uma linha da lista (PROMPT 11.3.10).
+/// Altura mínima confortável de uma linha da lista.
 const double _alturaMinimaLinha = 56;
 
-/// Largura da coluna do botão de visualizar — comporta o cabeçalho "Ações"
-/// (PROMPT 11.3.10.2: antes o cabeçalho dessa coluna era um texto vazio).
+/// Largura da coluna do botão de visualizar — comporta o cabeçalho "Ações".
 const double _larguraColunaAcoes = 72;
 
 /// Lista estruturada (não `DataTable`, mesmo padrão de
 /// `PatrimonioDesktopTable`).
 ///
-/// PROMPT 11.3.10 — colunas: Data, Patrimônio, Tipo, Origem → Destino e o
+/// colunas: Data, Patrimônio, Tipo, Origem → Destino e o
 /// botão de abrir. Responsável e Autor (antes colunas próprias, espremidas)
 /// e o restante (localização, motivo, observação, documento, chamado) ficam
 /// no diálogo de detalhe (`MovimentacaoDetailDialog`), aberto tanto pelo
@@ -194,7 +193,7 @@ class _OrigemDestinoCell extends StatelessWidget {
 }
 
 /// Número do patrimônio em destaque + tipo/equipamento como apoio, quando
-/// disponível (PROMPT 10.1) — nunca mostra "null".
+/// disponível — nunca mostra "null".
 class _PatrimonioCell extends StatelessWidget {
   const _PatrimonioCell({required this.item});
 

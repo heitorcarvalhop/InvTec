@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/theme_mode_controller.dart';
 
-/// Alternância Claro/Escuro do header (PROMPT 9.3) — em telas largas mostra
-/// as duas opções lado a lado (☀ Claro | 🌙 Escuro); em telas estreitas
-/// [compact] reduz para um único ícone com tooltip. A troca aplica-se
-/// imediatamente a todo o app (ver [ThemeModeController]).
+/// Alternância Claro/Escuro do header — em telas largas mostra as duas
+/// opções lado a lado (☀ Claro | 🌙 Escuro); em telas estreitas [compact]
+/// reduz para um único ícone com tooltip. A troca aplica-se imediatamente
+/// a todo o app (ver [ThemeModeController]).
 class ThemeToggleButton extends ConsumerWidget {
   const ThemeToggleButton({super.key, this.compact = false});
 

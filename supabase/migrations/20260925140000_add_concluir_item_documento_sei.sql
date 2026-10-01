@@ -1,89 +1,43 @@
 -- =============================================================================
--- PROMPT 11.4.2 (parte B) — public.concluir_item_documento_sei
+-- public.concluir_item_documento_sei
 -- Concluir a ENTREGA de UM item de Documento SEI, de forma atômica.
 -- =============================================================================
--- STATUS: PREPARADA PARA REVISÃO — NÃO APLICADA. Nada foi executado no
--- Supabase. Nenhum patrimônio real foi movimentado; nenhum item foi concluído.
+-- Salvar/importar um Documento SEI NÃO movimenta patrimônio. A movimentação
+-- só nasce quando a GETEC confirma a entrega de UM item. Tudo abaixo roda na
+-- MESMA transação (qualquer exceção desfaz tudo, inclusive a movimentação
+-- criada por `registrar_movimentacao`): movimentação criada -> patrimônio
+-- atualizado -> item CONCLUIDO com `movimentacao_id` -> versão do documento
+-- +1 -> evento ITEM_CONCLUIDO.
 --
--- ORDEM DE APLICAÇÃO: depois de 20260925130000 (que mantém `patrimonio_id`
--- coerente na edição). Sem ela, um item corrigido continuaria vinculado ao
--- patrimônio antigo — esta função barra isso na conclusão (P0031), mas a edição
--- é quem evita a incoerência na origem.
---
--- REGRA CENTRAL: salvar/importar um Documento SEI NÃO movimenta patrimônio. A
--- movimentação só nasce quando a GETEC confirma a entrega de UM item. Nesta
--- função, TUDO abaixo acontece na MESMA transação (qualquer exceção desfaz
--- tudo — inclusive a movimentação criada por `registrar_movimentacao`):
---   movimentação criada -> patrimônio atualizado -> item CONCLUIDO com
---   `movimentacao_id` -> versão do documento +1 -> evento ITEM_CONCLUIDO.
---
--- V1 (decisões aprovadas):
---   * só TRANSFERENCIA; data da movimentação = momento da confirmação (a
---     função passa `p_data_movimentacao => null`; não há data manual);
---   * ADMIN, GESTOR e OPERADOR podem concluir;
---   * `p_versao_esperada` obrigatório (o cliente confirmou o que viu; se o
---     documento mudou entretanto, a conclusão é recusada);
---   * chama `public.registrar_movimentacao` (11 parâmetros, vigente desde
---     20260914140000) internamente — NÃO duplica suas regras e NÃO a altera;
---   * localização/responsável de destino sempre EXPLÍCITOS: em TRANSFERENCIA,
---     `registrar_movimentacao` grava exatamente o que recebe (nulo LIMPA, não
---     preserva) e responsável nulo faz o patrimônio ficar DISPONIVEL. Por isso
---     CONFIRMADO_SEM_INFORMACAO só é aceito quando o cliente confirma a
---     limpeza (`p_confirmar_limpeza_destino`) — se realmente houver algo a
---     limpar;
---   * não há coluna nova em `documentos_sei_eventos`: `movimentacao_id` vai em
---     `dados_depois` do evento e, de forma definitiva, em
---     `documentos_sei_itens.movimentacao_id`.
+-- V1: só TRANSFERENCIA; data da movimentação = momento da confirmação; chama
+-- `public.registrar_movimentacao` internamente (não duplica suas regras).
+-- Localização/responsável de destino sempre EXPLÍCITOS — em TRANSFERENCIA
+-- `registrar_movimentacao` grava exatamente o que recebe (nulo LIMPA, não
+-- preserva), por isso CONFIRMADO_SEM_INFORMACAO só é aceito quando o
+-- cliente confirma a limpeza (`p_confirmar_limpeza_destino`).
 --
 -- ORDEM DE LOCKS: DOCUMENTO -> ITEM -> PATRIMÔNIO -> (dentro de
--- `registrar_movimentacao`: o mesmo patrimônio de novo, que já é nosso;
--- SETOR de destino e LOCALIZAÇÃO com FOR SHARE). Nenhuma outra função trava
--- PATRIMÔNIO antes de DOCUMENTO/ITEM, então não há ciclo possível.
+-- `registrar_movimentacao`: o mesmo patrimônio de novo; SETOR de destino e
+-- LOCALIZAÇÃO com FOR SHARE). Nenhuma outra função trava PATRIMÔNIO antes
+-- de DOCUMENTO/ITEM, então não há ciclo possível.
 --
--- IDEMPOTÊNCIA: o item é travado depois do documento; se já estiver
--- CONCLUIDO com `movimentacao_id`, a função devolve o estado existente com
--- `ja_concluido = true` SEM escrever nada e SEM checar a versão (é isso que faz
--- o clique duplo / a repetição após timeout devolverem sucesso em vez de
--- conflito de versão). Garantias estruturais que não dependem desta função:
--- `documentos_sei_itens_movimentacao_unica` (índice único) e
--- `documentos_sei_itens_status_coerente` (CONCLUIDO exige movimentacao_id).
---
--- MOVIMENTAÇÃO POSTERIOR (passo 16): bloqueia se existir movimentação do MESMO
--- patrimônio com `criado_em` OU `data_movimentacao` posterior a
--- `documentos_sei_itens.criado_em`. Não é ordenação absoluta por commit
--- PostgreSQL quando uma movimentação é retrodatada manualmente — ver o
--- comentário no passo 16.
+-- IDEMPOTÊNCIA: se o item já estiver CONCLUIDO com `movimentacao_id`, a
+-- função devolve o estado existente com `ja_concluido = true` SEM escrever
+-- nada e SEM checar a versão — é isso que faz o clique duplo / a repetição
+-- após timeout devolverem sucesso em vez de conflito de versão.
 --
 -- ERROS (SQLSTATE):
 --   42501  sem permissão
---   P0001  parâmetro/regra geral (tipo não suportado, item não pertence ao
---          documento, item CANCELADO, destino/decisão pendente, movimentação
---          interna sem localização definida...)
+--   P0001  parâmetro/regra geral
 --   P0002  documento / item / patrimônio não encontrado
---   P0010  conflito de versão (mesmo código de editar_documento_sei_pendente)
---   P0030  estado inconsistente do item (CONCLUIDO sem movimentação, com
---          movimentação inexistente ou de OUTRO patrimônio; PENDENTE com
---          movimentação) — exige revisão manual
---   P0031  vínculo do patrimônio incoerente (sem vínculo, ou o número efetivo
---          pertence a outro UUID que o `patrimonio_id` do item)
+--   P0010  conflito de versão
+--   P0030  estado inconsistente do item — exige revisão manual
+--   P0031  vínculo do patrimônio incoerente
 --   P0032  estado do patrimônio diverge do esperado (origem, status)
---   P0033  patrimônio movimentado DEPOIS da criação do item (criado_em OU
---          data_movimentacao posterior)
+--   P0033  patrimônio movimentado DEPOIS da criação do item
 --   P0034  já existe movimentação do mesmo patrimônio com o mesmo documento
---   P0035  a conclusão limparia localização/responsável atuais e a limpeza
---          não foi confirmada
---   (erros de `registrar_movimentacao` — data, destino inativo, localização
---    inativa etc. — sobem com o próprio código e desfazem tudo.)
---
--- PERMISSÕES: REVOKE de tudo + GRANT EXECUTE só para `authenticated`, como as
--- demais funções de escrita SEI. NÃO TOCA: registrar_movimentacao,
--- editar/cancelar/criar_documento_sei, tabelas, dados existentes, Despacho 577.
---
--- DEPOIS DE APLICAR (só leitura):
---   select p.prosecdef, p.proconfig, pg_get_function_identity_arguments(p.oid),
---          has_function_privilege('anon', p.oid, 'execute') as anon_executa
---   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
---   where n.nspname = 'public' and p.proname = 'concluir_item_documento_sei';
+--   P0035  a conclusão limparia localização/responsável e não foi confirmada
+--   (erros de `registrar_movimentacao` sobem com o próprio código.)
 -- =============================================================================
 
 create or replace function public.concluir_item_documento_sei(
@@ -116,7 +70,6 @@ declare
   v_limpa_localizacao boolean;
   v_limpa_responsavel boolean;
 begin
-  -- 1. perfil e parâmetros ---------------------------------------------------
   if private.has_perfil('ADMIN', 'GESTOR', 'OPERADOR') is not true then
     raise exception 'Usuário sem permissão para concluir item de documento SEI'
       using errcode = '42501';
@@ -127,7 +80,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 2. trava o DOCUMENTO primeiro (mesma ordem de editar/cancelar) ------------
+  -- trava o DOCUMENTO primeiro (mesma ordem de editar/cancelar)
   select * into v_documento
   from public.documentos_sei
   where id = p_documento_id
@@ -138,9 +91,9 @@ begin
       using errcode = 'P0002';
   end if;
 
-  -- 4/5. trava o ITEM depois do documento; confere que pertence a ele. A
-  -- busca já filtra por documento_id: nunca travamos um item de outro
-  -- documento enquanto seguramos este.
+  -- trava o ITEM depois do documento; confere que pertence a ele. A busca
+  -- já filtra por documento_id: nunca travamos um item de outro documento
+  -- enquanto seguramos este.
   select * into v_item
   from public.documentos_sei_itens
   where id = p_item_id and documento_id = p_documento_id
@@ -154,7 +107,7 @@ begin
     raise exception 'Item % não encontrado', p_item_id using errcode = 'P0002';
   end if;
 
-  -- 6. IDEMPOTÊNCIA — item já concluído: devolve o estado existente, sem
+  -- IDEMPOTÊNCIA — item já concluído: devolve o estado existente, sem
   -- escrever nada. Fica ANTES da checagem de versão de propósito: quem repete
   -- a chamada (clique duplo, timeout) ainda envia a versão antiga, e um
   -- conflito de versão esconderia o fato de que a conclusão já aconteceu.
@@ -190,7 +143,7 @@ begin
     );
   end if;
 
-  -- 7. conclusão NOVA: PENDENTE e sem movimentação ----------------------------
+  -- conclusão NOVA: PENDENTE e sem movimentação
   if v_item.status = 'PENDENTE' and v_item.movimentacao_id is not null then
     raise exception 'Item % está PENDENTE mas já tem movimentação vinculada — estado inconsistente, revisão manual necessária', p_item_id
       using errcode = 'P0030';
@@ -201,20 +154,20 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 3. versão (só para conclusão nova — ver comentário da idempotência) -------
+  -- versão (só para conclusão nova — ver comentário da idempotência acima)
   if v_documento.versao <> p_versao_esperada then
     raise exception 'Conflito de edição: versão % informada, versão atual % — releia o documento antes de tentar novamente',
       p_versao_esperada, v_documento.versao
       using errcode = 'P0010';
   end if;
 
-  -- 8. V1: somente TRANSFERENCIA ----------------------------------------------
+  -- V1: somente TRANSFERENCIA
   if v_documento.tipo_operacao_pretendida <> 'TRANSFERENCIA' then
     raise exception 'A conclusão de entrega só suporta TRANSFERENCIA nesta versão (documento é %)', v_documento.tipo_operacao_pretendida
       using errcode = 'P0001';
   end if;
 
-  -- 9/10. destino e decisões explícitas (PENDENTE nunca vira null sozinho) ----
+  -- destino e decisões explícitas (PENDENTE nunca vira null sozinho)
   if v_item.destino_setor_id is null then
     raise exception 'Item % não tem setor de destino resolvido', p_item_id
       using errcode = 'P0001';
@@ -228,7 +181,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 11. número efetivo, normalizado como `patrimonios.numero_patrimonio`
+  -- número efetivo, normalizado como `patrimonios.numero_patrimonio`
   -- (`upper(normalize_text(...))`, ver CHECK patrimonios_numero_patrimonio_normalizado).
   v_numero_efetivo := upper(public.normalize_text(
     coalesce(v_item.numero_patrimonio_corrigido, v_item.numero_patrimonio_original)
@@ -242,8 +195,8 @@ begin
       using errcode = 'P0031';
   end if;
 
-  -- 12/13. trava o PATRIMÔNIO vinculado e exige que o número efetivo do item
-  -- ainda seja o dele. Travar pelo `patrimonio_id` (e não pelo número) evita
+  -- trava o PATRIMÔNIO vinculado e exige que o número efetivo do item ainda
+  -- seja o dele. Travar pelo `patrimonio_id` (e não pelo número) evita
   -- segurar a linha de um patrimônio que nada tem a ver com o item; como
   -- `numero_patrimonio` é ÚNICO, "número efetivo = número deste patrimônio"
   -- equivale a "o UUID encontrado pelo número é o `patrimonio_id`". O número
@@ -274,7 +227,7 @@ begin
       using errcode = 'P0031';
   end if;
 
-  -- 14/15. estado ATUAL do patrimônio contra o que o documento esperava ------
+  -- estado ATUAL do patrimônio contra o que o documento esperava
   if v_item.origem_setor_id is null then
     raise exception 'Item % não tem origem resolvida — não é possível confirmar o estado do patrimônio', p_item_id
       using errcode = 'P0032';
@@ -288,7 +241,7 @@ begin
       using errcode = 'P0032';
   end if;
 
-  -- 16. QUALQUER movimentação posterior à criação do item bloqueia — basta UMA
+  -- QUALQUER movimentação posterior à criação do item bloqueia — basta UMA
   -- das duas condições:
   --   * `m.criado_em > item.criado_em`: registro criado depois. `criado_em` é
   --     `now()`, o INÍCIO da transação de quem registrou;
@@ -318,7 +271,7 @@ begin
       using errcode = 'P0033';
   end if;
 
-  -- 17. movimentação prévia do mesmo patrimônio com o mesmo documento SEI ----
+  -- movimentação prévia do mesmo patrimônio com o mesmo documento SEI
   v_numero_documento := coalesce(
     public.normalize_text(v_documento.numero_documento_sei),
     public.normalize_text(v_documento.numero_documento_formatado)
@@ -333,8 +286,8 @@ begin
       using errcode = 'P0034';
   end if;
 
-  -- 18. parâmetros EXPLÍCITOS de localização e responsável ---------------------
-  -- Em TRANSFERENCIA, `registrar_movimentacao` grava exatamente o que recebe:
+  -- parâmetros EXPLÍCITOS de localização e responsável. Em TRANSFERENCIA,
+  -- `registrar_movimentacao` grava exatamente o que recebe:
   -- localização nula LIMPA a atual; responsável nulo LIMPA o atual e o status
   -- passa a DISPONIVEL. Nunca deixamos isso acontecer por acidente: DEFINIDO
   -- envia o valor; CONFIRMADO_SEM_INFORMACAO envia null DE PROPÓSITO.
@@ -364,7 +317,7 @@ begin
     end if;
   end if;
 
-  -- 19. limpeza destrutiva exige confirmação explícita ------------------------
+  -- limpeza destrutiva exige confirmação explícita
   v_limpa_localizacao := v_localizacao_destino is null and v_patrimonio.localizacao_atual_id is not null;
   v_limpa_responsavel := v_responsavel_destino is null and v_patrimonio.responsavel_atual is not null;
 
@@ -388,7 +341,7 @@ begin
 
   v_item_antes := to_jsonb(v_item);
 
-  -- 20. registra a movimentação (mesma transação; se falhar, NADA foi escrito
+  -- registra a movimentação (mesma transação; se falhar, NADA foi escrito
   -- antes e nada fica depois — não há bloco EXCEPTION que engula o erro).
   select * into v_movimentacao
   from public.registrar_movimentacao(
@@ -405,16 +358,16 @@ begin
     p_limpar_localizacao => false
   );
 
-  -- 21. item CONCLUIDO + movimentacao_id. O check `status_coerente` e a
-  -- trigger `validate_pendencia_movimentacao_patrimonio` conferem, no banco,
-  -- que a movimentação pertence ao patrimônio do item.
+  -- item CONCLUIDO + movimentacao_id. O check `status_coerente` e a trigger
+  -- `validate_pendencia_movimentacao_patrimonio` conferem, no banco, que a
+  -- movimentação pertence ao patrimônio do item.
   update public.documentos_sei_itens
   set status = 'CONCLUIDO',
       movimentacao_id = v_movimentacao.id
   where id = v_item.id
   returning * into v_item;
 
-  -- 22. versão do documento
+  -- versão do documento
   update public.documentos_sei
   set versao = versao + 1,
       atualizado_em = now()
@@ -425,7 +378,7 @@ begin
   from public.patrimonios
   where id = v_patrimonio.id;
 
-  -- 23. auditoria: quem, quando (criado_em), qual movimentação e o resultado
+  -- auditoria: quem, quando (criado_em), qual movimentação e o resultado
   -- patrimonial. `movimentacao_id` também fica em documentos_sei_itens.
   insert into public.documentos_sei_eventos (documento_id, item_id, tipo, descricao, dados_antes, dados_depois, autor_id)
   values (
@@ -472,7 +425,6 @@ begin
     auth.uid()
   );
 
-  -- 24. resultado
   return jsonb_build_object(
     'ja_concluido', false,
     'documento', to_jsonb(v_documento),

@@ -29,13 +29,13 @@ import '../domain/text_similarity.dart';
 import 'comparacao_execucao_controller.dart';
 import 'patrimonio_import_state.dart';
 
-/// PROMPT 11.6.2 — mensagem exibida quando [PatrimonioImportController
+/// mensagem exibida quando [PatrimonioImportController
 /// .compararParaAdmin] é chamado por uma sessão sem perfil ADMIN (seção 6:
 /// "o novo modo será destinado exclusivamente ao perfil ADMIN"). Pública
 /// para os testes.
 const mensagemComparacaoRestritaAdmin = 'Este modo de comparação é exclusivo do perfil administrador.';
 
-/// PROMPT 11.6.4, seção 7/9 — exibida quando [PatrimonioImportController
+/// exibida quando [PatrimonioImportController
 /// .compararParaAdmin] é chamado enquanto a execução das decisões da
 /// comparação ANTERIOR ainda está em andamento ou tem algum item de
 /// resultado desconhecido: "não iniciar uma nova comparação enquanto
@@ -65,7 +65,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   Uint8List? _bytesArquivo;
   final List<ImportStep> _historico = [];
 
-  /// PROMPT 11.6.3, seção 9 — "as decisões não podem ser transferidas
+  /// "as decisões não podem ser transferidas
   /// acidentalmente de um usuário para outro". Mesmo padrão de defesa em
   /// profundidade já usado em `SeiConclusaoLoteController.build()`: este
   /// provider é `.autoDispose` (some ao sair da tela de importação, o que já
@@ -228,12 +228,11 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
 
   /// Chamado pelo botão "Continuar"/"Analisar planilha" do passo de
   /// padrões: com o perfil GETEC ativo, primeiro resolve automaticamente a
-  /// gerência GETEC (PROMPT 8.13.1 — nunca depende do usuário escolher
-  /// manualmente no dropdown genérico "Destino padrão"; a planilha GETEC
-  /// nem tem coluna de setor, então TODOS os bens desta carga pertencem à
-  /// GETEC por definição) e só então resolve as localizações únicas da
-  /// planilha (seção 15); nos demais casos, vai direto para a análise, como
-  /// antes.
+  /// gerência GETEC (nunca depende do usuário escolher manualmente no
+  /// dropdown genérico "Destino padrão"; a planilha GETEC nem tem coluna de
+  /// setor, então todos os bens desta carga pertencem à GETEC por
+  /// definição) e só então resolve as localizações únicas da planilha; nos
+  /// demais casos, vai direto para a análise.
   Future<void> avancarAposPadroes() async {
     if (state.perfilAtivo == ImportProfileId.getecLegado) {
       final setores = await ref.read(setoresAtivosParaPatrimonioProvider.future);
@@ -253,7 +252,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
       );
       return;
     }
-    // PROMPT 11.6.3 — único ponto de bifurcação do perfil GENÉRICO entre a
+    // único ponto de bifurcação do perfil GENÉRICO entre a
     // importação convencional e o modo ADMIN "Comparar e Atualizar": os
     // dois compartilham TODOS os passos anteriores (arquivo, aba,
     // cabeçalho, colunas, padrões) — nunca um segundo assistente.
@@ -264,7 +263,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     }
   }
 
-  /// PROMPT 11.6.3, seção 1 — só ADMIN pode ativar/desativar o modo
+  /// só ADMIN pode ativar/desativar o modo
   /// "Comparar e Atualizar" (defesa em profundidade: a UI já esconde o
   /// controle de qualquer outro perfil, mas esta checagem garante que
   /// nenhuma chamada direta ao controller o contorne). Sem efeito para
@@ -319,11 +318,11 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   }
 
   // ---------------------------------------------------------------------
-  // resolução manual de tipos pendentes (PROMPT 8.13)
+  // resolução manual de tipos pendentes
   // ---------------------------------------------------------------------
 
-  /// Reaplica decisões manuais de tipo tomadas nesta sessão (seções 7/8) —
-  /// sobrevive a uma reanálise completa (ex.: usuário volta e reanalisa a
+  /// Reaplica decisões manuais de tipo tomadas nesta sessão — sobrevive a
+  /// uma reanálise completa (ex.: usuário volta e reanalisa a
   /// planilha) porque fica em [PatrimonioImportState.mapeamentoTiposPendentes],
   /// indexada pelo número da linha (estável dentro da mesma sessão/arquivo,
   /// já que [linhasBrutas] não muda entre reanálises), nunca no próprio
@@ -401,14 +400,13 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   }
 
   /// Botão "Continuar para revisão" do passo de tipos pendentes — nunca
-  /// dispara importação nenhuma, só avança um passo do assistente (seção 10:
-  /// a gravação real só começa em [confirmarImportacao], numa ação futura e
-  /// explícita, sempre depois da revisão).
+  /// dispara importação nenhuma, só avança um passo do assistente (a
+  /// gravação real só começa em [confirmarImportacao], sempre depois da
+  /// revisão).
   ///
-  /// PROMPT 8.13.1: proteção também aqui no controller, não só desabilitando
-  /// o botão na UI — se algo chamar este método diretamente enquanto ainda
-  /// houver `tipoPendenteRestantes > 0`, a chamada é rejeitada (no-op), sem
-  /// avançar de passo nem gerar erro.
+  /// Proteção também aqui no controller, não só desabilitando o botão na
+  /// UI — se algo chamar este método diretamente enquanto ainda houver
+  /// `tipoPendenteRestantes > 0`, a chamada é rejeitada (no-op).
   void avancarDeTiposPendentesParaRevisao() {
     if (state.tipoPendenteRestantes > 0) return;
     _historico.add(state.step);
@@ -522,7 +520,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     }
   }
 
-  /// PROMPT 11.6.2 — modo ADMIN "Comparar e Atualizar": roda a MESMA
+  /// modo ADMIN "Comparar e Atualizar": roda a MESMA
   /// [analisar] da importação convencional (mesma leitura de planilha,
   /// mesmo mapeamento, mesma consulta em lote de existentes, mesmo
   /// pós-processamento do perfil ativo — seção 2, "reaproveitar ao
@@ -538,7 +536,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   /// Só CONSULTA e COMPARA: nenhuma chamada a `cadastrar`/`atualizar` (nem
   /// aqui, nem dentro de [analisar]/[ImportAnalyzer]/[PatrimonioComparador]
   /// — todos os três são estritamente de leitura). A autorização de
-  /// escrita deste modo é tratada à parte, no PROMPT 11.6.4.
+  /// escrita deste modo é tratada à parte, por [ComparacaoExecucaoController].
   Future<void> compararParaAdmin() async {
     final perfil = ref.read(authControllerProvider).value?.profile?.perfil;
     if (perfil != ProfilePerfil.admin) {
@@ -546,7 +544,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
       return;
     }
 
-    // PROMPT 11.6.4, seção 7/9 — nunca inicia uma nova comparação enquanto a
+    // nunca inicia uma nova comparação enquanto a
     // execução das decisões da comparação anterior ainda não tem um
     // resultado definitivo para todo item (executando OU com algum item de
     // resultado desconhecido).
@@ -558,7 +556,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     await analisar();
     if (state.mensagemErro != null) return; // `analisar()` já registrou o erro — nada a comparar.
 
-    // PROMPT 11.6.3, seção 9 — cada nova comparação invalida qualquer
+    // cada nova comparação invalida qualquer
     // decisão anterior (nunca reaproveitada de uma planilha/análise
     // diferente) e volta para a lista sem filtro/busca residual de uma
     // sessão anterior.
@@ -573,7 +571,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   }
 
   // ---------------------------------------------------------------------
-  // PROMPT 11.6.3 — decisões do modo ADMIN "Comparar e Atualizar"
+  // decisões do modo ADMIN "Comparar e Atualizar"
   // ---------------------------------------------------------------------
 
   /// Todas as [CampoDivergente] elegíveis para decisão agora — só
@@ -675,13 +673,13 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   /// Passo pós-análise exclusivo do perfil GETEC (seções 4/5/8/23): infere
   /// tipo pela descrição quando não há coluna de tipo mapeada e mescla o
   /// tombamento anterior na observação — tudo com uma única passagem pelas
-  /// linhas já classificadas, sem chamadas extras ao banco (seção 29).
-  /// Reclassifica cada linha uma única vez no final.
+  /// linhas já classificadas, sem chamadas extras ao banco. Reclassifica
+  /// cada linha uma única vez no final.
   ///
-  /// PROMPT 8.12: não marca mais `possivelBaixa` — "BAIXAS LOCALIZADAS" é
-  /// uma decisão de negócio conhecida (bem recuperado/relocalizado, nunca
-  /// indício de baixa atual), tratada só como "sem localização por regra"
-  /// (ver bloco de localização abaixo).
+  /// Não marca `possivelBaixa` — "BAIXAS LOCALIZADAS" é uma decisão de
+  /// negócio conhecida (bem recuperado/relocalizado, nunca indício de baixa
+  /// atual), tratada só como "sem localização por regra" (ver bloco de
+  /// localização abaixo).
   void _aplicarPosProcessamentoGetec(
     List<ImportRow> linhas,
     List<TipoPatrimonio> tiposAtivos,
@@ -720,9 +718,8 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
         );
       }
 
-      // Localização (PROMPT 8.9, seção 32/33): resolvida aqui, fora do
-      // ImportAnalyzer genérico. Precedência, nesta ordem — nunca perde o
-      // dado silenciosamente:
+      // Localização: resolvida aqui, fora do ImportAnalyzer genérico.
+      // Precedência, nesta ordem — nunca perde o dado silenciosamente:
       //   1. mapeamento manual do usuário (sempre vence, mesmo sobre um
       //      valor "conhecido" abaixo);
       //   2. decisão manual "importar sem localização" do usuário;
@@ -733,8 +730,8 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
       //      apelidos conhecidos, ex.: "SITUAÇÃO - PA");
       //   5. nome oficial conhecido mas ausente entre as localizações
       //      ativas carregadas — ERRO explícito (nunca null silencioso);
-      //   6. texto desconhecido — pendente, ERRO bloqueante (PROMPT 8.9.1:
-      //      exige decisão explícita do usuário antes de poder ser enviada).
+      //   6. texto desconhecido — pendente, ERRO bloqueante (exige decisão
+      //      explícita do usuário antes de poder ser enviada).
       final textoLocalizacao = linha.celulas[ImportColumnField.localizacao];
       linha.localizacaoTexto = textoLocalizacao;
       if (textoLocalizacao != null) {
@@ -760,15 +757,9 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
           }
         }
 
-        // PROMPT 8.15.1: a nota histórica de "BAIXAS LOCALIZADAS" depende
-        // do valor ORIGINAL da planilha (`textoLocalizacao`), nunca do
-        // resultado final da localização — precisa sobreviver mesmo quando
-        // o usuário mapeia manualmente esse texto para uma localização
-        // física concreta (ex.: SITUAÇÃO/SITUADA - PA) nos ramos acima, que
-        // então NUNCA passam por `localizacaoSemLocalizacaoPorRegra`. Por
-        // isso fica fora/depois da cadeia de precedência acima, não dentro
-        // de um dos seus ramos. Idempotente (mesmo mecanismo de
-        // [mesclarObservacaoComTombamentoAnterior]): nunca duplica a nota
+        // A nota de "BAIXAS LOCALIZADAS" depende do valor ORIGINAL da
+        // planilha, não do resultado final da localização — por isso fica
+        // fora da cadeia de precedência acima. Idempotente: nunca duplica a nota
         // em reanálises.
         if (GetecImportProfile.ehBaixasLocalizadas(textoLocalizacao)) {
           linha.observacao = GetecImportProfile.mesclarObservacaoComRecuperacaoBaixasLocalizadas(
@@ -899,10 +890,10 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     state = state.copyWith(cancelamentoSolicitado: true);
   }
 
-  /// Revalidação READ ONLY imediatamente antes da confirmação (PROMPT 8.14,
-  /// seção 7): a análise pode ter sido feita minutos antes, e outro
-  /// usuário/processo pode ter cadastrado um dos mesmos números nesse
-  /// intervalo. Reconsulta em LOTE (nunca uma query por linha — mesmo
+  /// Revalidação READ ONLY imediatamente antes da confirmação: a análise
+  /// pode ter sido feita minutos antes, e outro usuário/processo pode ter
+  /// cadastrado um dos mesmos números nesse intervalo. Reconsulta em LOTE
+  /// (nunca uma query por linha — mesmo
   /// método já usado em [analisar], que internamente já fatia em lotes de
   /// até 200 números) só os números que AINDA seriam enviados como
   /// cadastro NOVO (nunca os que já estão marcados "atualizar", que já são

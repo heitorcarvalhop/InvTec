@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
 
 /// Página simples para rotas cuja funcionalidade ainda não foi
-/// implementada. Existe só para validar navegação/shell/responsividade
-/// nesta etapa — sem dado fake, sem ação funcional.
+/// implementada — sem dado fake, sem ação funcional.
 class PlaceholderPage extends StatelessWidget {
   const PlaceholderPage({
     super.key,

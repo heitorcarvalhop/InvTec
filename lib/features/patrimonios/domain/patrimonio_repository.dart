@@ -16,43 +16,34 @@ abstract class PatrimonioRepository {
   /// Página de patrimônios com tipo/setor já resolvidos (embed, sem N+1).
   /// [tipoId], [status], [setorId], [localizacaoId]/[semLocalizacao],
   /// [marca], [modelo], [responsavel] e os intervalos de data são filtros
-  /// opcionais, todos combináveis entre si e com a busca por AND (PROMPT
-  /// 9.2). Sempre resolvidos no servidor: nunca carrega a página inteira
-  /// para filtrar/paginar em memória.
+  /// opcionais, todos combináveis entre si e com a busca por AND. Sempre
+  /// resolvidos no servidor: nunca carrega a página inteira para
+  /// filtrar/paginar em memória.
   ///
-  /// [busca] é interpretado de acordo com [campoBusca] (PROMPT 9.1):
+  /// [busca] é interpretado de acordo com [campoBusca]:
   /// - [PatrimonioSearchField.patrimonio]: correspondência EXATA contra
   ///   `numero_patrimonio` (nunca `ilike`/substring/similaridade — um
   ///   número de patrimônio incorreto não pode aparecer como se fosse o
   ///   patrimônio pesquisado).
-  /// - [PatrimonioSearchField.numeroSerie]: busca textual controlada
-  ///   (`ilike`) em `numero_serie`.
-  /// - [PatrimonioSearchField.equipamentoDescricao]: `ilike` em `descricao`.
-  /// - [PatrimonioSearchField.marcaModelo]: `ilike` em `marca` OU `modelo`.
-  /// - [PatrimonioSearchField.responsavel]: `ilike` em `responsavel_atual`.
-  /// - [PatrimonioSearchField.localizacao]: pelo nome da localização
-  ///   relacionada (`localizacoes.nome`), nunca pelo setor/gerência.
   /// - [PatrimonioSearchField.tudo] (padrão): se [busca] contém só dígitos,
   ///   trata como identificador — `numero_patrimonio` OU `numero_serie`
   ///   EXATOS, nunca fuzzy/"número mais próximo"; se contém letras, busca
   ///   textual nos campos textuais (mantendo `numero_patrimonio` exato
   ///   quando aplicável).
+  /// - os demais campos ([numeroSerie], [equipamentoDescricao],
+  ///   [marcaModelo], [responsavel], [localizacao]) usam `ilike` no(s)
+  ///   campo(s) correspondente(s).
   ///
   /// [localizacaoId] filtra por `localizacao_atual_id` exato (nunca texto).
   /// [semLocalizacao] filtra `localizacao_atual_id IS NULL` — mutuamente
   /// exclusivo com [localizacaoId] (a UI nunca envia os dois juntos).
   ///
-  /// [marca], [modelo] e [responsavel] (PROMPT 9.2, seção 4) usam `ilike`
-  /// case-insensitive, independentes do [campoBusca]/[busca] da busca
-  /// principal — vazio (após trim) significa "filtro não aplicado".
+  /// [marca], [modelo] e [responsavel] usam `ilike` case-insensitive,
+  /// independentes do [campoBusca]/[busca] da busca principal — vazio
+  /// (após trim) significa "filtro não aplicado".
   ///
-  /// [dataCadastroDe]/[dataCadastroAte] filtram `data_cadastro`
-  /// (timestamptz) por intervalo INCLUSIVO nos dois limites — a
-  /// implementação decide como tratar início/fim do dia local do
-  /// dispositivo (seção 5: preferir `>= início do dia` e `< início do dia
-  /// seguinte`, nunca depender de `23:59:59.999`).
-  /// [dataAquisicaoDe]/[dataAquisicaoAte] filtram `data_aquisicao` (date)
-  /// também por intervalo inclusivo, sem ambiguidade de fuso (é só data).
+  /// [dataCadastroDe]/[dataCadastroAte] e [dataAquisicaoDe]/
+  /// [dataAquisicaoAte] filtram por intervalo INCLUSIVO nos dois limites.
   Future<PatrimoniosResultado> listar({
     int limit = 25,
     int offset = 0,
@@ -112,7 +103,7 @@ abstract class PatrimonioRepository {
   /// Busca, em uma única consulta, os patrimônios cujo `numero_patrimonio`
   /// (já normalizado) esteja em [numeros] — usado pela importação de
   /// planilha para detectar existentes sem uma consulta por linha (nunca
-  /// N+1, ver seção 15 da especificação de importação).
+  /// N+1).
   Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(List<String> numeros);
 
   /// Entre [numerosSerie], devolve os que já pertencem a algum patrimônio
@@ -120,7 +111,7 @@ abstract class PatrimonioRepository {
   /// série (não é `unique` no banco, então nunca bloqueia, só avisa).
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie);
 
-  /// PROMPT 11.6.4 — aplica UMA decisão de comparação (um patrimônio) via
+  /// aplica UMA decisão de comparação (um patrimônio) via
   /// `aplicar_decisao_comparacao_patrimonio`, dentro de uma única transação
   /// no servidor: metadados por UPDATE direto, setor/localização sempre por
   /// `registrar_movimentacao` (nunca um atalho). Idempotente por

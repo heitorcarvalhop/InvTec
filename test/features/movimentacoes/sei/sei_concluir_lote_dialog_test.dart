@@ -24,7 +24,7 @@ import '../../auth/fake_auth_repository.dart';
 import '../../patrimonios/fake_patrimonio_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.5.7 — interface Flutter da conclusão em LOTE de documentos SEI.
+/// Interface Flutter da conclusão em LOTE de documentos SEI.
 ///
 /// NENHUM teste fala com o Supabase, chama a RPC real ou cria movimentação
 /// real: tudo usa `FakeDocumentosSeiRepository`/`FakePatrimonioRepository`.
@@ -170,14 +170,14 @@ Future<_CenarioLote> _abrirLoteDialog(
   required List<SeiItemPendente> itensSelecionados,
   List<PatrimonioDetalhe>? patrimonios,
   String Function()? gerarLoteId,
-  // PROMPT 11.5.7 — só para o cenário de P0010: o documento REALMENTE
+  // Só para o cenário de P0010: o documento REALMENTE
   // armazenado no fake pode divergir do que o diálogo recebeu (simula
   // "outra sessão alterou o documento" entre a leitura e a confirmação).
   SeiDocumentoPendente? documentoNoRepo,
-  // PROMPT 11.5.8 — viewport do teste (Windows/desktop x Android/compacto),
+  // Viewport do teste (Windows/desktop x Android/compacto),
   // mesmo padrão de `_abrirDetalhe`/`sei_concluir_entrega_test.dart`.
   Size? tamanho,
-  // PROMPT 11.5.15 — `null` (padrão) preserva `textoAvisoLote`.
+  // `null` (padrão) preserva `textoAvisoLote`.
   String? textoAviso,
 }) async {
   final auth = FakeAuthRepository(initialUserId: 'user-1', profileResolver: (_) => _perfil(ProfilePerfil.admin));
@@ -330,7 +330,7 @@ void main() {
       expect(find.byKey(const Key('sei-concluir-lote-nao-incluidos')), findsOneWidget);
       expect(find.textContaining('2 itens NÃO incluídos'), findsOneWidget);
 
-      // PROMPT 11.5.15 — o número do patrimônio de um item NÃO incluído
+      // O número do patrimônio de um item NÃO incluído
       // (item-2, cancelado) fica alinhado (mesmo recuo do ícone) com o
       // número do patrimônio de um item INCLUÍDO (item-1) — antes, o
       // primeiro começava rente à borda esquerda e o segundo vinha recuado
@@ -354,7 +354,7 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 11.5.10 — Concluir todos os aptos EXCLUI um item com origem divergente do patrimônio '
+      'Concluir todos os aptos EXCLUI um item com origem divergente do patrimônio '
       '(consulta o patrimônio atual, nunca só o item)',
       (tester) async {
         await _abrirDetalhe(
@@ -389,7 +389,7 @@ void main() {
     );
 
     testWidgets(
-      'PROMPT 11.5.15.1 — "Itens NÃO incluídos" aparecem em ordem de LINHA do documento, não de construção',
+      '"Itens NÃO incluídos" aparecem em ordem de LINHA do documento, não de construção',
       (tester) async {
         // item-1 (linha 1): SÓ é excluído na reavaliação por patrimônio
         // (origem divergente) — na função pura
@@ -459,7 +459,7 @@ void main() {
       expect(find.textContaining('Notebook 1'), findsWidgets);
       expect(find.textContaining('Gerencia de Tecnologia'), findsWidgets);
       expect(find.textContaining('Nucleo de Testes Automatizados'), findsWidgets);
-      // PROMPT 11.5.15 — sem `textoAviso`, o aviso de responsabilidade REAL
+      // Sem `textoAviso`, o aviso de responsabilidade REAL
       // do app operacional continua exatamente o mesmo de sempre.
       expect(find.text(textoAvisoLote), findsOneWidget);
       // 2 itens selecionados → plural correto (nunca "item(ns)").
@@ -468,7 +468,7 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 11.5.15 — textoAviso substitui o aviso padrão (usado pela prévia local para indicar que é fictício)',
+      'textoAviso substitui o aviso padrão (usado pela prévia local para indicar que é fictício)',
       (tester) async {
         const textoFicticio = 'PRÉVIA LOCAL: simulação em memória, nenhuma movimentação real.';
         await _abrirLoteDialog(
@@ -484,7 +484,7 @@ void main() {
       },
     );
 
-    testWidgets('PROMPT 11.5.15 — singular/plural corretos: "1 item" (nunca "item(ns)") e "2 itens"', (tester) async {
+    testWidgets('singular/plural corretos: "1 item" (nunca "item(ns)") e "2 itens"', (tester) async {
       await _abrirLoteDialog(
         tester,
         documento: _documento([_item(linha: 1)]),
@@ -553,7 +553,7 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 11.5.8 — fechar a revisão ("Voltar") ANTES de confirmar não cria nem executa nenhuma decisão',
+      'fechar a revisão ("Voltar") ANTES de confirmar não cria nem executa nenhuma decisão',
       (tester) async {
         final c = await _abrirLoteDialog(
           tester,
@@ -677,7 +677,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.11 — feedback visual de "Consultar o que aconteceu"', () {
+  group('feedback visual de "Consultar o que aconteceu"', () {
     testWidgets(
       'timeout → Consultar o que aconteceu → consulta retorna null → mensagem visível → tentativa preservada',
       (tester) async {
@@ -694,7 +694,7 @@ void main() {
         final loteIdAntes = container.read(seiConclusaoLoteControllerProvider).decisao!.loteId;
 
         // Nenhum registro foi semeado para este loteId — `buscarLotePorId`
-        // devolve `null` (mesma consulta do PROMPT relatado).
+        // devolve `null`.
         c.repo.falhaNaConclusao = null;
         await tester.tap(find.byKey(_chaveReconciliar));
         await tester.pumpAndSettle();
@@ -702,7 +702,7 @@ void main() {
         // MESMO painel — mas agora com uma mensagem visível sobre o
         // resultado desta consulta (antes do fix, a tela ficava idêntica).
         expect(find.byKey(const Key('sei-concluir-lote-incerto')), findsOneWidget);
-        // PROMPT 11.5.15 — o rastro da última consulta agora é curto e
+        // O rastro da última consulta agora é curto e
         // vive FORA do bloco vermelho principal (ver `sei-concluir-lote-aviso-consulta`).
         expect(find.byKey(const Key('sei-concluir-lote-aviso-consulta')), findsOneWidget);
         expect(find.textContaining('Última consulta: ainda sem confirmação'), findsOneWidget);
@@ -930,7 +930,7 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 11.5.14 — "Detalhes técnicos" NUNCA orienta iniciar outra conclusão; informa loteId e suporte',
+      '"Detalhes técnicos" NUNCA orienta iniciar outra conclusão; informa loteId e suporte',
       (tester) async {
         final documento = _documento([_item(linha: 1), _item(linha: 2)]);
         final repoSemente = FakeDocumentosSeiRepository(documentosIniciais: [documento]);
@@ -1000,7 +1000,7 @@ void main() {
     );
   });
 
-  group('PROMPT 11.5.8 — compatibilidade visual: lista longa, texto extenso, Windows e viewport compacto', () {
+  group('compatibilidade visual: lista longa, texto extenso, Windows e viewport compacto', () {
     List<SeiItemPendente> itensLongos(int quantidade) => [
       for (var i = 1; i <= quantidade; i++)
         _item(

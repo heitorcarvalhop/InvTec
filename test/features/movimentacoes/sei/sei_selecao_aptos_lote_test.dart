@@ -9,7 +9,7 @@ import 'package:invtec/features/movimentacoes/sei/domain/sei_valor_corrigivel.da
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 
-/// PROMPT 11.5.10/11.5.10.1 — [selecionarAptosParaLoteComPatrimonios] (PURA,
+/// [selecionarAptosParaLoteComPatrimonios] (PURA,
 /// sem I/O): combina a triagem preliminar por item com a reavaliação
 /// contra o patrimônio ATUAL de cada candidato (via `planejarConclusaoLote`,
 /// nenhuma regra de elegibilidade nova/duplicada aqui) e aplica o limite de
@@ -89,7 +89,7 @@ void main() {
     );
   }
 
-  group('PROMPT 11.5.10.1 — limite de 200 aplicado à seleção FINAL, nunca à preliminar', () {
+  group('limite de 200 aplicado à seleção FINAL, nunca à preliminar', () {
     test('201 preliminares, 1 bloqueado na reavaliação (origem divergente): 200 aptos, operação permitida', () {
       final itens = [for (var i = 1; i <= 201; i++) itemElegivel(i)];
       final doc = documento(itens);

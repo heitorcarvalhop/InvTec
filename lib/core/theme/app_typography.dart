@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Hierarquia tipográfica do InvTec (PROMPT 9.3) — nomes semânticos por
-/// função ("título de página", "métrica"...), nunca por tamanho, para que
+/// Hierarquia tipográfica do InvTec — nomes semânticos por função
+/// ("título de página", "métrica"...), nunca por tamanho, para que
 /// o mesmo papel visual seja sempre usado do mesmo jeito em toda a
 /// aplicação. Todos os estilos derivam de `Theme.of(context).textTheme`
 /// (que já reflete o tema claro/escuro atual) — nunca um `TextStyle` fixo

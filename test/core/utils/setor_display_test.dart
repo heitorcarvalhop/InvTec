@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/core/utils/setor_display.dart';
 
-/// PROMPT 11.3.5.3 — `siglaOuNomeSetor` é a ÚNICA função que decide como um
+/// `siglaOuNomeSetor` é a ÚNICA função que decide como um
 /// setor aparece em contexto compacto (tabelas/dropdowns/detalhamentos):
 /// nunca um mapa fixo por setor conhecido (GETEC/GEASI/GESOL/CIMEHGO) e
 /// nunca uma sigla inventada a partir das iniciais do nome.
 void main() {
-  group('PROMPT 11.3.5.3 — siglaOuNomeSetor', () {
+  group('siglaOuNomeSetor', () {
     test('GETEC apresentado como GETEC', () {
       expect(siglaOuNomeSetor(sigla: 'GETEC', nome: 'Gerencia de Tecnologia'), 'GETEC');
     });

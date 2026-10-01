@@ -2,8 +2,7 @@
 ///
 /// [ativos] é "não baixados" (total - baixados), e não "na GETEC": ainda
 /// não há setores cadastrados para calcular isso, e inventar um setor fixo
-/// aqui seria assumir dado que não existe — ver docs/database.md e a
-/// decisão registrada no relatório desta etapa.
+/// aqui seria assumir dado que não existe — ver docs/database.md.
 class DashboardStats {
   const DashboardStats({
     required this.total,
@@ -27,8 +26,7 @@ class DashboardStats {
   final int total;
   final int ativos;
 
-  /// Contagem de `status = DISPONIVEL` (PROMPT 9.3 — card "Disponíveis" do
-  /// dashboard).
+  /// Contagem de `status = DISPONIVEL` (card "Disponíveis" do dashboard).
   final int disponiveis;
   final int emUso;
   final int emprestados;

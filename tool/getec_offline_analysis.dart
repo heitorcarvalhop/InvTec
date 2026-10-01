@@ -22,9 +22,9 @@ import '../test/features/patrimonios/fake_patrimonio_repository.dart';
 import '../test/features/patrimonios/fake_tipo_patrimonio_repository.dart';
 import '../test/features/setores/fake_setor_repository.dart';
 
-/// Diagnóstico OFFLINE e manual com o arquivo real local (Prompt 8.7, seção
-/// 35) — usa o `PatrimonioImportController` DE PRODUÇÃO, ponta a ponta, mas
-/// com repositórios FAKE (em memória): nenhuma chamada de rede, nenhuma
+/// Diagnóstico OFFLINE e manual com o arquivo real local — usa o
+/// `PatrimonioImportController` DE PRODUÇÃO, ponta a ponta, mas com
+/// repositórios FAKE (em memória): nenhuma chamada de rede, nenhuma
 /// escrita, nenhum contato com o Supabase real.
 ///
 /// Fica em tool/ (fora de test/) de propósito: NÃO roda como parte de

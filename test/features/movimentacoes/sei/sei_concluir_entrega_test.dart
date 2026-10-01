@@ -35,7 +35,7 @@ import '../../patrimonios/fake_patrimonio_repository.dart';
 import '../../setores/fake_setor_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.4.3 — "Concluir entrega" de um item SEI.
+/// "Concluir entrega" de um item SEI.
 ///
 /// NENHUM teste fala com o Supabase, chama a RPC real ou cria movimentação
 /// real: tudo usa `FakeDocumentosSeiRepository.concluirItem` (que apenas
@@ -712,7 +712,7 @@ void main() {
     });
   });
 
-  // PROMPT 11.4.3.1 — PENDENTE não é CONFIRMADO_SEM_INFORMACAO.
+  // PENDENTE não é CONFIRMADO_SEM_INFORMACAO.
   group('11.4.3.1 PENDENTE x CONFIRMADO_SEM_INFORMACAO x DEFINIDO', () {
     final patrimonioComTudo = _patrimonio(
       responsavel: 'Fulano Atual',

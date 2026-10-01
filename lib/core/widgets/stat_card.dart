@@ -6,10 +6,9 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'status_chip.dart';
 
-/// Card de métrica (ícone + valor + descrição) usado no Dashboard —
-/// PROMPT 9.3. [kind] tinge só o pequeno badge do ícone com uma cor
-/// contextual discreta (PROMPT 9.3.3: nunca o card inteiro), coerente com
-/// o resto dos status da aplicação.
+/// Card de métrica (ícone + valor + descrição) usado no Dashboard. [kind]
+/// tinge só o pequeno badge do ícone com uma cor contextual discreta
+/// (nunca o card inteiro), coerente com o resto dos status da aplicação.
 class InvTecStatCard extends StatelessWidget {
   const InvTecStatCard({
     super.key,

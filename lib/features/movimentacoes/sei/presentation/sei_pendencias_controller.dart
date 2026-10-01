@@ -21,12 +21,11 @@ class SeiPendenciasListState {
   int get totalPaginas => resultado.total == 0 ? 1 : ((resultado.total - 1) ~/ filtro.tamanhoPagina) + 1;
 }
 
-/// Lista de Documentos SEI pendentes (PROMPT 11.3, seção 4) — somente
-/// leitura: nenhum método aqui cria, edita, cancela ou conclui nada (essas
-/// ações vivem em `DocumentosSeiRepository`, chamadas a partir da tela de
-/// detalhe). Mesmo padrão de `MovimentacoesController`: busca com debounce
-/// (aqui, por número de documento/processo/patrimônio) e paginação
-/// resolvidas no servidor.
+/// Lista de Documentos SEI pendentes — somente leitura: nenhum método aqui
+/// cria, edita, cancela ou conclui nada (essas ações vivem em
+/// `DocumentosSeiRepository`, chamadas a partir da tela de detalhe). Mesmo
+/// padrão de `MovimentacoesController`: busca com debounce (por número de
+/// documento/processo/patrimônio) e paginação resolvidas no servidor.
 class SeiPendenciasController extends AsyncNotifier<SeiPendenciasListState> {
   Timer? _debounce;
   SeiPendenciasFiltro _filtro = const SeiPendenciasFiltro();

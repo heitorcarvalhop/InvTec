@@ -23,10 +23,10 @@ MovimentacaoListagemItem _mov({
   );
 }
 
-/// PROMPT 11.2, seção 4/11: classificação de duplicidade — só compara o que
+/// Classificação de duplicidade — só compara o que
 /// já foi lido em lote (função pura, sem nenhum I/O).
 void main() {
-  group('PROMPT 11.2 — classificarDuplicidade', () {
+  group('classificarDuplicidade', () {
     test('nenhuma movimentação do patrimônio para este documento: sem correspondência', () {
       final resultado = classificarDuplicidade(
         patrimonioId: 'p1',

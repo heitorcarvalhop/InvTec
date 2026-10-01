@@ -158,7 +158,7 @@ Future<void> _pumpMovimentacoesPage(
 }
 
 void main() {
-  group('PROMPT 10.1 — listagem geral de movimentações', () {
+  group('listagem geral de movimentações', () {
     testWidgets('cabeçalho da tela', (tester) async {
       await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository());
 
@@ -167,7 +167,7 @@ void main() {
     });
   });
 
-  group('PROMPT 10.2 — botão Nova movimentação (controle de permissão)', () {
+  group('botão Nova movimentação (controle de permissão)', () {
     testWidgets('aparece para ADMIN/GESTOR/OPERADOR', (tester) async {
       for (final perfil in [ProfilePerfil.admin, ProfilePerfil.gestor, ProfilePerfil.operador]) {
         await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository(), perfil: perfil);
@@ -195,7 +195,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.1 — botão Importar documento SEI (controle de permissão)', () {
+  group('botão Importar documento SEI (controle de permissão)', () {
     testWidgets('aparece para ADMIN/GESTOR/OPERADOR', (tester) async {
       for (final perfil in [ProfilePerfil.admin, ProfilePerfil.gestor, ProfilePerfil.operador]) {
         await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository(), perfil: perfil);
@@ -224,7 +224,7 @@ void main() {
       expect(
         find.textContaining('nenhuma movimentação é registrada aqui'),
         findsOneWidget,
-        reason: 'seção 1 do prompt: o diálogo precisa deixar claro que esta etapa é só leitura',
+        reason: 'o diálogo precisa deixar claro que esta etapa é só leitura',
       );
       // Nunca "Executar movimentações" (seção 1) — nem em nenhum outro
       // texto do diálogo enquanto ainda não há resultado de análise.
@@ -232,8 +232,7 @@ void main() {
     });
   });
 
-  group('PROMPT 10.1 — listagem geral de movimentações', () {
-
+  group('listagem geral de movimentações', () {
     testWidgets('listagem mostra as movimentações retornadas', (tester) async {
       await _pumpMovimentacoesPage(
         tester,
@@ -442,7 +441,7 @@ void main() {
       expect(find.text('CHAM-2'), findsOneWidget);
     });
 
-    testWidgets('PROMPT 10.1.1 — detalhe mostra observação quando existe', (tester) async {
+    testWidgets('detalhe mostra observação quando existe', (tester) async {
       await _pumpMovimentacoesPage(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(
@@ -461,7 +460,7 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 10.1.1 — detalhe mostra "Não disponível" para autor oculto pela RLS (nunca "—")',
+      'detalhe mostra "Não disponível" para autor oculto pela RLS (nunca "—")',
       (tester) async {
         await _pumpMovimentacoesPage(
           tester,
@@ -483,7 +482,7 @@ void main() {
     );
 
     testWidgets(
-      'PROMPT 10.1.1 — filtro Setor inclui setores inativos (histórico pode referenciar setor desativado)',
+      'filtro Setor inclui setores inativos (histórico pode referenciar setor desativado)',
       (tester) async {
         await _pumpMovimentacoesPage(
           tester,
@@ -501,14 +500,14 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('GETEC'), findsWidgets);
-        // PROMPT 11.3.5.3, teste 8: setor sem sigla cadastrada (`sigla` não
-        // informado acima) cai para o nome completo — fallback seguro.
+        // Setor sem sigla cadastrada (`sigla` não informado acima) cai
+        // para o nome completo — fallback seguro.
         expect(find.text('Almoxarifado Antigo (inativo)'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'PROMPT 11.3.5.3 — dropdown de Setor mostra a sigla real (não o nome longo), e o filtro continua usando o ID',
+      'dropdown de Setor mostra a sigla real (não o nome longo), e o filtro continua usando o ID',
       (tester) async {
         // Sem itens na listagem de propósito: este teste é só sobre o
         // dropdown do filtro — uma linha da TABELA com os mesmos nomes
@@ -548,7 +547,7 @@ void main() {
     );
 
     testWidgets(
-      'PROMPT 11.3.5.3 — colunas Origem/Destino da tabela mostram a sigla, com o nome completo no tooltip',
+      'colunas Origem/Destino da tabela mostram a sigla, com o nome completo no tooltip',
       (tester) async {
         await _pumpMovimentacoesPage(
           tester,
@@ -585,7 +584,7 @@ void main() {
     );
 
     testWidgets(
-      'PROMPT 11.3.5.4 — diálogo de detalhes da movimentação mostra a sigla, com o nome completo no tooltip',
+      'diálogo de detalhes da movimentação mostra a sigla, com o nome completo no tooltip',
       (tester) async {
         await _pumpMovimentacoesPage(
           tester,
@@ -647,7 +646,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.9.1 — tela inteira de Movimentações sem overflow ao redimensionar', () {
+  group('tela inteira de Movimentações sem overflow ao redimensionar', () {
     Future<void> pumpEm(WidgetTester tester, Size tamanho) async {
       tester.view.physicalSize = tamanho;
       tester.view.devicePixelRatio = 1;

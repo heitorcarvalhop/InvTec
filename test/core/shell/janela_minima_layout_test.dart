@@ -32,7 +32,7 @@ import '../../features/patrimonios/fake_patrimonio_repository.dart';
 import '../../features/patrimonios/fake_tipo_patrimonio_repository.dart';
 import '../../features/setores/fake_setor_repository.dart';
 
-/// PROMPT 11.3.9.2 — política de tamanho da janela do InvTec Windows.
+/// Política de tamanho da janela do InvTec Windows.
 ///
 /// A restrição REAL (mínimo de 1280x720 de ÁREA CLIENTE, tamanho inicial
 /// 1440x810) vive no runner Win32 (`windows/runner/main.cpp` +
@@ -225,7 +225,7 @@ Future<void> _irPara(WidgetTester tester, String rota, {bool pendencias = false}
 }
 
 void main() {
-  group('PROMPT 11.3.9.2 — telas principais nas dimensões permitidas pela janela', () {
+  group('telas principais nas dimensões permitidas pela janela', () {
     for (final tam in [_minimo, _inicial, _maximizado1080p, _maximizado1080pEscala150]) {
       testWidgets('${tam.width.toInt()}x${tam.height.toInt()}: nenhuma tela principal estoura', (tester) async {
         final erros = await _coletandoOverflow(() async {
@@ -251,7 +251,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.10 — tabela de Pendências simplificada cabe em todos os tamanhos da janela', () {
+  group('tabela de Pendências simplificada cabe em todos os tamanhos da janela', () {
     for (final tam in [_minimo, _inicial, _maximizado1080p, _maximizado1080pEscala150]) {
       testWidgets(
         '${tam.width.toInt()}x${tam.height.toInt()}: Situação e o botão de abrir ficam dentro do Card, sem rolagem horizontal',
@@ -273,7 +273,7 @@ void main() {
           }
           expect(card.right - abrir.right, greaterThan(0));
 
-          // PROMPT 11.3.10.2 — as colunas de texto ficam separadas por pelo
+          // As colunas de texto ficam separadas por pelo
           // menos 16px de folga (cabeçalhos em ordem e nunca sobrepostos).
           final cabecalhos = [
             for (final titulo in ['Documento SEI', 'Assunto', 'Progresso', 'Situação'])
@@ -287,7 +287,7 @@ void main() {
     }
   });
 
-  group('PROMPT 11.3.9.2 — transição maximizado → restaurado', () {
+  group('transição maximizado → restaurado', () {
     testWidgets('restaurar para o mínimo mantém a aba, sem overflow, e a última coluna continua alcançável', (
       tester,
     ) async {
@@ -314,7 +314,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.9.2 — sidebar na altura mínima', () {
+  group('sidebar na altura mínima', () {
     for (final tam in [_minimo, _maximizado1080pEscala150]) {
       testWidgets('${tam.width.toInt()}x${tam.height.toInt()}: todos os itens (incl. "Sair") cabem sem rolar', (
         tester,

@@ -21,7 +21,7 @@ class MovimentacoesListState {
   int get totalPaginas => resultado.total == 0 ? 1 : ((resultado.total - 1) ~/ filtro.tamanhoPagina) + 1;
 }
 
-/// Lista geral de movimentações (PROMPT 10.1): busca com debounce, filtros
+/// Lista geral de movimentações: busca com debounce, filtros
 /// (tipo/setor/período) e paginação — todos resolvidos no servidor via
 /// [MovimentacaoRepository.listar]. Somente leitura: nenhum método de
 /// escrita aqui (registrar movimentação continua exclusivo da tela de

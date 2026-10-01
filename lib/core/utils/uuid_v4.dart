@@ -5,7 +5,7 @@ import 'dart:math';
 /// `Random.secure()` (fonte criptograficamente segura do próprio Dart —
 /// nenhum pacote novo precisou ser adicionado a `pubspec.yaml`).
 ///
-/// PROMPT 11.5.6 — usado para gerar `lote_id` no CLIENTE, uma única vez por
+/// usado para gerar `lote_id` no CLIENTE, uma única vez por
 /// decisão de conclusão em lote confirmada (`SeiConclusaoLoteController`):
 /// `documentos_sei_lotes_conclusao.lote_id` é `primary key` e NUNCA gerado
 /// pelo banco (`gen_random_uuid()` ali produziria uma chave nova a cada

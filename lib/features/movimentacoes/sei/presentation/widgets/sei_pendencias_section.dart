@@ -9,9 +9,9 @@ import '../sei_pendencias_filtro.dart';
 import 'sei_pendencia_detalhe_dialog.dart';
 import 'sei_pendencias_list.dart';
 
-/// Aba "Pendências / Documentos SEI" (PROMPT 11.3, seção 4) — SEPARADA do
-/// histórico de movimentações efetivas: documentos pendentes nunca entram
-/// em `movimentacoes`, então esta lista vem inteiramente de
+/// Aba "Pendências / Documentos SEI" — SEPARADA do histórico de
+/// movimentações efetivas: documentos pendentes nunca entram em
+/// `movimentacoes`, então esta lista vem inteiramente de
 /// `DocumentosSeiRepository`, nunca de `MovimentacaoRepository`.
 class SeiPendenciasSection extends ConsumerStatefulWidget {
   const SeiPendenciasSection({super.key});

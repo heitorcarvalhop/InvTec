@@ -20,8 +20,8 @@ enum ImportColumnField {
   dataEntrada,
 
   /// Tombamento/patrimônio anterior de outra numeração — o banco não tem
-  /// coluna própria para isso (seção 5 do perfil GETEC); quando mapeado, o
-  /// valor é preservado em `observacao` em vez de descartado.
+  /// coluna própria para isso; quando mapeado, o valor é preservado em
+  /// `observacao` em vez de descartado.
   tombamentoAnterior,
 
   /// Localização dentro do setor/gerência de destino (ex.: "Home Office"
@@ -69,9 +69,9 @@ extension ImportColumnFieldLabel on ImportColumnField {
   }
 }
 
-/// Heurísticas de reconhecimento automático (seção 9 da especificação):
-/// só geram uma SUGESTÃO inicial de mapeamento, sempre visível e editável
-/// pelo usuário antes da análise. Nenhuma IA externa é usada.
+/// Heurísticas de reconhecimento automático: só geram uma SUGESTÃO inicial
+/// de mapeamento, sempre visível e editável pelo usuário antes da análise.
+/// Nenhuma IA externa é usada.
 const _aliasesPorCampo = <ImportColumnField, List<String>>{
   ImportColumnField.numeroPatrimonio: [
     'patrimonio',

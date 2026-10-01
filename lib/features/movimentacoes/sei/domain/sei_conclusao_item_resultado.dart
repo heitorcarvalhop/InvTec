@@ -1,7 +1,7 @@
 import '../../domain/movimentacao.dart';
 import 'sei_item_pendente.dart';
 
-/// Resultado de `concluir_item_documento_sei` (PROMPT 11.4.3) — o jsonb
+/// Resultado de `concluir_item_documento_sei` — o jsonb
 /// `{ja_concluido, documento, item, movimentacao}` devolvido pela RPC.
 ///
 /// Reutiliza os modelos já existentes: [item] é o [SeiItemPendente] (a linha

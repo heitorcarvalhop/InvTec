@@ -3,7 +3,7 @@ import '../domain/sei_documento_pendente.dart';
 import '../domain/sei_item_pendente.dart';
 import 'sei_conclusao_plano.dart';
 
-/// PROMPT 11.5.6 — mesmo limite de `concluir_itens_documento_sei_lote`
+/// mesmo limite de `concluir_itens_documento_sei_lote`
 /// (`v_limite_itens constant integer := 200;`, migration
 /// `20260928100000_add_concluir_itens_documento_sei_lote.sql`) — checado
 /// aqui ANTES de qualquer chamada de rede, para a UI nunca depender só do
@@ -11,9 +11,8 @@ import 'sei_conclusao_plano.dart';
 const limiteItensLote = 200;
 
 /// O planejamento de UM item dentro da seleção do lote — reaproveita
-/// [planejarConclusaoEntrega] SEM alteração: o plano individual de cada
-/// item é EXATAMENTE o mesmo que o diálogo de conclusão individual
-/// calcularia para ele sozinho.
+/// [planejarConclusaoEntrega] sem alteração: o plano individual de cada
+/// item é o mesmo que o diálogo de conclusão individual calcularia sozinho.
 class SeiPlanoConclusaoLoteItem {
   const SeiPlanoConclusaoLoteItem({required this.item, required this.plano});
 
@@ -25,11 +24,11 @@ class SeiPlanoConclusaoLoteItem {
 }
 
 /// O que a conclusão em LOTE de [itens] vai fazer, calculado só com dados
-/// que a tela já tem (PROMPT 11.5.6) — PURO, sem I/O, mesmo espírito de
-/// [planejarConclusaoEntrega]. Alimenta a futura tela de revisão do lote: a
-/// autoridade final continua sendo a RPC `concluir_itens_documento_sei_lote`;
-/// isto só evita chamadas que ela recusaria e mostra ao usuário, ANTES de
-/// confirmar, o que vai acontecer com CADA item selecionado.
+/// que a tela já tem — puro, sem I/O, mesmo espírito de
+/// [planejarConclusaoEntrega]. A autoridade final continua sendo a RPC
+/// `concluir_itens_documento_sei_lote`; isto só evita chamadas que ela
+/// recusaria e mostra ao usuário, antes de confirmar, o que vai acontecer
+/// com cada item selecionado.
 class SeiPlanoConclusaoLote {
   const SeiPlanoConclusaoLote({required this.documentoId, required this.itens, required this.bloqueiosGerais});
 

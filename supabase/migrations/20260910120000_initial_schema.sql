@@ -1,9 +1,6 @@
 -- InvTec — schema inicial de controle patrimonial
 -- Entidades: profiles, setores, tipos_patrimonio, patrimonios, movimentacoes
 --
--- IMPORTANTE: esta migration ainda NÃO foi aplicada no Supabase remoto e
--- também NÃO foi executada em nenhum PostgreSQL local. Revise antes de aplicar.
---
 -- Convenções de segurança usadas em todo o arquivo:
 -- * Toda função fixa `set search_path = ''` e referencia objetos sempre com
 --   schema explícito (public.*, auth.uid()).
@@ -233,19 +230,10 @@ create index movimentacoes_data_idx
 -- 6. FUNÇÕES
 -- =============================================================================
 
--- ---------------------------------------------------------------------------
--- Schema private: implementação interna, nunca exposta como endpoint RPC.
---
--- Não é adicionado aos "Exposed schemas" da Data API do Supabase (isso é
--- uma configuração do painel/projeto — Settings → API — fora do alcance de
--- uma migration SQL; ao configurar o projeto remoto, conferir que `private`
--- não está nessa lista, que por padrão só contém `public`/`graphql_public`).
---
--- Mesmo que fosse adicionado por engano, os GRANTs da seção 9 continuam
--- bloqueando o acesso: só private.has_perfil recebe EXECUTE, e apenas para
--- authenticated (as demais funções deste schema são funções de trigger,
--- que o PostgreSQL já impede de ser chamadas fora do mecanismo de trigger,
--- independente de GRANT).
+-- Schema private: implementação interna, nunca exposta como endpoint RPC nem
+-- adicionada aos "Exposed schemas" da Data API do Supabase. Defesa adicional:
+-- só private.has_perfil recebe EXECUTE (seção 9); as demais são funções de
+-- trigger, que o PostgreSQL já impede de chamar fora do mecanismo de trigger.
 create schema private;
 
 -- ---------------------------------------------------------------------------
@@ -536,13 +524,11 @@ declare
   v_destino_ativo boolean;
   v_patrimonio public.patrimonios;
 begin
-  -- 1-2. usuário e permissão
   if private.has_perfil('ADMIN', 'GESTOR', 'OPERADOR') is not true then
     raise exception 'Usuário sem permissão para cadastrar patrimônio'
       using errcode = '42501';
   end if;
 
-  -- 3. dados
   if p_tipo_id is null or p_destino_id is null then
     raise exception 'tipo_id e destino_id são obrigatórios'
       using errcode = 'P0001';
@@ -567,8 +553,7 @@ begin
       using errcode = 'P0001';
   end if;
 
-  -- 4. origem/destino. FOR SHARE: o destino não pode ser desativado até
-  -- este cadastro terminar
+  -- FOR SHARE: o destino não pode ser desativado até este cadastro terminar
   select s.ativo into v_destino_ativo
   from public.setores s
   where s.id = p_destino_id
@@ -599,7 +584,7 @@ begin
       using errcode = '23505';
   end if;
 
-  -- 5 e 7. patrimônio: setor = destino, responsável = responsável de destino
+  -- setor = destino, responsável = responsável de destino
   insert into public.patrimonios (
     numero_patrimonio, numero_serie, tipo_id, marca, modelo, descricao,
     observacao, status, setor_atual_id, responsavel_atual, data_aquisicao,
@@ -613,7 +598,7 @@ begin
   )
   returning * into v_patrimonio;
 
-  -- 6. movimentação inicial
+  -- movimentação inicial
   insert into public.movimentacoes (
     patrimonio_id, tipo, origem_id, responsavel_origem,
     destino_id, responsavel_destino, motivo, observacao,
@@ -624,7 +609,6 @@ begin
     auth.uid(), v_data
   );
 
-  -- 8.
   return v_patrimonio;
 end;
 $$;
@@ -931,12 +915,10 @@ insert into public.tipos_patrimonio (nome) values
 -- =============================================================================
 -- 9. GRANTS
 -- =============================================================================
--- Revoga TUDO primeiro, de public, anon e authenticated. Isso é necessário
--- porque projetos Supabase podem ter default privileges que concedem
--- privilégios EXPLÍCITOS a anon/authenticated em objetos novos: nesse caso
--- `revoke ... from public` não os remove, e `grant select` não reduz um
--- `all` já existente. service_role não é tocado: ele contorna RLS por
--- definição e jamais pode existir no aplicativo cliente.
+-- Revoga TUDO primeiro: default privileges do Supabase podem conceder
+-- privilégios explícitos a anon/authenticated em objetos novos, e nesse caso
+-- `revoke ... from public` sozinho não bastaria. service_role não é tocado:
+-- ele contorna RLS por definição e nunca existe no aplicativo cliente.
 
 revoke all on table
   public.profiles,
@@ -1117,22 +1099,12 @@ create policy movimentacoes_select on public.movimentacoes
 -- =============================================================================
 -- 11. DEFAULT PRIVILEGES (proteção para objetos futuros)
 -- =============================================================================
--- Tudo acima protege os objetos que ESTA migration cria. Sem isso, nada
--- impede que uma migration futura crie uma function/table/sequence nova em
--- public e ela saia com privilégio amplo por esquecimento — em especial
--- functions, que o PostgreSQL concede EXECUTE a PUBLIC automaticamente.
---
--- ALTER DEFAULT PRIVILEGES não é retroativo (não afeta os objetos já
--- criados acima, já tratados um a um nas seções 7 e 9) e só vale para
--- objetos criados depois, pelo role indicado em FOR ROLE — aqui, `postgres`,
--- que é o role usado para rodar migrations no Supabase (dashboard, CLI e
--- SQL Editor). O resultado prático: "novo objeto = privado até uma
--- migration futura liberar explicitamente com GRANT".
---
--- service_role está incluído por completo (BYPASSRLS pula as policies de
--- RLS, mas GRANT/REVOKE de tabela e function continuam valendo normalmente
--- para ele) — qualquer acesso dele a um objeto novo também passa a exigir
--- GRANT explícito de uma migration futura.
+-- Protege objetos que migrations FUTURAS venham a criar em public/private:
+-- sem isso, uma function nova sairia com EXECUTE a PUBLIC por padrão do
+-- PostgreSQL. Não é retroativo (os objetos desta migration já foram
+-- tratados um a um nas seções 7 e 9). `postgres` é o role usado para rodar
+-- migrations no Supabase; service_role é incluído porque BYPASSRLS só pula
+-- RLS, não GRANT/REVOKE.
 
 alter default privileges for role postgres in schema public
   revoke execute on functions from public, anon, authenticated, service_role;

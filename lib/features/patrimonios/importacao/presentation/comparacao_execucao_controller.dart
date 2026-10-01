@@ -11,9 +11,9 @@ import '../domain/patrimonio_comparacao.dart';
 import '../domain/patrimonio_decisao.dart';
 
 /// Máximo de chamadas simultâneas a `aplicar_decisao_comparacao_patrimonio`
-/// (PROMPT 11.6.4, seção 6: "evitar uma operação monolítica... utilizar
-/// lotes transacionais de tamanho controlado") — mesmo valor e mesmo padrão
-/// de `importConcorrenciaMaxima`/`_executarLote` já usados pela importação
+/// — evita uma operação monolítica, usando lotes transacionais de tamanho
+/// controlado; mesmo valor e mesmo padrão de
+/// `importConcorrenciaMaxima`/`_executarLote` já usados pela importação
 /// convencional.
 const comparacaoExecucaoConcorrenciaMaxima = 5;
 
@@ -87,15 +87,15 @@ class ComparacaoExecucaoState {
 
   final ComparacaoExecucaoFase fase;
 
-  /// Chave: `patrimonioId` — nunca um índice de lista (mesmo cuidado do
-  /// PROMPT 11.6.3 com [ChaveDecisaoCampo]).
+  /// Chave: `patrimonioId` — nunca um índice de lista (mesmo cuidado de
+  /// [ChaveDecisaoCampo]).
   final Map<String, ItemExecucaoEstado> itens;
   final String? loteId;
   final String? justificativa;
 
   bool get executando => fase == ComparacaoExecucaoFase.executando;
 
-  /// PROMPT 11.6.4, seção 7/9 — existe ao menos um item cujo resultado real
+  /// existe ao menos um item cujo resultado real
   /// é DESCONHECIDO: enquanto isto for `true`, nenhuma nova comparação nem
   /// nova execução pode começar (o chamador precisa resolver via
   /// [ComparacaoExecucaoController.retryItem]/[ComparacaoExecucaoController.reconciliarItem]
@@ -117,17 +117,17 @@ final comparacaoExecucaoControllerProvider = NotifierProvider<ComparacaoExecucao
   ComparacaoExecucaoController.new,
 );
 
-/// PROMPT 11.6.4 — orquestra a execução SEGURA das decisões preparadas pelo
-/// PROMPT 11.6.3 (`PatrimonioImportState.decisoes`): congela a lista de
-/// itens na confirmação, chama [PatrimonioRepository.aplicarDecisaoComparacao]
-/// UMA VEZ POR PATRIMÔNIO com concorrência limitada, e nunca esconde um
+/// orquestra a execução SEGURA das decisões preparadas em
+/// `PatrimonioImportState.decisoes`: congela a lista de itens na
+/// confirmação, chama [PatrimonioRepository.aplicarDecisaoComparacao] UMA
+/// VEZ POR PATRIMÔNIO com concorrência limitada, e nunca esconde um
 /// resultado desconhecido como se fosse sucesso ou falha.
 ///
 /// Deliberadamente um provider SEPARADO de [PatrimonioImportController]
 /// (mesma decisão de design de `SeiConclusaoLoteController` em relação aos
 /// controllers de edição SEI): mantém a máquina de estados de execução
-/// isolada da máquina de estados de comparação/decisão, e permite ao
-/// PROMPT 11.6.3 continuar funcionando exatamente como antes.
+/// isolada da máquina de estados de comparação/decisão, que continua
+/// funcionando exatamente como antes.
 class ComparacaoExecucaoController extends Notifier<ComparacaoExecucaoState> {
   /// [comparacaoExecucaoHabilitada] é injetável só para teste (padrão:
   /// sempre [EnvConfig.comparacaoExecucaoHabilitada], NUNCA `true` fixo em
@@ -158,10 +158,10 @@ class ComparacaoExecucaoController extends Notifier<ComparacaoExecucaoState> {
       final novo = next.value?.profile?.id;
       if (novo == _usuarioConhecido) return;
       _usuarioConhecido = novo;
-      // seção 6/9 — troca de usuário: descarta o estado local (nunca
-      // reaproveitado por uma sessão diferente da que confirmou); o
-      // servidor já registrou o que realmente foi aplicado, então nada se
-      // perde de verdade, só a "memória" desta tela.
+      // Troca de usuário: descarta o estado local (nunca reaproveitado por
+      // uma sessão diferente da que confirmou); o servidor já registrou o
+      // que realmente foi aplicado, então nada se perde de verdade, só a
+      // "memória" desta tela.
       state = const ComparacaoExecucaoState();
     });
     return const ComparacaoExecucaoState();
@@ -177,13 +177,13 @@ class ComparacaoExecucaoController extends Notifier<ComparacaoExecucaoState> {
     required Map<ChaveDecisaoCampo, DecisaoCampoValor> decisoes,
     required String justificativa,
   }) async {
-    // PROMPT 11.6.4, seção 3 — validação obrigatória em TRÊS camadas: esta é
+    // validação obrigatória em TRÊS camadas: esta é
     // a camada do controller (a UI já esconde o botão para não-ADMIN, e a
     // RPC exige ADMIN no servidor — nenhuma delas sozinha é suficiente).
     // Nunca confiar que só esconder o botão já impede a chamada.
     if (ref.read(authControllerProvider).value?.profile?.perfil != ProfilePerfil.admin) return;
 
-    // PROMPT 11.6.5, seção 9 — trava operacional adicional, independente do
+    // trava operacional adicional, independente do
     // perfil ADMIN e de `kReleaseMode`: enquanto
     // `EnvConfig.comparacaoExecucaoHabilitada` for `false` (padrão), nenhuma
     // execução real é disparada, mesmo que a migration já exista no banco e
@@ -218,10 +218,10 @@ class ComparacaoExecucaoController extends Notifier<ComparacaoExecucaoState> {
     final repositorio = ref.read(patrimonioRepositoryProvider);
     final usuarioNoInicio = _usuarioConhecido;
     for (var i = 0; i < itens.length; i += comparacaoExecucaoConcorrenciaMaxima) {
-      // seção 6 — "uma troca de usuário interrompe novas solicitações":
-      // nunca dispara mais chamadas depois que a sessão que confirmou mudou
-      // (chamadas já em voo terminam normalmente; ver o comentário de
-      // [build] sobre por que uma atualização perdida delas é segura).
+      // Uma troca de usuário interrompe novas solicitações: nunca dispara
+      // mais chamadas depois que a sessão que confirmou mudou (chamadas já
+      // em voo terminam normalmente; ver o comentário de [build] sobre por
+      // que uma atualização perdida delas é segura).
       if (ref.read(authControllerProvider).value?.profile?.id != usuarioNoInicio) break;
       final fim = (i + comparacaoExecucaoConcorrenciaMaxima).clamp(0, itens.length);
       final lote = itens.sublist(i, fim);

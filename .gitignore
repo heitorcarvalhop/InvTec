@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+Thumbs.db
 .atom/
 .build/
 .buildlog/
@@ -60,3 +61,11 @@ app.*.map.json
 
 # Dados reais usados apenas para testes locais
 local_test_data/
+
+# Pacote de distribuição (ZIP + pasta Release copiada) — artefato gerado,
+# nunca versionado; regenerado por `flutter build windows --release` + empacotamento manual.
+/dist/
+*.zip
+
+# Estado local do Supabase CLI (cache de versão/projeto, não é código do projeto).
+supabase/.temp/

@@ -12,9 +12,9 @@ import '../../domain/text_similarity.dart';
 import '../patrimonio_import_controller.dart';
 import '../patrimonio_import_state.dart';
 
-/// Passo "Tipos pendentes" (PROMPT 8.13): linhas bloqueadas por "Tipo é
-/// obrigatório e está vazio" — o classificador automático não conseguiu
-/// inferir um tipo pela descrição, então o usuário precisa decidir. Cada
+/// Passo "Tipos pendentes": linhas bloqueadas por "Tipo é obrigatório e
+/// está vazio" — o classificador automático não conseguiu inferir um tipo
+/// pela descrição, então o usuário precisa decidir. Cada
 /// decisão fica só nesta sessão de importação (ver
 /// [PatrimonioImportController.definirTipoPendente]); nunca vira uma regra
 /// nova do classificador.
@@ -65,9 +65,9 @@ class ImportTiposPendentesStep extends ConsumerWidget {
           children: [
             OutlinedButton(onPressed: controller.voltar, child: const Text('Voltar')),
             FilledButton(
-              // PROMPT 8.13.1: nunca liberar o avanço enquanto houver
-              // pendências — o controller também rejeita a chamada por
-              // segurança, mas a UI não deve nem oferecer o botão habilitado.
+              // Nunca libera o avanço enquanto houver pendências — o
+              // controller também rejeita por segurança, mas a UI não deve
+              // nem oferecer o botão habilitado.
               onPressed: state.tipoPendenteRestantes == 0
                   ? controller.avancarDeTiposPendentesParaRevisao
                   : null,
@@ -279,7 +279,7 @@ class _LinhaPendenteTile extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           // Descrição completa, sem truncar — precisa de espaço suficiente
-          // para o usuário decidir o tipo corretamente (PROMPT 8.13, seção 1).
+          // para o usuário decidir o tipo corretamente.
           Text('Descrição: ${linha.descricao ?? '(sem descrição)'}', softWrap: true),
           if (tombamentoAnterior != null) Text('Tombamento anterior: $tombamentoAnterior'),
           if (linha.marca != null) Text('Marca: ${linha.marca}'),
@@ -291,7 +291,7 @@ class _LinhaPendenteTile extends ConsumerWidget {
             // quando o tipo muda por uma ação externa à própria linha (ex.:
             // "Aplicar aos semelhantes") — sem isto, `initialValue` só é
             // aplicado uma vez e o dropdown pode ficar visualmente
-            // desatualizado (PROMPT 8.13.1).
+            // desatualizado.
             key: ValueKey('tipo-pendente-${linha.numeroLinha}-${linha.tipoIdResolvido}'),
             initialValue: linha.tipoIdResolvido,
             isExpanded: true,

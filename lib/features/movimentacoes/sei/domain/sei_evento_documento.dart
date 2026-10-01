@@ -1,7 +1,7 @@
-/// Tipos de evento da trilha de auditoria de um documento SEI pendente
-/// (PROMPT 11.3, seção 5/14) — a lista cresce conforme novas ações forem
-/// implementadas; nunca reescrita retroativamente (eventos são INSERT-only,
-/// sem UPDATE/DELETE concedido ao cliente na migration proposta).
+/// Tipos de evento da trilha de auditoria de um documento SEI pendente — a
+/// lista cresce conforme novas ações forem implementadas; nunca reescrita
+/// retroativamente (eventos são INSERT-only, sem UPDATE/DELETE concedido
+/// ao cliente).
 enum SeiTipoEventoDocumento {
   criacao,
   edicao,
@@ -52,8 +52,8 @@ enum SeiTipoEventoDocumento {
   }
 }
 
-/// Uma entrada IMUTÁVEL da trilha de auditoria de um documento (PROMPT
-/// 11.3, seção 5) — nunca editável depois de criada; a UI só lê.
+/// Uma entrada IMUTÁVEL da trilha de auditoria de um documento — nunca
+/// editável depois de criada; a UI só lê.
 class SeiEventoDocumento {
   factory SeiEventoDocumento.fromJson(Map<String, dynamic> json) {
     final autor = json['autor'] as Map<String, dynamic>?;

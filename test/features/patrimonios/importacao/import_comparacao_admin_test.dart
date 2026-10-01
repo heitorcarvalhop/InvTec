@@ -34,23 +34,21 @@ import '../../setores/fake_setor_repository.dart';
 import '../fake_patrimonio_repository.dart';
 import '../fake_tipo_patrimonio_repository.dart';
 
-/// PROMPT 11.6.3 — testes da interface de revisão inteligente (modo ADMIN
-/// "Comparar e Atualizar"). Dois estilos, como no restante da suíte deste
-/// assistente:
+/// Testes da interface de revisão inteligente (modo ADMIN "Comparar e
+/// Atualizar"). Dois estilos, como no restante da suíte:
 ///  * a maioria monta [ComparacaoLote]/[PatrimonioImportState] DIRETAMENTE
 ///    (`controller.state = ...`) — mais rápido, sem depender do pipeline
 ///    de planilha/`compute()` (mesmo raciocínio de
 ///    `import_locations_step_test.dart`);
 ///  * duas usam o pipeline CSV real ponta a ponta, porque testam
-///    especificamente a integração `compararParaAdmin`/`analisar` (seções
-///    9 e "importação convencional inalterada").
+///    especificamente a integração `compararParaAdmin`/`analisar`.
 final _tipos = [TipoPatrimonio(id: 'tipo-notebook', nome: 'Notebook', ativo: true, criadoEm: DateTime(2026, 1, 1))];
 final _setores = [
   Setor(id: 'setor-getec', nome: 'GETEC', sigla: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1)),
   Setor(id: 'setor-almoxarifado', nome: 'Almoxarifado', ativo: true, criadoEm: DateTime(2026, 1, 1)),
 ];
 
-/// PROMPT 11.6.3 — viewport maior para os testes de widget deste arquivo:
+/// Viewport maior para os testes de widget deste arquivo:
 /// evita falso-negativo por item fora da área visível do `ListView`
 /// (lazy) ou por botão fora do viewport padrão de 800x600 (mesmo padrão já
 /// usado em `sei_bloqueio_lote_pendente_test.dart`).
@@ -304,7 +302,7 @@ void main() {
       expect(state.decisaoDe('p-divergente', 'Marca'), DecisaoCampoValor.ignorar);
     });
 
-    test('exemplo do PROMPT — localização SIM, marca NÃO', () {
+    test('exemplo — localização SIM, marca NÃO', () {
       final container = _criarContainer(repositorio: FakePatrimonioRepository(), perfil: ProfilePerfil.admin);
       final controller = container.read(patrimonioImportControllerProvider.notifier);
       controller.state = PatrimonioImportState(step: ImportStep.compararRevisao, comparacao: _loteSintetico());

@@ -6,8 +6,7 @@ import '../theme/app_typography.dart';
 
 /// "Mostrando 1–25 de 1.744 registros / ‹ 1 2 3 4 … 70 › / Itens por
 /// página: [25 ▼]" — genérico o bastante para qualquer listagem paginada
-/// server-side do InvTec (PROMPT 9.2, seção 9; visual ajustado no PROMPT
-/// 9.3.2, seção 9, ao conceito aprovado no Figma).
+/// server-side do InvTec.
 class PaginationControls extends StatelessWidget {
   const PaginationControls({
     super.key,

@@ -6,15 +6,15 @@ import '../domain/patrimonio_search_field.dart';
 /// isso para campos anuláveis.
 const _unset = Object();
 
-/// Tamanhos de página permitidos pela listagem (PROMPT 9.2, seção 8).
+/// Tamanhos de página permitidos pela listagem.
 const patrimoniosTamanhosPaginaPermitidos = [25, 50, 100];
 
 const patrimoniosTamanhoPaginaPadrao = 25;
 
-/// Seção 5: um intervalo De/Até só é válido quando a data inicial não é
-/// posterior à final — `null` em qualquer um dos lados (intervalo aberto)
-/// é sempre válido. Função pura para ser testável sem precisar simular a
-/// interação com o seletor de data.
+/// Um intervalo De/Até só é válido quando a data inicial não é posterior à
+/// final — `null` em qualquer um dos lados (intervalo aberto) é sempre
+/// válido. Função pura para ser testável sem precisar simular a interação
+/// com o seletor de data.
 bool intervaloDeDataValido(DateTime? de, DateTime? ate) {
   if (de == null || ate == null) return true;
   return !de.isAfter(ate);
@@ -48,9 +48,8 @@ class PatrimoniosFiltro {
   final PatrimonioStatus? status;
   final String? setorId;
 
-  /// `localizacao_atual_id` exato (PROMPT 9.2, seção 2) — nunca comparação
-  /// textual. `null` + [semLocalizacao] `false` significa "todas as
-  /// localizações".
+  /// `localizacao_atual_id` exato — nunca comparação textual. `null` +
+  /// [semLocalizacao] `false` significa "todas as localizações".
   final String? localizacaoId;
 
   /// Filtro explícito "Sem localização" (`localizacao_atual_id IS NULL`) —
@@ -58,15 +57,14 @@ class PatrimoniosFiltro {
   /// um, o outro é limpo).
   final bool semLocalizacao;
 
-  /// Filtros avançados textuais (PROMPT 9.2, seção 3/4) — independentes do
-  /// campo/termo da busca principal, combinados por AND. Vazio = filtro não
-  /// aplicado.
+  /// Filtros avançados textuais — independentes do campo/termo da busca
+  /// principal, combinados por AND. Vazio = filtro não aplicado.
   final String marca;
   final String modelo;
   final String responsavel;
 
-  /// Intervalo de `data_cadastro` (timestamptz) — seção 5: ambos os limites
-  /// são inclusivos para o usuário.
+  /// Intervalo de `data_cadastro` (timestamptz) — ambos os limites são
+  /// inclusivos para o usuário.
   final DateTime? dataCadastroDe;
   final DateTime? dataCadastroAte;
 
@@ -99,9 +97,9 @@ class PatrimoniosFiltro {
       dataAquisicaoDe != null ||
       dataAquisicaoAte != null;
 
-  /// Quantos filtros avançados (seção 3) estão ativos — usado no rótulo
-  /// "Filtros avançados (N)" (seção 6). Cada intervalo de data conta como UM
-  /// filtro (De/Até formam um único critério), nunca dois.
+  /// Quantos filtros avançados estão ativos — usado no rótulo "Filtros
+  /// avançados (N)". Cada intervalo de data conta como UM filtro (De/Até
+  /// formam um único critério), nunca dois.
   int get quantidadeFiltrosAvancados {
     var quantidade = 0;
     if (marca.isNotEmpty) quantidade++;

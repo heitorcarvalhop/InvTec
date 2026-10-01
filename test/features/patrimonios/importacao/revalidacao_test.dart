@@ -25,10 +25,10 @@ import '../../setores/fake_setor_repository.dart';
 import '../fake_patrimonio_repository.dart';
 import '../fake_tipo_patrimonio_repository.dart';
 
-/// PROMPT 8.14: testes da revisão final como barreira de segurança — a
-/// pergunta "e se eu importar outra planilha repetida?" (seção 10), a
-/// corrida entre análise e confirmação (seção 11), e a prova de zero N+1
-/// (seção 8). Nenhum destes testes chama `confirmarImportacao()` — a
+/// Testes da revisão final como barreira de segurança — a
+/// pergunta "e se eu importar outra planilha repetida?", a
+/// corrida entre análise e confirmação, e a prova de zero N+1.
+/// Nenhum destes testes chama `confirmarImportacao()` — a
 /// própria importação continua fora do escopo (só a barreira é validada).
 final _tipos = [
   TipoPatrimonio(id: 'tipo-notebook', nome: 'Notebook', ativo: true, criadoEm: DateTime(2026, 1, 1)),
@@ -83,7 +83,7 @@ PatrimonioDetalhe _existente(String numero) => PatrimonioDetalhe(
 );
 
 void main() {
-  group('PROMPT 8.14 — cenário A: arquivo repetido depois de uma importação anterior', () {
+  group('cenário A: arquivo repetido depois de uma importação anterior', () {
     test('números já cadastrados aparecem como já existentes; só o número novo é enviado', () async {
       final repo = FakePatrimonioRepository(itens: [_existente('100'), _existente('101'), _existente('102')]);
       final container = _criarContainer(repo);
@@ -119,7 +119,7 @@ void main() {
     });
   });
 
-  group('PROMPT 8.14 — cenário B: duplicado no próprio arquivo', () {
+  group('cenário B: duplicado no próprio arquivo', () {
     test('as duas ocorrências ficam DUPLICADO NO ARQUIVO; o número sem conflito é enviado normalmente', () async {
       final repo = FakePatrimonioRepository();
       final container = _criarContainer(repo);
@@ -154,7 +154,7 @@ void main() {
     });
   });
 
-  group('PROMPT 8.14 — cenário C: serial repetido entre dois patrimônios diferentes', () {
+  group('cenário C: serial repetido entre dois patrimônios diferentes', () {
     test('gera aviso em cada linha, nunca erro, e ambas continuam enviáveis', () async {
       final repo = FakePatrimonioRepository();
       final container = _criarContainer(repo);
@@ -181,7 +181,7 @@ void main() {
     });
   });
 
-  group('PROMPT 8.14 — revalidação (seção 7): corrida entre análise e confirmação', () {
+  group('revalidação: corrida entre análise e confirmação', () {
     test('um número que não existia na análise, mas passou a existir depois, some da lista de novos', () async {
       final repo = FakePatrimonioRepository();
       final container = _criarContainer(repo);
@@ -269,7 +269,7 @@ void main() {
     });
   });
 
-  group('PROMPT 8.14 — seção 8: zero N+1 (análise + revalidação)', () {
+  group('zero N+1 (análise + revalidação)', () {
     test('análise e revalidação juntas fazem só 2 chamadas em lote, independente do número de linhas', () async {
       final repo = FakePatrimonioRepository();
       final container = _criarContainer(repo);

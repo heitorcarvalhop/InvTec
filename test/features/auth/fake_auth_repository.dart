@@ -50,7 +50,7 @@ class FakeAuthRepository implements AuthRepository {
     _authStateController.add(null);
   }
 
-  /// SÓ PARA TESTE (PROMPT 11.5.6.1) — reemite um evento de
+  /// SÓ PARA TESTE — reemite um evento de
   /// `authStateChanges` SEM trocar [currentUserId]: simula um recomputo
   /// trivial da sessão (ex.: `AuthController` reagindo a um evento do
   /// gotrue que não é uma troca real de usuário) — usado para provar que

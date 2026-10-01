@@ -2,10 +2,10 @@ import '../../../patrimonios/domain/patrimonio.dart';
 import '../../domain/movimentacao.dart';
 import 'sei_duplicidade.dart';
 
-/// Uma linha do plano de execução em memória (PROMPT 11.2, seção 9) —
-/// somente leitura: nada neste arquivo, nem em quem o consome, chama
-/// `registrarMovimentacao`. É a "prévia" do que uma futura confirmação
-/// enviaria à RPC, para revisão humana antes de qualquer escrita existir.
+/// Uma linha do plano de execução em memória — somente leitura: nada neste
+/// arquivo, nem em quem o consome, chama `registrarMovimentacao`. É a
+/// "prévia" do que uma futura confirmação enviaria à RPC, para revisão
+/// humana antes de qualquer escrita existir.
 class SeiItemPlano {
   const SeiItemPlano({
     required this.linha,
@@ -44,11 +44,11 @@ class SeiItemPlano {
   final String? destinoId;
   final String? destinoNome;
 
-  /// PROMPT 11.2, seção 6: `null` aqui significa "não informado no
-  /// documento" — NUNCA é silenciosamente traduzido em "preservar" ou
-  /// "limpar". Ver [pendenciasDecisao]: a RPC real de TRANSFERENCIA usa o
-  /// valor exatamente como enviado (não preserva o atual quando omitido),
-  /// então "não informado" exige uma decisão explícita antes de qualquer
+  /// `null` aqui significa "não informado no documento" — NUNCA é
+  /// silenciosamente traduzido em "preservar" ou "limpar". Ver
+  /// [pendenciasDecisao]: a RPC real de TRANSFERENCIA usa o valor
+  /// exatamente como enviado (não preserva o atual quando omitido), então
+  /// "não informado" exige uma decisão explícita antes de qualquer
   /// execução futura.
   final String? localizacaoDestinoId;
   final String? localizacaoDestinoNome;
@@ -67,9 +67,9 @@ class SeiItemPlano {
   final bool avisoConfirmado;
   final SeiDuplicidadeResultado duplicidade;
 
-  /// Avisos explícitos de decisão pendente (seção 6) — ex.: "localização de
-  /// destino não informada no documento; a RPC não preserva o valor atual
-  /// quando este campo é omitido". Uma lista vazia não significa "tudo
-  /// certo para executar": só que não há pendência DESTE tipo específico.
+  /// Avisos explícitos de decisão pendente — ex.: "localização de destino
+  /// não informada no documento; a RPC não preserva o valor atual quando
+  /// este campo é omitido". Uma lista vazia não significa "tudo certo para
+  /// executar": só que não há pendência DESTE tipo específico.
   final List<String> pendenciasDecisao;
 }

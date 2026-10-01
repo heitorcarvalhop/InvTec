@@ -52,10 +52,10 @@ SeiItemExtraido _item({
   );
 }
 
-/// Estado "pronto para seleção" padrão dos testes: as duas decisões da
-/// seção 4 (PROMPT 11.2.1) já resolvidas como "confirmado sem informação"
-/// — o cenário mais comum no documento SEI real, que nunca informa
-/// localização nem responsável de destino.
+/// Estado "pronto para seleção" padrão dos testes: as duas decisões já
+/// resolvidas como "confirmado sem informação" — o cenário mais comum no
+/// documento SEI real, que nunca informa localização nem responsável de
+/// destino.
 const _estadoAptoBase = SeiItemExecucaoEstado(
   selecionado: true,
   decisaoLocalizacao: SeiDecisaoCampo.confirmadoSemInformacao,
@@ -63,7 +63,7 @@ const _estadoAptoBase = SeiItemExecucaoEstado(
 );
 
 void main() {
-  group('PROMPT 11.2/11.2.1 — construirPlanoExecucao (somente leitura)', () {
+  group('construirPlanoExecucao (somente leitura)', () {
     test('item PRONTO, selecionado e com as duas decisões resolvidas entra no plano', () {
       final documento = SeiDocumentoExtraido(
         nomeArquivo: 'doc.pdf',
@@ -194,7 +194,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.2, seção 10 (retomada parcial): item já classificado como jaRegistrada nunca entra no plano',
+      'retomada parcial: item já classificado como jaRegistrada nunca entra no plano',
       () {
         final documento = SeiDocumentoExtraido(
           nomeArquivo: 'doc.pdf',
@@ -230,7 +230,7 @@ void main() {
     );
 
     test(
-      'PROMPT 11.2.1, seção 5: possível duplicidade (sem resolução) também bloqueia — não só "já registrada"',
+      'possível duplicidade (sem resolução) também bloqueia — não só "já registrada"',
       () {
         final documento = SeiDocumentoExtraido(
           nomeArquivo: 'doc.pdf',
@@ -265,7 +265,7 @@ void main() {
       },
     );
 
-    test('PROMPT 11.2.1, seção 5: decisão de localização PENDENTE bloqueia o item, mesmo selecionado', () {
+    test('decisão de localização PENDENTE bloqueia o item, mesmo selecionado', () {
       final documento = SeiDocumentoExtraido(
         nomeArquivo: 'doc.pdf',
         tamanhoBytes: 100,
@@ -294,7 +294,7 @@ void main() {
       expect(plano.totalItens, 0);
     });
 
-    test('PROMPT 11.2.1, seção 5: decisão de responsável PENDENTE bloqueia o item, mesmo selecionado', () {
+    test('decisão de responsável PENDENTE bloqueia o item, mesmo selecionado', () {
       final documento = SeiDocumentoExtraido(
         nomeArquivo: 'doc.pdf',
         tamanhoBytes: 100,
@@ -324,7 +324,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.2.1, seção 4: decisão DEFINIDA (localização/responsável escolhidos) aparece no plano com os valores exatos',
+      'decisão DEFINIDA (localização/responsável escolhidos) aparece no plano com os valores exatos',
       () {
         final documento = SeiDocumentoExtraido(
           nomeArquivo: 'doc.pdf',
@@ -386,7 +386,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.2.1, seção 5 — itensElegiveis (aptos, independente de seleção)', () {
+  group('itensElegiveis (aptos, independente de seleção)', () {
     test('conta itens tecnicamente aptos mesmo sem terem sido selecionados ainda', () {
       final documento = SeiDocumentoExtraido(
         nomeArquivo: 'doc.pdf',

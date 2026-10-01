@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../utils/setor_display.dart';
 
-/// Widget ÚNICO de apresentação compacta de um setor/gerência (PROMPT
-/// 11.3.5.4) — reaproveitado em toda tela que mostra um setor num contexto
-/// apertado (célula de tabela, dropdown, resumo/detalhamento): mostra a
-/// SIGLA cadastrada quando existe, com o NOME COMPLETO disponível por
-/// `Tooltip` no hover; cai para o nome completo (sem tooltip redundante,
-/// já que o texto visível já É o nome completo) quando não há sigla.
+/// Widget único de apresentação compacta de um setor/gerência —
+/// reaproveitado em toda tela que mostra um setor num contexto apertado
+/// (célula de tabela, dropdown, resumo/detalhamento): mostra a sigla
+/// cadastrada quando existe, com o nome completo disponível por `Tooltip`
+/// no hover; cai para o nome completo (sem tooltip redundante, já que o
+/// texto visível já é o nome completo) quando não há sigla.
 ///
 /// Nunca decide o valor REAL de nenhum filtro/formulário — é só
 /// apresentação; quem usa continua enviando `setor.id` para a lógica.

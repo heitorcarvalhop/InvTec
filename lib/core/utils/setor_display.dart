@@ -1,5 +1,5 @@
-/// Texto de exibição COMPACTA de um setor (PROMPT 11.3.5.3) — a sigla real
-/// cadastrada no InvTec (coluna `setores.sigla`), nunca uma abreviação
+/// Texto de exibição compacta de um setor — a sigla real cadastrada no
+/// InvTec (coluna `setores.sigla`), nunca uma abreviação
 /// inventada a partir das iniciais do nome. Sem sigla cadastrada, cai para
 /// o nome completo disponível; sem nenhum dos dois, `null` (o chamador
 /// decide o fallback visual, ex.: `?? '—'`, igual ao resto do app).

@@ -5,10 +5,10 @@ import '../../theme/app_radius.dart';
 import '../navigation_items.dart';
 
 /// Item de navegação compartilhado entre a sidebar (desktop/tablet) e o
-/// drawer (mobile) — PROMPT 9.3: sempre sobre o fundo azul-marinho fixo da
-/// navegação ([AppColors.sidebarBackground]), então usa a paleta fixa da
-/// sidebar em vez de `Theme.of(context).colorScheme` (que mudaria com o
-/// tema claro/escuro e perderia contraste sobre um fundo sempre escuro).
+/// drawer (mobile) — sempre sobre o fundo azul-marinho fixo da navegação
+/// ([AppColors.sidebarBackground]), então usa a paleta fixa da sidebar em
+/// vez de `Theme.of(context).colorScheme` (que mudaria com o tema claro/
+/// escuro e perderia contraste sobre um fundo sempre escuro).
 class NavTile extends StatefulWidget {
   const NavTile({super.key, required this.item, required this.selected, required this.onTap});
 

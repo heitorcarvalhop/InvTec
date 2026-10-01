@@ -8,8 +8,7 @@ enum ImportFileFormat { xlsx, csv }
 
 /// Uma aba já decodificada em linhas/células "planas" (String, num, bool,
 /// DateTime ou null) — nunca expõe tipos das bibliotecas `excel`/`csv` para
-/// fora da camada de dados (seção 35: "não colocar parser XLSX dentro do
-/// widget").
+/// fora da camada de dados.
 class ImportParsedSheet {
   const ImportParsedSheet({required this.nome, required this.linhas});
 
@@ -30,7 +29,7 @@ class ImportParsedFile {
 }
 
 /// Erro amigável de leitura de arquivo — nunca deixa uma exceção técnica
-/// (do `excel`/`csv`) chegar à UI (seção 41).
+/// (do `excel`/`csv`) chegar à UI.
 class SpreadsheetParseException implements Exception {
   const SpreadsheetParseException(this.message);
 
@@ -44,7 +43,7 @@ const _mensagemArquivoInvalido =
     'Não foi possível ler este arquivo. Verifique se ele é uma planilha XLSX ou CSV válida.';
 
 /// Deduz o formato só pela extensão do nome do arquivo — os únicos dois
-/// formatos suportados nesta etapa (seção 1: não implementar .xls).
+/// formatos suportados (.xls não é implementado).
 ImportFileFormat? formatoPorNomeArquivo(String nomeArquivo) {
   final nome = nomeArquivo.toLowerCase();
   if (nome.endsWith('.xlsx')) return ImportFileFormat.xlsx;
@@ -52,9 +51,9 @@ ImportFileFormat? formatoPorNomeArquivo(String nomeArquivo) {
   return null;
 }
 
-/// arquivo → células/linhas (seção 35). O parsing pesado (decodificar o
-/// XLSX/CSV inteiro) roda em uma isolate via [compute], para não travar a
-/// interface com planilhas de milhares de linhas (seção 4).
+/// arquivo → células/linhas. O parsing pesado (decodificar o XLSX/CSV
+/// inteiro) roda em uma isolate via [compute], para não travar a interface
+/// com planilhas de milhares de linhas.
 class SpreadsheetParser {
   const SpreadsheetParser._();
 
@@ -114,7 +113,7 @@ Object? _valorCelulaXlsx(xlsx.Data? celula) {
     case xlsx.BoolCellValue():
       return valor.value;
     // Data "real" do Excel: segura para interpretar diretamente, sem
-    // ambiguidade de formato (seção 38).
+    // ambiguidade de formato.
     case xlsx.DateCellValue():
       return valor.asDateTimeLocal();
     case xlsx.DateTimeCellValue():
@@ -150,8 +149,8 @@ List<ImportParsedSheet> _decodeCsv(_CsvDecodeArgs args) {
   }
 
   // Planilhas brasileiras frequentemente usam ";" como separador — por
-  // isso o padrão é autodetectar em vez de assumir "," (seção 40). Quando
-  // o usuário força um delimitador explícito, ele tem prioridade.
+  // isso o padrão é autodetectar em vez de assumir ",". Quando o usuário
+  // força um delimitador explícito, ele tem prioridade.
   final csv = Csv(
     autoDetect: args.delimitador == null,
     fieldDelimiter: args.delimitador ?? ',',

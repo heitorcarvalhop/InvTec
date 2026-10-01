@@ -7,12 +7,12 @@ import '../domain/patrimonio_comparacao.dart';
 import '../domain/patrimonio_decisao.dart';
 import '../domain/profiles/import_profile_id.dart';
 
-/// Passos do assistente de importação (seção 3) — sempre nesta ordem;
-/// nunca importa automaticamente ao selecionar o arquivo. [resolverLocalizacoes]
+/// Passos do assistente de importação — sempre nesta ordem; nunca importa
+/// automaticamente ao selecionar o arquivo. [resolverLocalizacoes]
 /// só é visitado quando um perfil com localizações a resolver (hoje, só o
 /// GETEC) está ativo — ver [PatrimonioImportState.perfilAtivo].
 ///
-/// PROMPT 11.6.3 — [compararRevisao]/[compararResumo] são o modo ADMIN
+/// [compararRevisao]/[compararResumo] são o modo ADMIN
 /// "Comparar e Atualizar": alcançados a partir do MESMO passo
 /// [configurarPadroes]/[resolverLocalizacoes] do assistente convencional
 /// (ver [PatrimonioImportState.modoComparacaoAdmin]), nunca um segundo
@@ -32,9 +32,9 @@ enum ImportStep {
   compararResumo,
 }
 
-/// Filtro do passo de revisão (seção 22/23) — "duplicados" não é um
-/// [ImportRowStatus] próprio (é um sub-caso de erro), por isso é um enum
-/// separado só para a UI.
+/// Filtro do passo de revisão — "duplicados" não é um [ImportRowStatus]
+/// próprio (é um sub-caso de erro), por isso é um enum separado só para a
+/// UI.
 enum ImportFiltroRevisao { todos, prontos, avisos, erros, duplicados, existentes, atualizar, ignorados }
 
 extension ImportFiltroRevisaoLabel on ImportFiltroRevisao {
@@ -43,11 +43,11 @@ extension ImportFiltroRevisaoLabel on ImportFiltroRevisao {
       case ImportFiltroRevisao.todos:
         return 'Todos';
       case ImportFiltroRevisao.prontos:
-        // PROMPT 8.14: rótulo "Novos" (a linguagem que o usuário reconhece —
-        // "será cadastrado como novo patrimônio"), sem renomear o valor do
-        // enum nem mudar seu predicado (continua só `status == pronto`;
-        // linhas com aviso têm seu próprio filtro "Avisos", já que também
-        // seriam enviadas mas merecem inspeção separada).
+        // Rótulo "Novos" (a linguagem que o usuário reconhece — "será
+        // cadastrado como novo patrimônio"), sem renomear o valor do enum
+        // nem mudar seu predicado (continua só `status == pronto`; linhas
+        // com aviso têm seu próprio filtro "Avisos", já que também seriam
+        // enviadas mas merecem inspeção separada).
         return 'Novos';
       case ImportFiltroRevisao.avisos:
         return 'Avisos';
@@ -86,7 +86,7 @@ List<ImportRow> aplicarFiltroRevisao(List<ImportRow> linhas, ImportFiltroRevisao
   }
 }
 
-/// PROMPT 11.6.3, seção 3 — filtros da lista de revisão do modo ADMIN
+/// filtros da lista de revisão do modo ADMIN
 /// "Comparar e Atualizar". Opera sobre [ComparacaoLote.itensParaRevisao]
 /// (idênticos JÁ excluídos por aquele getter — nunca reaparecem aqui,
 /// mesmo com o filtro "Todos").
@@ -180,28 +180,27 @@ class PatrimonioImportState {
   final ImportFiltroRevisao filtroRevisao;
   final int revisao;
 
-  /// Perfil detectado automaticamente pelos cabeçalhos (seção 27) — sempre
+  /// Perfil detectado automaticamente pelos cabeçalhos — sempre
   /// informativo, independente de o usuário ter ativado ou não.
   final ImportProfileId? perfilDetectado;
 
   /// Perfil efetivamente em uso nesta importação — só muda para algo além
   /// de [ImportProfileId.generico] quando o usuário confirma explicitamente
-  /// (seção 27: "não esconder do usuário que um perfil foi ativado").
+  /// (nunca esconde do usuário que um perfil foi ativado).
   final ImportProfileId perfilAtivo;
 
   /// Localização da planilha (texto normalizado) → id da `Localizacao`
   /// escolhida pelo usuário no passo de localizações, dentro da gerência
-  /// fixa da carga (seção 15/16/33) — nunca criação automática de
-  /// localização.
+  /// fixa da carga — nunca criação automática de localização.
   final Map<String, String> mapeamentoLocalizacoes;
 
   /// Localizações da planilha (texto normalizado) para as quais o usuário
-  /// decidiu explicitamente "importar sem localização" (seção 32) —
-  /// distinto de "ainda não decidido" (que fica pendente/aviso).
+  /// decidiu explicitamente "importar sem localização" — distinto de
+  /// "ainda não decidido" (que fica pendente/aviso).
   final Set<String> localizacoesSemMapeamento;
 
-  /// Decisões manuais de tipo tomadas na tela de pendências (PROMPT 8.13) —
-  /// número da linha original (estável dentro da mesma sessão/arquivo,
+  /// Decisões manuais de tipo tomadas na tela de pendências — número da
+  /// linha original (estável dentro da mesma sessão/arquivo,
   /// diferente do texto de localização) → id do tipo escolhido. Reaplicada a
   /// cada `analisar()` para sobreviver a uma reanálise completa, já que
   /// [ImportRow] é recriado do zero a cada chamada. Nunca vira regra do
@@ -210,9 +209,9 @@ class PatrimonioImportState {
 
   /// Fotografia (número da linha) de quais linhas estavam bloqueadas
   /// especificamente por "tipo vazio" na análise que abriu a tela de
-  /// pendências — usada para calcular o progresso (seção 9) e para o
-  /// agrupamento de "Aplicar aos semelhantes" (seção 4), sem incluir linhas
-  /// que nunca estiveram pendentes.
+  /// pendências — usada para calcular o progresso e para o agrupamento de
+  /// "Aplicar aos semelhantes", sem incluir linhas que nunca estiveram
+  /// pendentes.
   final Set<int> numerosLinhaTipoPendenteOriginal;
 
   /// Linhas que fazem parte da fotografia de pendências de tipo desta
@@ -228,8 +227,8 @@ class PatrimonioImportState {
   int get tipoPendenteResolvidos => totalTipoPendente - tipoPendenteRestantes;
 
   /// `true` enquanto uma revalidação contra o Supabase real está em
-  /// andamento (PROMPT 8.14, seção 7) — usado para mostrar um spinner e
-  /// evitar clique duplo no botão de importar.
+  /// andamento — usado para mostrar um spinner e evitar clique duplo no
+  /// botão de importar.
   final bool revalidando;
 
   /// Valor de [revisao] no momento em que a última revalidação terminou —
@@ -242,26 +241,26 @@ class PatrimonioImportState {
   final int? revalidacaoConcluidaNaRevisao;
 
   /// `true` quando a revalidação mais recente está atualizada em relação ao
-  /// estado atual das linhas (seção 9: "revalidação contra banco
-  /// concluída" é uma das condições da barreira de importação).
+  /// estado atual das linhas ("revalidação contra banco concluída" é uma
+  /// das condições da barreira de importação).
   bool get revalidacaoValidaParaEstadoAtual => revalidacaoConcluidaNaRevisao == revisao;
 
   /// Números patrimoniais que a última revalidação encontrou já existindo
   /// no banco — eram "novos" na análise original mas, entre a análise e a
-  /// confirmação, alguém cadastrou o mesmo número (PROMPT 8.14, seção 7).
-  /// Vazio quando a revalidação não encontrou nenhuma mudança.
+  /// confirmação, alguém cadastrou o mesmo número. Vazio quando a
+  /// revalidação não encontrou nenhuma mudança.
   final List<String> revalidacaoNumerosQueViraramExistentes;
 
-  /// PROMPT 11.6.2 — resultado do modo ADMIN "Comparar e Atualizar",
+  /// resultado do modo ADMIN "Comparar e Atualizar",
   /// calculado a partir das MESMAS [linhas] já produzidas pelo assistente
   /// convencional (ver [PatrimonioImportController.compararParaAdmin]).
   /// `null` sempre que esse modo nunca foi acionado nesta sessão — a
   /// importação convencional nunca o preenche, então seu comportamento
   /// (inclusive todo [resumo]/[linhasFiltradas] abaixo) permanece IDÊNTICO
-  /// ao de antes deste prompt.
+  /// ao do fluxo convencional.
   final ComparacaoLote? comparacao;
 
-  /// PROMPT 11.6.3 — `true` quando o usuário (sempre ADMIN — ver seção 1;
+  /// `true` quando o usuário (sempre ADMIN —
   /// [PatrimonioImportController.definirModoComparacaoAdmin] recusa fora
   /// desse perfil) escolheu "Comparar e Atualizar" em vez da importação
   /// convencional, no passo "Configurar padrões". Decide qual método o
@@ -273,23 +272,23 @@ class PatrimonioImportState {
   /// localizações do perfil GETEC).
   final bool modoComparacaoAdmin;
 
-  /// PROMPT 11.6.3, seção 5 — decisão do ADMIN por campo divergente,
+  /// decisão do ADMIN por campo divergente,
   /// chaveada por [ChaveDecisaoCampo] (patrimonioId + campo — NUNCA um
   /// índice de lista, que muda com filtro/ordenação). Só contém entradas
   /// para patrimônios [ClassificacaoComparacao.divergente]: nunca para
-  /// novos (sem cadastro automático — seção 6) nem bloqueados (seção 7).
-  /// Reiniciada a CADA nova planilha ([PatrimonioImportController.carregarArquivo]
-  /// já reseta o estado inteiro) e a cada nova chamada de
-  /// [PatrimonioImportController.compararParaAdmin] (seção 9: "invalidar
-  /// as decisões anteriores"). Puramente em memória — nada aqui é
-  /// persistido nem enviado a lugar nenhum nesta etapa (seção 10).
+  /// novos (sem cadastro automático) nem bloqueados. Reiniciada a CADA
+  /// nova planilha ([PatrimonioImportController.carregarArquivo] já reseta
+  /// o estado inteiro) e a cada nova chamada de
+  /// [PatrimonioImportController.compararParaAdmin] (invalida as decisões
+  /// anteriores). Puramente em memória — nada aqui é persistido nem
+  /// enviado a lugar nenhum nesta etapa.
   final Map<ChaveDecisaoCampo, DecisaoCampoValor> decisoes;
 
-  /// PROMPT 11.6.3, seção 3 — filtro ativo da lista de revisão do modo
+  /// filtro ativo da lista de revisão do modo
   /// ADMIN.
   final ComparacaoFiltroRevisao filtroComparacao;
 
-  /// PROMPT 11.6.3, seção 3 — texto de busca por número patrimonial na
+  /// texto de busca por número patrimonial na
   /// lista de revisão do modo ADMIN (contains, sem diferenciar caixa).
   final String buscaNumeroPatrimonio;
 
@@ -300,9 +299,9 @@ class PatrimonioImportState {
       decisoes[ChaveDecisaoCampo(patrimonioId: patrimonioId, campo: campo)] ?? DecisaoCampoValor.pendente;
 
   /// `true` quando TODAS as divergências de [item] já têm uma decisão
-  /// [DecisaoCampoValor.ignorar] — usado pelo filtro "Ignorados" (seção 3) e
-  /// pelo resumo de decisões (seção 8: "patrimônios ignorados" nunca conta
-  /// quem ainda tem alguma decisão pendente, nem quem tem alguma aplicada).
+  /// [DecisaoCampoValor.ignorar] — usado pelo filtro "Ignorados" e pelo
+  /// resumo de decisões ("patrimônios ignorados" nunca conta quem ainda
+  /// tem alguma decisão pendente, nem quem tem alguma aplicada).
   bool _totalmenteIgnorado(PatrimonioComparacao item) {
     if (item.divergencias.isEmpty) return false;
     final id = item.patrimonioId;
@@ -322,7 +321,7 @@ class PatrimonioImportState {
     return item.divergencias.any((d) => decisaoDe(id, d.campo) == DecisaoCampoValor.pendente);
   }
 
-  /// PROMPT 11.6.3, seção 8 — etapa de conferência ("resumo das decisões").
+  /// etapa de conferência ("resumo das decisões").
   /// Calculado a partir de [comparacao] + [decisoes], nunca armazenado à
   /// parte (uma única fonte de verdade — impossível ficar dessincronizado).
   ComparacaoDecisoesResumo get resumoDecisoes {
@@ -343,8 +342,8 @@ class PatrimonioImportState {
     for (final item in divergentes) {
       final id = item.patrimonioId!;
       if (_temAoMenosUmaAplicacao(item)) patrimoniosComAlteracao++;
-      // "Ignorados" (seção 8) nunca conta quem tem alguma aplicação — as
-      // duas categorias são mutuamente exclusivas por construção.
+      // "Ignorados" nunca conta quem tem alguma aplicação — as duas
+      // categorias são mutuamente exclusivas por construção.
       if (!_temAoMenosUmaAplicacao(item) && _totalmenteIgnorado(item)) patrimoniosIgnorados++;
 
       for (final campo in item.divergencias) {
@@ -375,7 +374,7 @@ class PatrimonioImportState {
     );
   }
 
-  /// PROMPT 11.6.3, seção 3 — [ComparacaoLote.itensParaRevisao] (idênticos
+  /// [ComparacaoLote.itensParaRevisao] (idênticos
   /// JÁ excluídos), com [filtroComparacao] e [buscaNumeroPatrimonio]
   /// aplicados. `[]` (nunca `null`) quando [comparacao] ainda não existe —
   /// a UI trata isso como "nenhum item", nunca como erro.
@@ -507,7 +506,7 @@ class PatrimonioImportState {
   }
 }
 
-/// PROMPT 11.6.3, seção 8 — contagens da etapa "Resumo das decisões".
+/// contagens da etapa "Resumo das decisões".
 /// [patrimoniosComAlteracaoSelecionada] e [patrimoniosIgnorados] nunca se
 /// sobrepõem (cada patrimônio divergente cai em NO MÁXIMO uma das duas —
 /// ver [PatrimonioImportState.resumoDecisoes]) e nenhum patrimônio é

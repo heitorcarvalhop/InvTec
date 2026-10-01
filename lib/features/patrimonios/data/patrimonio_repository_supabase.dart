@@ -12,15 +12,15 @@ import '../importacao/domain/comparacao_execucao.dart';
 import 'patrimonio_error_mapper.dart';
 
 /// `true` quando [texto] é composto só por dígitos (após `trim`) — usado
-/// pelo modo [PatrimonioSearchField.tudo] (PROMPT 9.1) para decidir entre
-/// tratar a busca como identificador exato (`numero_patrimonio`/
-/// `numero_serie`) ou como texto livre. Nunca confundir com "parece um
-/// número" de forma aproximada — é uma checagem estrita de dígitos.
+/// pelo modo [PatrimonioSearchField.tudo] para decidir entre tratar a
+/// busca como identificador exato (`numero_patrimonio`/`numero_serie`) ou
+/// como texto livre. Nunca confundir com "parece um número" de forma
+/// aproximada — é uma checagem estrita de dígitos.
 bool _somenteDigitos(String texto) => RegExp(r'^\d+$').hasMatch(texto);
 
 /// Teto de itens em [PatrimoniosResultado.correspondenciasPorNumeroSerie]
-/// (PROMPT 9.1.1) — é só um aviso auxiliar na UI (nunca a listagem
-/// principal), não precisa de paginação própria.
+/// — é só um aviso auxiliar na UI (nunca a listagem principal), não
+/// precisa de paginação própria.
 const _limiteCorrespondenciaSerie = 10;
 
 /// Colunas de `patrimonios` + os relacionamentos exibidos na interface, sem
@@ -32,9 +32,8 @@ const _colunasComRelacionamentos =
     '*, tipos_patrimonio(nome), setores(nome, sigla), localizacoes(nome)';
 
 /// Agrupa os filtros combináveis por AND de [PatrimonioRepositorySupabase.listar]
-/// (PROMPT 9.2) — só para não repetir a mesma lista de parâmetros nas duas
-/// etapas de [PatrimonioRepositorySupabase._listarTudoNumerico] e no
-/// caminho normal.
+/// — só para não repetir a mesma lista de parâmetros nas duas etapas de
+/// [PatrimonioRepositorySupabase._listarTudoNumerico] e no caminho normal.
 class _FiltrosComuns {
   const _FiltrosComuns({
     this.tipoId,
@@ -72,9 +71,8 @@ DateTime _inicioDoDiaLocalEmUtc(DateTime data) =>
     DateTime(data.year, data.month, data.day).toUtc();
 
 /// Início do dia LOCAL seguinte a [data] — usado como limite EXCLUSIVO do
-/// intervalo (seção 5: `< início do dia seguinte`, nunca
-/// `<= 23:59:59.999`, que poderia perder registros por causa da precisão
-/// de subsegundo).
+/// intervalo (`< início do dia seguinte`, nunca `<= 23:59:59.999`, que
+/// poderia perder registros por causa da precisão de subsegundo).
 DateTime _inicioDoDiaSeguinteLocalEmUtc(DateTime data) =>
     DateTime(data.year, data.month, data.day + 1).toUtc();
 
@@ -180,9 +178,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
         dataAquisicaoAte: dataAquisicaoAte,
       );
 
-      // PROMPT 9.1.1: modo "Tudo" com consulta só de dígitos tem uma
-      // lógica própria em duas etapas (nunca mistura patrimônio com série
-      // no mesmo resultado) — ver [_listarTudoNumerico].
+      // Modo "Tudo" com consulta só de dígitos tem uma lógica própria em
+      // duas etapas (nunca mistura patrimônio com série no mesmo
+      // resultado) — ver [_listarTudoNumerico].
       if (termo != null && termo.isNotEmpty && campoBusca == PatrimonioSearchField.tudo && _somenteDigitos(termo)) {
         return await _listarTudoNumerico(
           termo: termo,
@@ -200,7 +198,7 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
           // Ex.: modo "Localização" sem nenhuma localização cujo nome
           // corresponda ao termo — zero patrimônios podem casar, e ir ao
           // banco de qualquer forma só devolveria uma lista vazia do mesmo
-          // jeito (seção 10: nunca uma query desnecessária).
+          // jeito.
           return const PatrimoniosResultado(itens: [], total: 0);
         }
         query = resultado;
@@ -212,10 +210,10 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     }
   }
 
-  /// PROMPT 9.1.1: busca em duas etapas LÓGICAS para o modo "Tudo" quando a
-  /// consulta é só dígitos — nunca uma única `OR` misturando patrimônio e
-  /// série (o que fazia "2703522" devolver visualmente o patrimônio
-  /// 2703532, só porque é o número de série dele).
+  /// Busca em duas etapas LÓGICAS para o modo "Tudo" quando a consulta é só
+  /// dígitos — nunca uma única `OR` misturando patrimônio e série (o que
+  /// fazia "2703522" devolver visualmente o patrimônio 2703532, só porque é
+  /// o número de série dele).
   ///
   /// Etapa 1: `numero_patrimonio = termo` (exato). Se achar algo, é o
   /// resultado — [PatrimonioSearchField.numeroSerie] nunca entra em jogo.
@@ -256,10 +254,10 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     );
   }
 
-  /// Aplica tipo/status/setor/localização/marca/modelo/responsável/datas
-  /// (PROMPT 9.2) — todos opcionais, combinados por AND. Usado pelo caminho
-  /// normal e pelas duas etapas de [_listarTudoNumerico], sempre com a
-  /// mesma lógica (nunca duplicada).
+  /// Aplica tipo/status/setor/localização/marca/modelo/responsável/datas —
+  /// todos opcionais, combinados por AND. Usado pelo caminho normal e pelas
+  /// duas etapas de [_listarTudoNumerico], sempre com a mesma lógica (nunca
+  /// duplicada).
   PostgrestFilterBuilder<PostgrestList> _aplicarFiltrosComuns(
     PostgrestFilterBuilder<PostgrestList> query,
     _FiltrosComuns filtros,
@@ -275,8 +273,8 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       resultado = resultado.eq('setor_atual_id', filtros.setorId!);
     }
 
-    // Seção 2: por id exato, nunca por texto — e "Sem localização" é
-    // mutuamente exclusivo com um id específico (a UI garante isso).
+    // Por id exato, nunca por texto — e "Sem localização" é mutuamente
+    // exclusivo com um id específico (a UI garante isso).
     if (filtros.semLocalizacao) {
       resultado = resultado.isFilter('localizacao_atual_id', null);
     } else if (filtros.localizacaoId != null) {
@@ -296,9 +294,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       resultado = resultado.ilike('responsavel_atual', '%$responsavel%');
     }
 
-    // Seção 5: `data_cadastro` é timestamptz — usar `>= início do dia` e
-    // `< início do dia seguinte` (nunca `23:59:59.999`), convertendo o dia
-    // local do dispositivo para o instante UTC correspondente.
+    // `data_cadastro` é timestamptz — usar `>= início do dia` e `< início
+    // do dia seguinte` (nunca `23:59:59.999`), convertendo o dia local do
+    // dispositivo para o instante UTC correspondente.
     if (filtros.dataCadastroDe != null) {
       resultado = resultado.gte('data_cadastro', _inicioDoDiaLocalEmUtc(filtros.dataCadastroDe!).toIso8601String());
     }
@@ -325,10 +323,10 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   /// primeiro: é o que mais importa logo após o cadastro (validar o que
   /// acabou de ser criado) e não exige nenhuma convenção sobre número
   /// patrimonial (que é opcional e texto livre). `id` como critério de
-  /// desempate (PROMPT 9.2, seção 11): `data_cadastro` sozinho não é único
-  /// (a carga inicial da GETEC tem várias linhas com o mesmo instante), e
-  /// sem uma ordem totalmente determinística um registro pode "pular" de
-  /// página ou repetir entre duas páginas consecutivas.
+  /// desempate: `data_cadastro` sozinho não é único (a carga inicial da
+  /// GETEC tem várias linhas com o mesmo instante), e sem uma ordem
+  /// totalmente determinística um registro pode "pular" de página ou
+  /// repetir entre duas páginas consecutivas.
   Future<PatrimoniosResultado> _executarConsulta(
     PostgrestFilterBuilder<PostgrestList> query, {
     required int limit,
@@ -344,9 +342,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     return PatrimoniosResultado(itens: itens, total: response.count);
   }
 
-  /// Aplica o filtro de busca sobre [query], de acordo com [campo] (PROMPT
-  /// 9.1) — nunca `ilike`/substring/similaridade para
-  /// [PatrimonioSearchField.patrimonio], sempre correspondência EXATA.
+  /// Aplica o filtro de busca sobre [query], de acordo com [campo] — nunca
+  /// `ilike`/substring/similaridade para [PatrimonioSearchField.patrimonio],
+  /// sempre correspondência EXATA.
   ///
   /// Retorna `null` quando já se sabe, sem consultar `patrimonios`, que
   /// NENHUM registro pode corresponder (hoje só o modo "Localização" sem
@@ -412,9 +410,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   }
 
   /// Ids de `localizacoes` cujo `nome` contém [termo] (case-insensitive) —
-  /// uma única consulta, nunca uma por patrimônio (seção 10: proibido
-  /// N+1). Usado tanto pelo modo dedicado "Localização" quanto pelo modo
-  /// "Tudo" textual. Chamada direta de `.ilike()` — padrão cru, sem
+  /// uma única consulta, nunca uma por patrimônio (proibido N+1). Usado
+  /// tanto pelo modo dedicado "Localização" quanto pelo modo "Tudo"
+  /// textual. Chamada direta de `.ilike()` — padrão cru, sem
   /// `postgrestFilterValue` (ver comentário em [_aplicarFiltroBusca]).
   Future<List<String>> _idsLocalizacoesPorNome(String termo) async {
     final rows = await _client.from('localizacoes').select('id').ilike('nome', '%$termo%');
@@ -559,8 +557,8 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       // ÚNICA chamada: `aplicar_decisao_comparacao_patrimonio` trava o
       // patrimônio, revalida a versão e — quando há alteração de setor/
       // localização — chama `registrar_movimentacao` por dentro, tudo na
-      // MESMA transação no servidor (PROMPT 11.6.4, seção 4). O cliente
-      // nunca decompõe isso em duas chamadas separadas.
+      // MESMA transação no servidor. O cliente nunca decompõe isso em duas
+      // chamadas separadas.
       final row = await _client.rpc(
         operacaoAplicarDecisaoComparacao,
         params: {
@@ -580,18 +578,15 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       );
       return ResultadoAplicacaoDecisao.fromJson(row as Map<String, dynamic>);
     } on PostgrestException catch (e) {
-      // PROMPT 11.6.5, seção 5 — nem toda `PostgrestException` é uma recusa
-      // DEFINITIVA do servidor: chamadas RPC são sempre POST, então NUNCA
-      // entram no retry automático da biblioteca `postgrest` (só GET/HEAD).
-      // Uma falha de transporte (proxy/gateway 502/503/504, 500, timeout
-      // 408) também chega aqui como `PostgrestException`, mas com
-      // `code` sendo o status HTTP cru, NUNCA um SQLSTATE real — ver
-      // [ehFalhaDeTransporte]. Só uma recusa SQL de verdade (a transação foi
+      // Nem toda `PostgrestException` é uma recusa DEFINITIVA do servidor:
+      // uma falha de transporte (proxy/gateway 502/503/504, 500, timeout
+      // 408) chega aqui também como `PostgrestException`, mas com `code`
+      // sendo o status HTTP cru, nunca um SQLSTATE real — ver
+      // [ehFalhaDeTransporte]. Só uma recusa SQL de verdade (transação
       // desfeita, nada escrito) vira [ComparacaoExecucaoFalhouException];
-      // uma falha de transporte passa SEM tratamento, exatamente como uma
-      // exceção de rede comum, para [ComparacaoExecucaoController] tratar
-      // como resultado DESCONHECIDO (preserva `decisao`, nunca gera um novo
-      // operacaoId).
+      // uma falha de transporte passa adiante sem tratamento, para
+      // [ComparacaoExecucaoController] tratar como resultado DESCONHECIDO
+      // (preserva `decisao`, nunca gera um novo operacaoId).
       if (ehFalhaDeTransporte(e.code)) rethrow;
       throw falhaDeExecucaoComparacao(
         codigo: e.code,
@@ -609,11 +604,10 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       // SELECT direto — nunca uma RPC: a tabela só é ESCRITA pela função
       // SECURITY DEFINER; esta leitura respeita a RLS já instalada
       // (`patrimonio_comparacao_execucoes_select`, restrita a ADMIN — que
-      // deliberadamente deixa QUALQUER ADMIN ler QUALQUER linha, ver o
-      // comentário da migration). A defesa de que uma leitura nunca é
-      // confundida com "esta é a MINHA tentativa pendente" fica aqui: só
-      // aceitamos o resultado se `criado_por` bater com a sessão ATUAL —
-      // mesmo padrão de `DocumentosSeiRepositorySupabase.buscarLotePorId`.
+      // deliberadamente deixa QUALQUER ADMIN ler QUALQUER linha). Por isso
+      // uma leitura nunca pode ser confundida com "esta é a MINHA tentativa
+      // pendente": só aceitamos o resultado se `criado_por` bater com a
+      // sessão ATUAL.
       final row = await _client
           .from('patrimonio_comparacao_execucoes')
           .select('resultado, criado_por')

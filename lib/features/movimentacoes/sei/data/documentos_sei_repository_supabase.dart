@@ -16,7 +16,7 @@ import '../domain/sei_item_pendencia_status.dart';
 import '../domain/sei_item_pendente.dart';
 import '../domain/sei_pendencia_exceptions.dart';
 
-/// PROMPT 11.3 — colunas + embeds de um documento COM seus itens: consulta
+/// colunas + embeds de um documento COM seus itens: consulta
 /// única, nunca uma por item (mesmo padrão de `_colunasListagem` em
 /// `MovimentacaoRepositorySupabase`).
 const _colunasDocumentoComItens =
@@ -39,16 +39,16 @@ const _colunasDocumentoComItens =
     'localizacao_destino:localizacoes!localizacao_destino_id(nome), '
     'corretor:profiles!corrigido_por(nome))';
 
-/// Colunas da view derivada (situação sempre calculada no servidor — seção
-/// 7), sem embed de itens (a listagem não precisa do detalhe de cada
-/// item, só dos totais já agregados pela view).
+/// Colunas da view derivada (situação sempre calculada no servidor), sem
+/// embed de itens (a listagem não precisa do detalhe de cada item, só dos
+/// totais já agregados pela view).
 const _colunasListagem =
     'id, numero_documento_sei, numero_processo, numero_documento_formatado, assunto, '
     'tipo_operacao_pretendida, nome_arquivo, hash_sha256, versao, criado_em, criado_por, atualizado_em, '
     'total_itens, total_pendentes, total_concluidos, total_cancelados, situacao, '
     'autor:profiles!criado_por(nome)';
 
-/// PROMPT 11.3, seção 4/2 — mesmo padrão de paginação de
+/// mesmo padrão de paginação de
 /// `MovimentacaoRepositorySupabase.listarPorNumeroDocumento`: nunca um
 /// limite fixo que descarte página.
 const _tamanhoPaginaEventos = 500;
@@ -278,14 +278,12 @@ class DocumentosSeiRepositorySupabase implements DocumentosSeiRepository {
       }
       final bloqueio = traduzirBloqueioDeEdicaoSei(e, documentoId);
       if (bloqueio != null) throw bloqueio;
-      // PROMPT 11.3.2, seção 4 — a validação prévia de itens em
-      // `editar_documento_sei_pendente` (item inexistente, de outro
-      // documento, não PENDENTE, id repetido ou ausente) sempre lança
-      // P0001/P0002 com a palavra "item" na mensagem — nenhuma outra
-      // mensagem desta função contém essa palavra, então é um
-      // discriminador seguro. O id do item, quando presente na mensagem,
-      // é extraído best-effort só para exibição; nenhum código de app
-      // ainda chama `editarDocumento` (ver `documentos_sei_repository.dart`).
+      // A validação prévia de itens em `editar_documento_sei_pendente`
+      // (item inexistente, de outro documento, não PENDENTE, id repetido
+      // ou ausente) sempre lança P0001/P0002 com a palavra "item" na
+      // mensagem — nenhuma outra mensagem desta função contém essa
+      // palavra, então é um discriminador seguro. O id do item, quando
+      // presente na mensagem, é extraído best-effort só para exibição.
       if ((e.code == 'P0001' || e.code == 'P0002') && e.message.toLowerCase().contains('item')) {
         final idExtraido = RegExp(r'[0-9a-fA-F-]{36}').firstMatch(e.message)?.group(0);
         throw SeiItemEdicaoInvalidaException(idExtraido ?? 'desconhecido', e.message);
@@ -377,11 +375,11 @@ class DocumentosSeiRepositorySupabase implements DocumentosSeiRepository {
     bool confirmarLimpezaDestino = false,
   }) async {
     try {
-      // ÚNICA chamada: a RPC trava documento+itens, valida o CONJUNTO
+      // Única chamada: a RPC trava documento+itens, valida o conjunto
       // inteiro e só então chama `concluir_item_documento_sei` uma vez por
-      // item — tudo na MESMA transação, no servidor. O cliente NUNCA laça
+      // item — tudo na mesma transação, no servidor. O cliente nunca laça
       // chamadas à RPC individual (nenhum `for`/`await` em volta de `.rpc`
-      // aqui — proibido pelo PROMPT 11.5.5).
+      // aqui).
       final row = await _client.rpc(
         operacaoConcluirItensSeiLote,
         params: paramsConclusaoLoteSei(
@@ -396,14 +394,14 @@ class DocumentosSeiRepositorySupabase implements DocumentosSeiRepository {
       return SeiConclusaoLoteResultado.fromJson(row as Map<String, dynamic>);
     } on PostgrestException catch (e) {
       // Mesmo tratamento de erro da conclusão individual: `P0036`/`P0037`
-      // (novos desta RPC) e todo o restante (P0030-P0035, P0010, P0002,
-      // P0001, 42501 — propagados sem alteração pela RPC de lote) já viram
-      // mensagem amigável em `mensagemErroConclusaoSei`. Uma falha de REDE
+      // e todo o restante (P0030-P0035, P0010, P0002, P0001, 42501 —
+      // propagados sem alteração pela RPC de lote) já viram mensagem
+      // amigável em `mensagemErroConclusaoSei`. Uma falha de rede
       // (resultado desconhecido — a chamada pode ou não ter chegado ao
-      // servidor) NÃO cai aqui: não é um `PostgrestException`, então esta
+      // servidor) não cai aqui: não é um `PostgrestException`, então esta
       // função a deixa passar sem tratar como "não aconteceu" — quem chama
       // precisa preservar `loteId` e os mesmos parâmetros para um retry
-      // idêntico depois (a UI futura decide isso; nada aqui).
+      // idêntico depois.
       final falha = falhaDeConclusaoSei(
         codigo: e.code,
         mensagemDoServidor: e.message,
@@ -427,13 +425,10 @@ class DocumentosSeiRepositorySupabase implements DocumentosSeiRepository {
     required bool confirmarLimpezaDestino,
   }) async {
     try {
-      // SELECT direto — NUNCA uma RPC: a tabela só é ESCRITA pela função
+      // SELECT direto — nunca uma RPC: a tabela só é escrita pela função
       // SECURITY DEFINER; esta leitura respeita a RLS já instalada
-      // (`documentos_sei_lotes_conclusao_select`, migration
-      // 20260928100000, seção 1) e não precisa de nenhum privilégio extra.
-      // Colunas EXATAS da migration (seção 1): lote_id (PK), documento_id,
-      // item_ids uuid[], versao_esperada, observacao, confirmar_limpeza_
-      // destino, criado_por, resultado jsonb — nenhum campo presumido.
+      // (`documentos_sei_lotes_conclusao_select`) e não precisa de nenhum
+      // privilégio extra.
       final row = await _client
           .from('documentos_sei_lotes_conclusao')
           .select('documento_id, item_ids, versao_esperada, observacao, confirmar_limpeza_destino, criado_por, resultado')
@@ -441,12 +436,11 @@ class DocumentosSeiRepositorySupabase implements DocumentosSeiRepository {
           .maybeSingle();
       if (row == null) return null;
 
-      // PROMPT 11.5.6.1 — o `lote_id` bater sozinho NUNCA basta: confere a
-      // identidade COMPLETA contra os parâmetros que esta decisão local
-      // enviaria, com a MESMA normalização usada na escrita (`nullIfBlank`
-      // aqui espelha `public.normalize_text` — ver o comentário de
-      // `v_observacao` na migration da RPC de lote). O usuário responsável
-      // é conferido contra a sessão autenticada ATUAL (`auth.currentUser`),
+      // O `lote_id` bater sozinho nunca basta: confere a identidade
+      // completa contra os parâmetros que esta decisão local enviaria, com
+      // a mesma normalização usada na escrita (`nullIfBlank` aqui espelha
+      // `public.normalize_text` no servidor). O usuário responsável é
+      // conferido contra a sessão autenticada atual (`auth.currentUser`),
       // nunca um valor vindo do cliente — mesmo papel de `auth.uid()` na
       // RPC.
       final itemIdsRegistrados = (row['item_ids'] as List<dynamic>).cast<String>();
@@ -473,9 +467,9 @@ class DocumentosSeiRepositorySupabase implements DocumentosSeiRepository {
 
       return SeiConclusaoLoteResultado.fromJson(row['resultado'] as Map<String, dynamic>);
     } on PostgrestException catch (e) {
-      // Falha de LEITURA (rede/permissão) — NUNCA convertida em `null`: o
+      // Falha de leitura (rede/permissão) — nunca convertida em `null`: o
       // chamador não pode confundir "não consegui perguntar" com "perguntei
-      // e não achei nada" (ver o comentário da interface).
+      // e não achei nada".
       throw AppException('Falha ao consultar o registro do lote $loteId', cause: e);
     }
   }
@@ -497,7 +491,7 @@ class DocumentosSeiRepositorySupabase implements DocumentosSeiRepository {
   };
 }
 
-/// PROMPT 11.5.5 — monta os SEIS parâmetros de `concluir_itens_documento_sei_lote`
+/// monta os SEIS parâmetros de `concluir_itens_documento_sei_lote`
 /// nos nomes exatos que a RPC espera (ver `supabase/migrations/
 /// 20260928100000_add_concluir_itens_documento_sei_lote.sql`, assinatura da
 /// função). Extraída como função PURA (sem I/O) para poder ser testada
@@ -525,10 +519,10 @@ Map<String, Object?> paramsConclusaoLoteSei({
 };
 
 /// `editar_documento_sei_pendente` recusa a edição com `42501` e uma mensagem
-/// contendo "bloqueado" em DOIS casos: documento com item CONCLUÍDO
-/// (regra original) e documento ENCERRADO, sem nenhum item PENDENTE
-/// (PROMPT 11.3.13). Ambos viram [SeiDocumentoBloqueadoParaEdicaoException];
-/// qualquer outro erro devolve `null` (segue o tratamento normal).
+/// contendo "bloqueado" em dois casos: documento com item CONCLUÍDO
+/// e documento ENCERRADO, sem nenhum item PENDENTE. Ambos viram
+/// [SeiDocumentoBloqueadoParaEdicaoException]; qualquer outro erro devolve
+/// `null` (segue o tratamento normal).
 @visibleForTesting
 SeiDocumentoBloqueadoParaEdicaoException? traduzirBloqueioDeEdicaoSei(PostgrestException e, String documentoId) {
   if (e.code == '42501' && e.message.toLowerCase().contains('bloqueado')) {
@@ -537,7 +531,7 @@ SeiDocumentoBloqueadoParaEdicaoException? traduzirBloqueioDeEdicaoSei(PostgrestE
   return null;
 }
 
-/// PROMPT 11.3.11 — executa uma escrita SEI em DUAS fases distintas, para a UI
+/// executa uma escrita SEI em DUAS fases distintas, para a UI
 /// nunca confundir "a RPC falhou" com "a RPC funcionou mas a releitura falhou":
 ///
 ///  1. [escrever] — a chamada da RPC (devolve o id do documento afetado). Uma
@@ -585,7 +579,7 @@ String _mapearErro(PostgrestException e) {
   return e.message;
 }
 
-/// PROMPT 11.5.6.1 — ambos os lados já chegam CANÔNICOS (distintos +
+/// ambos os lados já chegam CANÔNICOS (distintos +
 /// ordenados) nesta comparação; elemento a elemento evita depender de
 /// `package:collection` (não é dependência direta deste projeto) só para
 /// isto — mesmo padrão já usado em `fake_documentos_sei_repository.dart`.

@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/movimentacoes/sei/domain/sei_documento_pendente.dart';
 import 'package:invtec/features/movimentacoes/sei/domain/sei_documento_situacao.dart';
 
-/// PROMPT 11.3.5.3 — reproduz exatamente o bug relatado: o Despacho
+/// Reproduz exatamente o bug relatado: o Despacho
 /// 577/2026/SEMAD/GETEC-12014 (documento SEI 95955192) tinha 33 itens/33
 /// pendentes/0 concluídos/0 cancelados CONFIRMADOS por SQL direto na view
 /// `documentos_sei_com_situacao`, mas a tabela da aba Pendências mostrava
@@ -44,7 +44,7 @@ Map<String, dynamic> _linhaDaViewSemItens({
 }
 
 void main() {
-  group('PROMPT 11.3.5.3 — SeiDocumentoPendente.fromJson (linha de LISTAGEM, sem itens embedados)', () {
+  group('SeiDocumentoPendente.fromJson (linha de LISTAGEM, sem itens embedados)', () {
     test('Despacho 577 — 33 itens, 33 pendentes, 0 concluídos, 0 cancelados', () {
       final json = _linhaDaViewSemItens(
         totalItens: 33,
@@ -115,7 +115,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.5.3 — SeiDocumentoPendente.fromJson (detalhe, itens embedados) continua correto', () {
+  group('SeiDocumentoPendente.fromJson (detalhe, itens embedados) continua correto', () {
     test('totais/situação seguem derivados dos itens quando a chave "itens" está presente', () {
       final json = {
         'id': 'doc-1',

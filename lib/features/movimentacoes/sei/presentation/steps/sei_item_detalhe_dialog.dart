@@ -14,11 +14,11 @@ import '../../domain/sei_validacao_item.dart';
 import '../sei_import_controller.dart';
 import '../sei_status_visual.dart';
 
-/// Detalhe de uma linha da revisão (PROMPT 11.1, seção 24) — três blocos:
-/// dados do documento, estado atual no InvTec, validação (checks/avisos/
-/// bloqueios). Somente leitura: nenhuma ação de escrita aqui — a única
-/// interação é a confirmação da seção 7 (PROMPT 11.2), que só altera estado
-/// de preparação local, nunca o InvTec.
+/// Detalhe de uma linha da revisão — três blocos: dados do documento,
+/// estado atual no InvTec, validação (checks/avisos/bloqueios). Somente
+/// leitura: nenhuma ação de escrita aqui — a única interação é a
+/// confirmação de conferência, que só altera estado de preparação local,
+/// nunca o InvTec.
 Future<void> showSeiItemDetalheDialog(BuildContext context, SeiValidacaoItem item) {
   return showDialog<void>(
     context: context,
@@ -104,11 +104,11 @@ class _SeiItemDetalheDialog extends ConsumerWidget {
                       _ItemLista(icon: Icons.block, texto: bloqueio, cor: Theme.of(context).colorScheme.error),
                   ],
                 ),
-                // PROMPT 11.2, seção 7: os itens de confiança MÉDIA (número
-                // reconstruído a partir de texto intercalado no PDF — ex.:
-                // os estabilizadores) exigem confirmação explícita, linha a
-                // linha, antes de poderem entrar em qualquer seleção futura.
-                // Nunca promovido automaticamente a confiança alta.
+                // Itens de confiança MÉDIA (número reconstruído a partir de
+                // texto intercalado no PDF) exigem confirmação explícita,
+                // linha a linha, antes de poderem entrar em qualquer
+                // seleção futura. Nunca promovido automaticamente a
+                // confiança alta.
                 if (item.item.confiancaPatrimonio == SeiConfianca.media) ...[
                   const SizedBox(height: AppSpacing.md),
                   Card(
@@ -126,10 +126,9 @@ class _SeiItemDetalheDialog extends ConsumerWidget {
                     ),
                   ),
                 ],
-                // PROMPT 11.2.1, seção 4: decisão EXPLÍCITA para os dois
-                // campos que o PDF nunca informa — nunca resolvidos
-                // silenciosamente, mesmo com o documento inteiro
-                // "autorizado" (seção 5).
+                // Decisão EXPLÍCITA para os dois campos que o PDF nunca
+                // informa — nunca resolvidos silenciosamente, mesmo com o
+                // documento inteiro "autorizado".
                 if (patrimonio != null && item.destino.entidadeEncontrada != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   _DecisaoDestinoSecao(
@@ -153,12 +152,12 @@ class _SeiItemDetalheDialog extends ConsumerWidget {
   }
 }
 
-/// PROMPT 11.2.1, seção 4: decisão humana explícita para localização e
-/// responsável de destino — o PDF nunca traz nenhum dos dois, e a RPC real
-/// de TRANSFERENCIA grava exatamente o que for enviado (não preserva o
-/// valor atual quando omitido). Localização só oferece opções REAIS e
-/// ativas do setor de destino (nunca inventadas); responsável aceita texto
-/// livre ou confirmação explícita de ausência.
+/// Decisão humana explícita para localização e responsável de destino — o
+/// PDF nunca traz nenhum dos dois, e a RPC real de TRANSFERENCIA grava
+/// exatamente o que for enviado (não preserva o valor atual quando
+/// omitido). Localização só oferece opções REAIS e ativas do setor de
+/// destino (nunca inventadas); responsável aceita texto livre ou
+/// confirmação explícita de ausência.
 class _DecisaoDestinoSecao extends ConsumerStatefulWidget {
   const _DecisaoDestinoSecao({
     required this.linha,
@@ -252,11 +251,9 @@ class _DecisaoDestinoSecaoState extends ConsumerState<_DecisaoDestinoSecao> {
               decoration: const InputDecoration(hintText: 'Nome do responsável'),
             ),
             const SizedBox(height: AppSpacing.sm),
-            // PROMPT 11.3.5.5: Wrap (não Row) para os botões — o texto de
-            // "Confirmar sem responsável" não cabe ao lado do campo em
-            // 520px de largura, especialmente com escala de texto
-            // aumentada; mesmo padrão já usado acima para os chips de
-            // localização, em vez de truncar/ocultar qualquer opção.
+            // Wrap (não Row) para os botões — o texto de "Confirmar sem
+            // responsável" não cabe ao lado do campo em 520px de largura,
+            // especialmente com escala de texto aumentada.
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -306,7 +303,7 @@ class _Campo extends StatelessWidget {
   final String rotulo;
   final String? valor;
 
-  /// PROMPT 11.3.5.4 — nome completo de um setor exibido pela sigla.
+  /// nome completo de um setor exibido pela sigla.
   final String? tooltip;
 
   @override

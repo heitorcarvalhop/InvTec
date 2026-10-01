@@ -6,25 +6,24 @@ import '../text_similarity.dart';
 
 /// Regras específicas da planilha real usada pela GETEC ("aba
 /// RelatorioBemPermanente") — nada aqui é usado a menos que o perfil seja
-/// explicitamente detectado E ativado pelo usuário (seção 27); o importador
-/// genérico (`ImportAnalyzer`, `ImportColumnField`) nunca importa nada deste
-/// arquivo e continua funcionando de forma idêntica sem ele.
+/// explicitamente detectado E ativado pelo usuário; o importador genérico
+/// (`ImportAnalyzer`, `ImportColumnField`) nunca importa nada deste arquivo
+/// e continua funcionando de forma idêntica sem ele.
 class GetecImportProfile {
   const GetecImportProfile._();
 
   static const mensagemDeteccao = 'Formato de inventário GETEC reconhecido.';
 
-  /// Sugestão de UX (seção 18, revisada na seção 14 da correção de
-  /// modelagem de localizações) — nunca aplicada por cima de um motivo que
-  /// o usuário já tenha digitado. Deixa explícito no próprio motivo da
+  /// Sugestão de UX — nunca aplicada por cima de um motivo que o usuário
+  /// já tenha digitado. Deixa explícito no próprio motivo da
   /// movimentação que a origem histórica é desconhecida, já que a planilha
   /// não tem nenhuma coluna de origem.
   static const motivoPadraoSugerido =
       'Carga inicial do inventário patrimonial da GETEC - origem histórica não informada.';
 
   /// Sigla usada para identificar a gerência GETEC entre os setores ativos
-  /// carregados do Supabase (PROMPT 8.13.1) — mesmo critério já usado no
-  /// preflight real (`ImportPreflight.validarGerenciaUnica(sigla: 'GETEC')`).
+  /// carregados do Supabase — mesmo critério já usado no preflight real
+  /// (`ImportPreflight.validarGerenciaUnica(sigla: 'GETEC')`).
   static const siglaGerencia = 'GETEC';
 
   /// Encontra a gerência GETEC entre [setoresAtivos] — por SIGLA, nunca por
@@ -41,23 +40,23 @@ class GetecImportProfile {
     return candidatos.length == 1 ? candidatos.single : null;
   }
 
-  /// Cabeçalhos reais da planilha (seção 1), já como texto normalizado
-  /// (sem acento/maiúsculas/pontuação) → campo do InvTec correspondente.
+  /// Cabeçalhos reais da planilha, já como texto normalizado (sem
+  /// acento/maiúsculas/pontuação) → campo do InvTec correspondente.
   static const _cabecalhosAlvo = <ImportColumnField, String>{
     ImportColumnField.numeroPatrimonio: 'tombamento',
     ImportColumnField.tombamentoAnterior: 'tomb anterior',
     ImportColumnField.descricao: 'descricao',
     // A coluna "localizacao" da planilha é a Localização dentro da
-    // gerência GETEC (seção 30) — NUNCA o setor/gerência em si. A gerência
-    // da carga inteira é fixa (destino padrão da importação, configurado
-    // pelo usuário como GETEC), nunca derivada desta coluna.
+    // gerência GETEC — NUNCA o setor/gerência em si. A gerência da carga
+    // inteira é fixa (destino padrão da importação, configurado pelo
+    // usuário como GETEC), nunca derivada desta coluna.
     ImportColumnField.localizacao: 'localizacao',
     ImportColumnField.marca: 'marca',
     ImportColumnField.numeroSerie: 'n serie',
   };
 
-  /// Campos em que "10" é um marcador legado de "não informado" (seção 4) —
-  /// só se aplica quando este perfil está ativo, nunca globalmente.
+  /// Campos em que "10" é um marcador legado de "não informado" — só se
+  /// aplica quando este perfil está ativo, nunca globalmente.
   static const camposComSentinela10 = {ImportColumnField.numeroSerie, ImportColumnField.tombamentoAnterior};
 
   static String _normalizarCabecalho(Object? valor) {
@@ -67,11 +66,11 @@ class GetecImportProfile {
     ).replaceAll('.', '').replaceAll('_', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  /// Seção 1/27: reconhece o formato pelo CONJUNTO de cabeçalhos, nunca pelo
-  /// nome da aba. Exige as duas colunas mais distintivas (tombamento +
-  /// descrição) e ao menos 4 das 6 colunas conhecidas — suficiente para não
-  /// disparar em falso numa planilha genérica que só por acaso tenha uma
-  /// coluna "Descrição" ou "Marca".
+  /// Reconhece o formato pelo CONJUNTO de cabeçalhos, nunca pelo nome da
+  /// aba. Exige as duas colunas mais distintivas (tombamento + descrição) e
+  /// ao menos 4 das 6 colunas conhecidas — suficiente para não disparar em
+  /// falso numa planilha genérica que só por acaso tenha uma coluna
+  /// "Descrição" ou "Marca".
   static bool detectar(List<Object?> cabecalho) {
     final normalizados = cabecalho.map(_normalizarCabecalho).toSet();
 
@@ -83,8 +82,8 @@ class GetecImportProfile {
     return normalizados.contains('tombamento') && normalizados.contains('descricao') && encontrados >= 4;
   }
 
-  /// Mapeamento automático sugerido (seção 2) — ainda passa pela etapa de
-  /// revisão do usuário como qualquer outra sugestão de mapeamento.
+  /// Mapeamento automático sugerido — ainda passa pela etapa de revisão do
+  /// usuário como qualquer outra sugestão de mapeamento.
   static ImportColumnMapping mapeamentoSugerido(List<Object?> cabecalho) {
     var mapeamento = ImportColumnMapping.vazio;
     for (var coluna = 0; coluna < cabecalho.length; coluna++) {
@@ -99,8 +98,8 @@ class GetecImportProfile {
     return mapeamento;
   }
 
-  /// Seção 4: valor textual/numericamente equivalente a "10" vira ausência
-  /// de informação nos campos [camposComSentinela10].
+  /// Valor textual/numericamente equivalente a "10" vira ausência de
+  /// informação nos campos [camposComSentinela10].
   static Object? limparSentinela10(Object? valor) {
     if (valor == null) return null;
     if (valor is num && valor == 10) return null;
@@ -109,7 +108,7 @@ class GetecImportProfile {
   }
 
   // ---------------------------------------------------------------------
-  // Mapeamento oficial de localizações (PROMPT 8.9)
+  // Mapeamento oficial de localizações
   // ---------------------------------------------------------------------
 
   /// Os 15 nomes OFICIAIS de localização física cadastrados no InvTec para
@@ -168,9 +167,9 @@ class GetecImportProfile {
   /// `true` quando [texto] é especificamente "BAIXAS LOCALIZADAS" — nunca os
   /// outros dois valores de [_semLocalizacaoConhecidos] (INTANGÍVEIS/TI -
   /// SOFTWARE). Usado só para decidir quando anexar a nota de recuperação em
-  /// `observacao` (PROMPT 8.12) — decisão de negócio confirmada: um bem
-  /// nesta localização foi baixado por não localização no passado, mas foi
-  /// encontrado e retornou à GETEC, então NÃO indica baixa atual.
+  /// `observacao` — decisão de negócio confirmada: um bem nesta localização
+  /// foi baixado por não localização no passado, mas foi encontrado e
+  /// retornou à GETEC, então NÃO indica baixa atual.
   static bool ehBaixasLocalizadas(String texto) => normalizarTextoComparacao(texto) == _baixasLocalizadasNormalizado;
 
   /// Nome OFICIAL cadastrado no InvTec para [texto], se ele for um dos 15
@@ -183,17 +182,16 @@ class GetecImportProfile {
     return _apelidosConhecidos[chave] ?? _nomesOficiaisConhecidos[chave];
   }
 
-  /// Pré-processa as linhas brutas da planilha (seção 29: uma única
-  /// passagem, sem N+1) antes de entregá-las ao `ImportAnalyzer` genérico:
-  /// aplica a regra do "10" (seção 4). Não mexe na coluna de localização em
-  /// si: a resolução contra `Localizacao` acontece depois, fora do
-  /// `ImportAnalyzer` genérico (ver `PatrimonioImportController`).
+  /// Pré-processa as linhas brutas da planilha (uma única passagem, sem
+  /// N+1) antes de entregá-las ao `ImportAnalyzer` genérico: aplica a regra
+  /// do "10". Não mexe na coluna de localização em si: a resolução contra
+  /// `Localizacao` acontece depois, fora do `ImportAnalyzer` genérico (ver
+  /// `PatrimonioImportController`).
   ///
-  /// PROMPT 8.12: esta função sinalizava anteriormente linhas cuja
-  /// localização continha a palavra "baixa" como "possível baixa" — removido
-  /// porque, para a GETEC, "BAIXAS LOCALIZADAS" é uma decisão de negócio
-  /// conhecida (bem recuperado/relocalizado, nunca baixado atualmente), não
-  /// um indício real de baixa. Ver `ehBaixasLocalizadas`.
+  /// Nunca sinaliza "possível baixa" pela localização conter a palavra
+  /// "baixa": para a GETEC, "BAIXAS LOCALIZADAS" é uma decisão de negócio
+  /// conhecida (bem recuperado/relocalizado, nunca baixado atualmente). Ver
+  /// `ehBaixasLocalizadas`.
   static GetecLinhasPreparadas prepararLinhas({
     required List<List<Object?>> linhas,
     required int indiceCabecalho,
@@ -225,8 +223,8 @@ class GetecImportProfile {
     return GetecLinhasPreparadas(linhas: resultado);
   }
 
-  /// Localizações únicas da planilha com sua contagem (seção 15) — uma
-  /// única varredura, nunca linha-a-linha contra o banco.
+  /// Localizações únicas da planilha com sua contagem — uma única
+  /// varredura, nunca linha-a-linha contra o banco.
   static List<GetecLocalizacaoEncontrada> localizacoesUnicas({
     required List<List<Object?>> linhas,
     required int indiceCabecalho,
@@ -257,8 +255,8 @@ class GetecImportProfile {
 
   /// Resolve [texto] contra uma `Localizacao` ativa (por nome ou sigla)
   /// dentro da gerência já carregada — usado tanto para marcar "OK" no
-  /// resumo de localizações (seção 15) quanto para achar automaticamente
-  /// as que já existem, sem exigir mapeamento manual repetido.
+  /// resumo de localizações quanto para achar automaticamente as que já
+  /// existem, sem exigir mapeamento manual repetido.
   static Localizacao? resolverLocalizacao(String texto, List<Localizacao> localizacoesDaGerencia) {
     // Canonicaliza um apelido/forma antiga conhecida (ex.: "SITUAÇÃO - PA")
     // para o nome oficial ANTES de comparar — nunca resolve para um UUID
@@ -278,8 +276,7 @@ class GetecImportProfile {
   /// `true` se [texto] já resolve sozinho contra uma localização ativa da
   /// gerência, já tem um mapeamento manual escolhido, ou já foi
   /// explicitamente decidido "importar sem localização" — usado só para
-  /// marcar "OK" no resumo de localizações (seção 15/32), sem decidir nada
-  /// sozinho.
+  /// marcar "OK" no resumo de localizações, sem decidir nada sozinho.
   static bool localizacaoResolvida(
     String texto,
     List<Localizacao> localizacoesDaGerencia,
@@ -293,9 +290,9 @@ class GetecImportProfile {
     return resolverLocalizacao(texto, localizacoesDaGerencia) != null;
   }
 
-  /// Seção 5: preserva o tombamento anterior em `observacao`, combinando de
-  /// forma legível com qualquer observação já existente e sem duplicar a
-  /// mesma anotação (nem ao atualizar um patrimônio já existente).
+  /// Preserva o tombamento anterior em `observacao`, combinando de forma
+  /// legível com qualquer observação já existente e sem duplicar a mesma
+  /// anotação (nem ao atualizar um patrimônio já existente).
   static String? mesclarObservacaoComTombamentoAnterior({
     required String? observacaoBase,
     required String? tombamentoAnteriorTexto,
@@ -313,9 +310,9 @@ class GetecImportProfile {
   static const _notaRecuperacaoBaixasLocalizadas =
       'Bem anteriormente baixado por não localização; localizado novamente e retornado à GETEC nesta carga.';
 
-  /// PROMPT 8.12: preserva no histórico, via `observacao` (campo já
-  /// existente — sem alterar schema), o contexto de que este bem esteve
-  /// marcado como "BAIXAS LOCALIZADAS" — mesmo padrão de
+  /// Preserva no histórico, via `observacao` (campo já existente — sem
+  /// alterar schema), o contexto de que este bem esteve marcado como
+  /// "BAIXAS LOCALIZADAS" — mesmo padrão de
   /// [mesclarObservacaoComTombamentoAnterior] (combina com o que já existe,
   /// nunca duplica a mesma anotação, mesmo ao atualizar um patrimônio já
   /// existente). Não afeta status nem localização — só documentação textual.

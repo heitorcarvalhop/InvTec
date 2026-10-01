@@ -23,10 +23,9 @@ import '../../setores/fake_setor_repository.dart';
 import '../fake_movimentacao_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.3.5.1/11.3.5.2 — teste de LAYOUT do diálogo de importação SEI:
-/// 11.3.5.1 corrigiu o rodapé de 5 botões ("RIGHT OVERFLOWED BY 14 PIXELS");
-/// 11.3.5.2 corrigiu o `Text` sem `Expanded` de `_RodapeSelecao` (dentro da
-/// revisão). Nunca simula seleção de arquivo real (nenhum
+/// Teste de LAYOUT do diálogo de importação SEI: cobre os overflows já
+/// corrigidos no rodapé de 5 botões e no `Text` sem `Expanded` de
+/// `_RodapeSelecao` (dentro da revisão). Nunca simula seleção de arquivo real (nenhum
 /// `file_selector`/plugin nativo) — dirige o `SeiImportController`
 /// diretamente até o passo de revisão, exatamente como
 /// `sei_import_controller_test.dart`, e só então abre o diálogo real com
@@ -143,10 +142,7 @@ Future<ProviderContainer> _containerNaRevisao() async {
 /// Abre o diálogo e devolve as mensagens de "RenderFlex overflowed"
 /// capturadas durante o pump (nunca deixa nenhuma vazar como falha
 /// automática do teste — coletamos para poder dar uma mensagem de erro
-/// legível, mas quem decide se é falha é o `expect` no teste). PROMPT
-/// 11.3.5.1 corrigiu o rodapé de ações do próprio diálogo
-/// (`importar_sei_dialog.dart`); PROMPT 11.3.5.2 corrigiu o overflow que
-/// sobrava em `_RodapeSelecao` (`sei_revisao_step.dart`) — agora o diálogo
+/// legível, mas quem decide se é falha é o `expect` no teste). O diálogo
 /// inteiro (dentro do `SingleChildScrollView` incluso) precisa ficar livre
 /// de overflow, não só o rodapé.
 Future<List<String>> _abrirDialogo(WidgetTester tester, ProviderContainer container) async {
@@ -183,7 +179,7 @@ Future<List<String>> _abrirDialogo(WidgetTester tester, ProviderContainer contai
 }
 
 void main() {
-  group('PROMPT 11.3.5.1/11.3.5.2 — diálogo de importação SEI nunca estoura (overflow)', () {
+  group('diálogo de importação SEI nunca estoura (overflow)', () {
     testWidgets('no tamanho normal do diálogo, os 5 botões e a mensagem de seleção aparecem sem overflow', (
       tester,
     ) async {
@@ -214,7 +210,7 @@ void main() {
         expect(find.text(rotulo), findsOneWidget, reason: 'botão "$rotulo" precisa estar visível e acessível');
       }
 
-      // PROMPT 11.3.5.2: a mensagem de `_RodapeSelecao` precisa continuar
+      // A mensagem de `_RodapeSelecao` precisa continuar
       // completa (nunca truncada/reticências) — só quebrando linha.
       expect(
         find.text(
@@ -250,7 +246,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.5.4 — tabela de revisão do SEI mostra a sigla do setor resolvido', () {
+  group('tabela de revisão do SEI mostra a sigla do setor resolvido', () {
     testWidgets('Origem/Destino mostram a sigla (GETEC/GEASI), não o nome completo', (tester) async {
       tester.view.physicalSize = const Size(1100, 900);
       tester.view.devicePixelRatio = 1;
@@ -283,12 +279,10 @@ void main() {
 
       await _abrirDialogo(tester, container);
 
-      // PROMPT 11.3.5.5: `sei_item_detalhe_dialog.dart` tinha um overflow
-      // no `Row` da seção "Responsável de destino" (TextField + botões não
-      // cabiam nos 520px do diálogo) — corrigido trocando o `Row` por um
-      // `TextField` de largura total seguido de um `Wrap` para os botões.
-      // Este teste agora também garante que abrir o diálogo de detalhe do
-      // item não introduz nenhum overflow.
+      // A seção "Responsável de destino" usa um `TextField` de largura
+      // total seguido de um `Wrap` para os botões (em vez de um `Row`, que
+      // não cabia nos 520px do diálogo) — este teste garante que abrir o
+      // diálogo de detalhe do item não introduz nenhum overflow.
       final overflows = <String>[];
       final original = FlutterError.onError;
       FlutterError.onError = (details) {
@@ -320,7 +314,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.5.5 — seção "Responsável de destino" do detalhe do item nunca estoura', () {
+  group('seção "Responsável de destino" do detalhe do item nunca estoura', () {
     testWidgets('no tamanho normal do diálogo, o campo e os dois botões aparecem sem overflow', (tester) async {
       tester.view.physicalSize = const Size(1100, 900);
       tester.view.devicePixelRatio = 1;

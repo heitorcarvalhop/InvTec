@@ -1,28 +1,26 @@
-/// Interpretação PURA (sem I/O) de `dados_antes`/`dados_depois` de um
-/// [SeiEventoDocumento] do tipo EDICAO (PROMPT 11.3.8) — a auditoria já
-/// grava o retrato completo antes/depois (ver `editar_documento_sei_pendente`
-/// na migration: `documento` com os 4 campos principais, `itens` com a
-/// linha INTEIRA de `documentos_sei_itens` — `to_jsonb(i.*)` — capturada
-/// antes e depois da correção). Este arquivo só extrai QUAIS campos
-/// realmente mudaram, nunca reinterpreta nem recalcula nada que a migration
-/// já não tenha registrado.
+/// Interpretação pura (sem I/O) de `dados_antes`/`dados_depois` de um
+/// [SeiEventoDocumento] do tipo EDICAO — a auditoria já grava o retrato
+/// completo antes/depois (ver `editar_documento_sei_pendente` na migration:
+/// `documento` com os 4 campos principais, `itens` com a linha inteira de
+/// `documentos_sei_itens` — `to_jsonb(i.*)` — capturada antes e depois da
+/// correção). Este arquivo só extrai quais campos realmente mudaram, nunca
+/// reinterpreta nem recalcula nada que a migration já não tenha registrado.
 ///
-/// Nunca confunde os três conceitos distintos de um item (seção 3 do
-/// PROMPT 11.3.8): "original extraído do PDF" (`*_original`, nunca muda por
-/// edição — por isso NUNCA aparece como um campo diffado por si só aqui),
-/// "valor antes da edição" ([SeiCampoAlterado.antes]) e "valor depois da
-/// edição" ([SeiCampoAlterado.depois]). Para os quatro campos que têm par
-/// original/corrigido (seção 13 do PROMPT 11.3), "antes"/"depois" usa o
-/// valor EFETIVO (corrigido ?? original) de cada lado — nunca a coluna
-/// `_corrigido` bruta sozinha: a primeira correção de um item vai de
-/// `_corrigido = null` para `_corrigido = 'X'`, mas o que o usuário
-/// realmente mudou foi do ORIGINAL para X (ex.: "9999 → 9998", nunca
-/// "— → 9998" quando 9999 já era o valor efetivo antes). Os cinco campos
-/// resolvidos de destino (sem par original) usam o valor bruto como está.
-/// Nunca inclui metadados internos de auditoria (`corrigido_por`,
-/// `corrigido_em`, `motivo_correcao` — este último já é o `descricao` do
-/// próprio evento, mostrado à parte) que mudam em toda edição e não
-/// interessam ao usuário como "campo alterado".
+/// Nunca confunde os três conceitos distintos de um item: "original
+/// extraído do PDF" (`*_original`, nunca muda por edição — por isso nunca
+/// aparece como um campo diffado por si só aqui), "valor antes da edição"
+/// ([SeiCampoAlterado.antes]) e "valor depois da edição"
+/// ([SeiCampoAlterado.depois]). Para os campos que têm par
+/// original/corrigido, "antes"/"depois" usa o valor efetivo (corrigido ??
+/// original) de cada lado — nunca a coluna `_corrigido` bruta sozinha: a
+/// primeira correção de um item vai de `_corrigido = null` para
+/// `_corrigido = 'X'`, mas o que o usuário realmente mudou foi do original
+/// para X (ex.: "9999 → 9998", nunca "— → 9998" quando 9999 já era o valor
+/// efetivo antes). Os campos resolvidos de destino (sem par original) usam
+/// o valor bruto como está. Nunca inclui metadados internos de auditoria
+/// (`corrigido_por`, `corrigido_em`, `motivo_correcao` — este último já é o
+/// `descricao` do próprio evento, mostrado à parte) que mudam em toda
+/// edição e não interessam ao usuário como "campo alterado".
 library;
 
 /// Uma alteração pontual: `rotulo` já pronto para exibição, `antes`/`depois`

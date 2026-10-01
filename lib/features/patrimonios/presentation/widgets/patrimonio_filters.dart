@@ -18,9 +18,9 @@ const _semLocalizacaoValor = '__sem_localizacao__';
 
 /// Filtros principais (tipo + status + setor + localização) e avançados
 /// (marca/modelo/responsável/datas), sempre resolvidos no servidor pelo
-/// [PatrimoniosController] (PROMPT 9.2). Os campos de texto avançados
-/// vivem como estado local (controllers) para não perder o que o usuário
-/// digitou entre um debounce e outro.
+/// [PatrimoniosController]. Os campos de texto avançados vivem como estado
+/// local (controllers) para não perder o que o usuário digitou entre um
+/// debounce e outro.
 class PatrimonioFilters extends ConsumerStatefulWidget {
   const PatrimonioFilters({
     super.key,
@@ -30,9 +30,9 @@ class PatrimonioFilters extends ConsumerStatefulWidget {
 
   final PatrimoniosFiltro filtro;
 
-  /// Seção 7: limpar filtros zera TUDO — texto/campo de busca (que vive na
-  /// página, fora deste widget), Tipo/Status/Setor/Localização e os
-  /// avançados (marca/modelo/responsável/datas, que vivem aqui).
+  /// Limpar filtros zera TUDO — texto/campo de busca (que vive na página,
+  /// fora deste widget), Tipo/Status/Setor/Localização e os avançados
+  /// (marca/modelo/responsável/datas, que vivem aqui).
   final VoidCallback onLimparFiltros;
 
   @override
@@ -60,9 +60,9 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
     widget.onLimparFiltros();
   }
 
-  /// Seção 5: valida "data inicial <= data final" ANTES de aplicar — se
-  /// inválido, mostra o erro e nunca chama [onValido] (nunca dispara uma
-  /// consulta com intervalo invertido).
+  /// Valida "data inicial <= data final" ANTES de aplicar — se inválido,
+  /// mostra o erro e nunca chama [onValido] (nunca dispara uma consulta com
+  /// intervalo invertido).
   void _aplicarIntervaloData({
     required DateTime? de,
     required DateTime? ate,
@@ -144,9 +144,8 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
                     for (final setor in setores)
                       DropdownMenuItem(
                         value: setor.id,
-                        // PROMPT 11.3.5.4: sigla real cadastrada, nome
-                        // completo por tooltip — o valor continua sendo
-                        // `setor.id`.
+                        // Sigla real cadastrada, nome completo por tooltip
+                        // — o valor continua sendo `setor.id`.
                         child: Tooltip(
                           message: setor.nome,
                           child: Text(setor.rotuloCompacto, overflow: TextOverflow.ellipsis),
@@ -214,9 +213,9 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
         if (_avancadoExpandido)
           Container(
             // Sem Card/borda própria: este bloco já vive dentro do painel
-            // de busca+filtros (PROMPT 9.3.3, seção 6) — um tom
-            // ligeiramente diferente do fundo do painel basta para
-            // demarcar a seção "afundada", sem duplicar bordas.
+            // de busca+filtros — um tom ligeiramente diferente do fundo do
+            // painel basta para demarcar a seção "afundada", sem duplicar
+            // bordas.
             margin: const EdgeInsets.only(top: AppSpacing.sm),
             decoration: BoxDecoration(
               color: Theme.of(context).surfaceColors.pageBackground,
@@ -299,9 +298,9 @@ class _CampoDesabilitado extends StatelessWidget {
   }
 }
 
-/// Um intervalo De/Até (seção 5) — os limites exibidos são sempre o último
-/// valor VÁLIDO aplicado (nunca um valor rejeitado pela validação, que só
-/// gera um aviso e não é armazenado em lugar nenhum).
+/// Um intervalo De/Até — os limites exibidos são sempre o último valor
+/// VÁLIDO aplicado (nunca um valor rejeitado pela validação, que só gera
+/// um aviso e não é armazenado em lugar nenhum).
 class _DateRangeFilter extends StatelessWidget {
   const _DateRangeFilter({
     required this.label,

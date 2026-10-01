@@ -15,13 +15,11 @@ import '../../domain/sei_item_pendencia_status.dart';
 import '../../domain/sei_item_pendente.dart';
 import '../../domain/sei_pendencia_exceptions.dart';
 
-/// Formulário de edição de um Documento SEI pendente (PROMPT 11.3.6) —
-/// reaproveita a RPC `editar_documento_sei_pendente` (via
-/// [DocumentosSeiRepository.editarDocumento], já implementado desde o
-/// PROMPT 11.3.2) para corrigir dados do documento e de itens ainda
-/// PENDENTES. Nunca chama `registrarMovimentacao`: esta tela só corrige a
-/// SOLICITAÇÃO, nunca executa a transferência em si (seção 11 do PROMPT
-/// 11.3 — conclusão é uma etapa futura, fora do escopo aqui).
+/// Formulário de edição de um Documento SEI pendente — usa a RPC
+/// `editar_documento_sei_pendente` (via
+/// [DocumentosSeiRepository.editarDocumento]) para corrigir dados do
+/// documento e de itens ainda PENDENTES. Nunca chama `registrarMovimentacao`:
+/// esta tela só corrige a SOLICITAÇÃO, nunca executa a transferência em si.
 ///
 /// Nada é escrito enquanto o usuário só digita ou seleciona: toda alteração
 /// fica em memória (controllers locais + [_edicoesPorItem]) até "Salvar
@@ -341,8 +339,8 @@ class _SeiEditarDocumentoDialogState extends ConsumerState<_SeiEditarDocumentoDi
 /// estado local e notifica o pai a cada alteração via [onChanged], sempre
 /// com a edição COMPLETA e atual daquele item (nunca um delta), comparada
 /// contra os valores originais de [item] para decidir o que efetivamente
-/// mudou (PROMPT 11.3, seção 13: nunca sobrescreve o original — só
-/// [SeiValorCorrigivel.corrigido] muda).
+/// mudou — nunca sobrescreve o original, só [SeiValorCorrigivel.corrigido]
+/// muda.
 class _ItemEdicaoCard extends StatefulWidget {
   const _ItemEdicaoCard({super.key, required this.item, required this.setoresAtivos, required this.onChanged});
 
@@ -413,14 +411,10 @@ class _ItemEdicaoCardState extends State<_ItemEdicaoCard> {
     if (novoSetorId == null || novoSetorId == _destinoSetorId) return;
     setState(() {
       _destinoSetorId = novoSetorId;
-      // PROMPT 11.3.6 — trocar o setor de destino invalida qualquer
-      // localização já escolhida: a base rejeita (trigger de coerência)
-      // uma localização de destino que não pertence ao NOVO setor. Mesma
-      // regra já aplicada ao formulário de Patrimônio ("trocar a gerência
-      // limpa a localização escolhida"). Quando o item já tinha uma
-      // localização presa ao setor antigo, a limpeza PRECISA ser enviada
-      // (nunca fica "não tocada"), por isso já marca a decisão como
-      // PENDENTE — exige uma nova escolha antes de poder ser concluído.
+      // Trocar o setor de destino invalida a localização já escolhida: a
+      // base rejeita uma localização que não pertence ao novo setor. Se o
+      // item já tinha localização presa ao setor antigo, a limpeza precisa
+      // ser enviada (nunca "não tocada"), por isso já marca PENDENTE.
       _localizacaoDestinoId = null;
       _decisaoLocalizacaoManual = widget.item.localizacaoDestinoId != null ? SeiDecisaoCampo.pendente : null;
     });

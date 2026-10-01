@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 
 /// Cor de marca do InvTec — azul moderno usado para ação primária,
-/// navegação ativa, links, foco e seleção (PROMPT 9.3). Toda a
-/// `ColorScheme` (claro/escuro) é derivada dela via `ColorScheme.fromSeed`
-/// em [AppTheme] — nunca usar esta cor ou qualquer outra diretamente numa
-/// página; sempre passar por `Theme.of(context).colorScheme`.
+/// navegação ativa, links, foco e seleção. Toda a `ColorScheme` (claro/
+/// escuro) é derivada dela via `ColorScheme.fromSeed` em [AppTheme] — nunca
+/// usar esta cor ou qualquer outra diretamente numa página; sempre passar
+/// por `Theme.of(context).colorScheme`.
 class AppColors {
   AppColors._();
 
   static const Color seed = Color(0xFF2563EB);
 
-  /// A sidebar mantém a MESMA identidade (azul-marinho escuro) nos dois
-  /// temas — PROMPT 9.3: "sidebar pode permanecer escura para reforçar
-  /// identidade" mesmo no tema claro. Não deriva de [ColorScheme]/brilho
-  /// de propósito: é um elemento de marca fixo, não uma superfície comum.
+  /// A sidebar mantém a mesma identidade (azul-marinho escuro) nos dois
+  /// temas, mesmo no tema claro. Não deriva de [ColorScheme]/brilho de
+  /// propósito: é um elemento de marca fixo, não uma superfície comum.
   static const Color sidebarBackground = Color(0xFF0B1727);
   static const Color sidebarSurfaceHover = Color(0xFF13233A);
   static const Color sidebarSelectedBackground = Color(0xFF1D3A66);
@@ -23,9 +22,9 @@ class AppColors {
   static const Color sidebarBorder = Color(0xFF1E2D42);
 }
 
-/// Cores semânticas de estado (sucesso/atenção/erro/informação/neutro —
-/// PROMPT 9.3), com contraste adequado tanto no tema claro quanto no
-/// escuro. Cada estado tem um par (fundo, texto/ícone) pensado para uso em
+/// Cores semânticas de estado (sucesso/atenção/erro/informação/neutro),
+/// com contraste adequado tanto no tema claro quanto no escuro. Cada
+/// estado tem um par (fundo, texto/ícone) pensado para uso em
 /// chips/badges e destaques pontuais — nunca a área inteira de uma tela.
 ///
 /// Registrada como [ThemeExtension] em [AppTheme] para que `Theme.of` já
@@ -133,20 +132,16 @@ extension AppStatusColorsContext on ThemeData {
       extension<AppStatusColors>() ?? AppStatusColors.light;
 }
 
-/// Camadas de superfície (PROMPT 9.3.3) — fundo da página, cards, cabeçalho
-/// de tabela, hover de linha e borda, todas nomeadas explicitamente em vez
-/// de reaproveitar a família `surfaceContainer*` da `ColorScheme` gerada
-/// por `ColorScheme.fromSeed`.
+/// Camadas de superfície — fundo da página, cards, cabeçalho de tabela,
+/// hover de linha e borda, todas nomeadas explicitamente em vez de
+/// reaproveitar a família `surfaceContainer*` da `ColorScheme` gerada por
+/// `ColorScheme.fromSeed`.
 ///
 /// Motivo: o algoritmo tonal do Material 3 (HCT) tinge levemente os tons
 /// neutros com o matiz da cor semente — com um azul como semente, isso
-/// produz um cinza com viés lilás perceptível no tema claro (relatado nos
-/// screenshots do PROMPT 9.3.3). [light] usa valores neutros
-/// escolhidos à mão (cinza-azulado discreto, nunca lilás). [dark] continua
-/// derivado da `ColorScheme` do tema escuro — a direção do tema escuro já
-/// estava aprovada; aqui só nomeamos papéis que antes eram implícitos
-/// (cabeçalho de tabela e hover de linha usavam a mesma cor do card, sem
-/// distinção).
+/// produz um cinza com viés lilás perceptível no tema claro. [light] usa
+/// valores neutros escolhidos à mão (cinza-azulado discreto, nunca lilás).
+/// [dark] continua derivado da `ColorScheme` do tema escuro.
 class AppSurfaceColors extends ThemeExtension<AppSurfaceColors> {
   const AppSurfaceColors({
     required this.pageBackground,

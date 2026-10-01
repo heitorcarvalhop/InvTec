@@ -20,7 +20,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 
 import '../../patrimonios/fake_patrimonio_repository.dart';
 
-/// Fake em memória de [DocumentosSeiRepository] (PROMPT 11.3) — reproduz as
+/// Fake em memória de [DocumentosSeiRepository] — reproduz as
 /// MESMAS regras que a migration proposta implementaria no banco (versão
 /// otimista, bloqueio de edição após a primeira conclusão, transições de
 /// status), para testar controllers/telas isolados do Supabase real. Nenhum
@@ -31,7 +31,7 @@ import '../../patrimonios/fake_patrimonio_repository.dart';
 /// aqui, igual à RPC real: `registrar_movimentacao` faz os dois na MESMA
 /// transação, mas a listagem de movimentações é testada à parte).
 ///
-/// PROMPT 11.5.9.2 — isso NÃO significa que o CADASTRO ATUAL do patrimônio
+/// Isso NÃO significa que o CADASTRO ATUAL do patrimônio
 /// (setor/localização/responsável) fica intocado: a RPC real
 /// (`registrar_movimentacao`, chamada por `concluir_item_documento_sei`)
 /// atualiza `public.patrimonios` na MESMA transação (ver
@@ -48,12 +48,12 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
   FakeDocumentosSeiRepository({
     this.autorId = 'user-1',
     this.autorNome = 'Usuária de Teste',
-    // PROMPT 11.3.5.3 — permite pré-popular documentos já montados à mão
+    // Permite pré-popular documentos já montados à mão
     // (ex.: com setor/sigla resolvidos, como um embed real devolveria),
     // para testar widgets que só leem (`obterPorId`/`listar`) sem precisar
     // passar pelo fluxo completo de criação deste fake.
     List<SeiDocumentoPendente> documentosIniciais = const [],
-    // PROMPT 11.5.9.2 — opcional: quando informado, toda conclusão bem
+    // Opcional: quando informado, toda conclusão bem
     // sucedida (individual ou, via `concluirItensLote`, em lote) também
     // atualiza o cadastro do patrimônio fictício correspondente neste
     // repositório — ver o comentário de classe.
@@ -79,7 +79,7 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
   int cancelarItemCallCount = 0;
   int cancelarPendentesCallCount = 0;
 
-  /// PROMPT 11.4.3 — conclusão de entrega SIMULADA em memória (espelha as
+  /// Conclusão de entrega SIMULADA em memória (espelha as
   /// regras de `concluir_item_documento_sei`, sem nenhum Supabase e sem criar
   /// movimentação real). [concluirCallCount] conta as chamadas (prova do
   /// clique duplo); [conclusoes] guarda os parâmetros de cada uma;
@@ -93,10 +93,10 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
   int _proximoIdMovimentacao = 1;
   final Map<String, Movimentacao> _movimentacoesPorItem = {};
 
-  /// PROMPT 11.5.5 — conclusão em LOTE simulada em memória. Reaproveita
+  /// Conclusão em LOTE simulada em memória. Reaproveita
   /// [concluirItem] internamente, uma vez por item (o MESMO simulacro do que
   /// a RPC real faz no servidor, dentro de uma única transação) — isto NÃO é
-  /// o laço client-side proibido pelo PROMPT 11.5.5 (que se aplica só a
+  /// o laço client-side proibido na implementação real (que se aplica só a
   /// `DocumentosSeiRepositorySupabase`, onde o Flutter faria uma chamada de
   /// rede por item; aqui é só a simulação do que o SERVIDOR faz numa única
   /// chamada). [concluirLoteCallCount] conta as chamadas a este método;
@@ -113,7 +113,7 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
   final List<Map<String, Object?>> conclusoesLote = [];
   final Map<String, _LoteFake> _lotes = {};
 
-  /// PROMPT 11.5.6/11.5.6.1 — reconciliação: espelha a leitura direta
+  /// Reconciliação: espelha a leitura direta
   /// (SELECT, nunca RPC) de `documentos_sei_lotes_conclusao` por `lote_id`,
   /// COM a validação de identidade completa (nunca só o `loteId`). `null`
   /// quando nada foi registrado para este `loteId` (a tentativa REALMENTE
@@ -133,7 +133,7 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
   /// mudar entre as duas chamadas na implementação real.
   String? usuarioAtualParaTeste;
 
-  /// PROMPT 11.3.11 — injeção de falhas SÓ PARA TESTE das escritas de
+  /// Injeção de falhas SÓ PARA TESTE das escritas de
   /// cancelamento (nenhum acesso ao banco). [falhaNaEscrita] é lançada ANTES
   /// de qualquer alteração (a RPC recusou: nada muda);
   /// [falharRecargaAposEscrita] aplica a escrita e DEPOIS lança
@@ -142,9 +142,9 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
   Object? falhaNaEscrita;
   bool falharRecargaAposEscrita = false;
 
-  /// SÓ PARA TESTE (PROMPT 11.3, seção 19): esta versão do app não
-  /// implementa a conclusão real de um item (depende de uma RPC futura,
-  /// seção 15/21.6) — este método simula o efeito que essa conclusão teria
+  /// SÓ PARA TESTE: esta versão do app não
+  /// implementa a conclusão real de um item (depende de uma RPC futura)
+  /// — este método simula o efeito que essa conclusão teria
   /// no banco (status CONCLUIDO + `movimentacaoId` vinculado + versão do
   /// documento incrementada + evento ITEM_CONCLUIDO), para permitir testar
   /// a regra "documento com item concluído fica bloqueado para edição"
@@ -248,21 +248,17 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
     SeiDocumentoPendenteRascunho rascunho, {
     bool confirmarDuplicata = false,
   }) async {
-    // PROMPT 11.3.1, seção 8 — mesma checagem feita por
+    // Mesma checagem feita por
     // `criar_documento_sei_pendente` no banco: um documento ATIVO (nenhum
     // item cancelado sozinho não conta) com o mesmo número já existente
     // bloqueia a criação, a menos que o chamador confirme explicitamente.
     //
-    // PROMPT 11.3.3, seção 3 — auditoria encontrou: a comparação de
-    // processo era assimétrica — exigia `d.numeroProcesso ==
-    // rascunho.numeroProcesso` sempre que ESTE rascunho tinha processo
-    // informado, mesmo quando o documento existente `d` não tinha processo
-    // nenhum (null). Isso deixava passar sem aviso o par "documento A sem
-    // processo, depois documento B com processo, mesmo número SEI".
-    // Corrigido para SIMÉTRICO: considera o mesmo documento quando QUALQUER
-    // um dos dois lados não tem processo informado, ou quando os dois
-    // processos batem — mesma regra agora usada em
-    // `criar_documento_sei_pendente` no SQL.
+    // Comparação SIMÉTRICA de processo: considera o mesmo documento quando
+    // QUALQUER um dos dois lados não tem processo informado, ou quando os
+    // dois processos batem — mesma regra usada em
+    // `criar_documento_sei_pendente` no SQL. Evita deixar passar sem aviso
+    // o par "documento A sem processo, depois documento B com processo,
+    // mesmo número SEI".
     final numero = rascunho.numeroDocumentoSei;
     if (!confirmarDuplicata && numero != null && numero.trim().isNotEmpty) {
       final jaExisteAtivo = _documentos.values.any(
@@ -348,15 +344,13 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
       throw SeiEdicaoConflitoException(versaoEsperada: versaoEsperada, versaoAtual: atual.versao);
     }
 
-    // PROMPT 11.3.2, seção 3 — auditoria encontrou: gravar um evento
-    // 'tentativaBloqueada' aqui era enganoso — o SQL equivalente gravava
-    // esse evento imediatamente antes de um `raise exception`, que desfaz
-    // a transação inteira (o evento nunca era commitado). O fake agora
-    // espelha o comportamento corrigido: nenhuma gravação, só a exceção.
+    // O fake nunca grava um evento 'tentativaBloqueada' aqui: o SQL
+    // equivalente lança a exceção antes de poder commitar esse evento, o
+    // que desfaz a transação inteira — só a exceção é propagada.
     if (!atual.podeSerEditado) {
       throw SeiDocumentoBloqueadoParaEdicaoException(documentoId);
     }
-    // PROMPT 11.3.12 — espelha a proteção PROPOSTA para
+    // Espelha a proteção PROPOSTA para
     // `editar_documento_sei_pendente` (ainda não aplicada no banco): um
     // documento sem nenhum item PENDENTE está encerrado e não pode mais ser
     // editado.
@@ -364,13 +358,11 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
       throw SeiDocumentoBloqueadoParaEdicaoException(documentoId);
     }
 
-    // PROMPT 11.3.2, seção 4 — auditoria encontrou: o fake aplicava
-    // correções item a item sem checar se o item realmente existia neste
-    // documento ou continuava PENDENTE — um item_id de outro documento, ou
-    // já cancelado, era simplesmente ignorado (nenhuma correção aplicada,
-    // nenhum erro), e a edição ainda "tinha sucesso". Corrigido com uma
-    // validação PRÉVIA que rejeita a operação INTEIRA (documento continua
-    // com os dados anteriores) se qualquer item do payload for inválido.
+    // Validação PRÉVIA que rejeita a operação INTEIRA (documento continua
+    // com os dados anteriores) se qualquer item do payload referenciar um
+    // item que não pertence a este documento ou que não esteja mais
+    // PENDENTE — nunca aplica correções parciais nem ignora silenciosamente
+    // um item inválido.
     final itensPorId = {for (final item in atual.itens) item.id: item};
     for (final entrada in itensAlterados.entries) {
       if (entrada.value.vazia) continue;
@@ -388,11 +380,9 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
       for (final entrada in itensAlterados.entries)
         if (!entrada.value.vazia) entrada.key,
     ];
-    // PROMPT 11.3.8 — retrato ANTES da correção, no mesmo formato bruto que
+    // Retrato ANTES da correção, no mesmo formato bruto que
     // a RPC real grava (`to_jsonb(i.*)`), para o histórico de alterações
-    // poder ser testado com dados_antes/dados_depois realistas — sem isto,
-    // o fake produzia um evento EDICAO sem NENHUM dado estruturado,
-    // divergindo do que `editar_documento_sei_pendente` de fato grava.
+    // poder ser testado com dados_antes/dados_depois realistas.
     final itensAntesJson = [for (final id in idsAlterados) _itemParaJsonBruto(itensPorId[id]!)];
     final dadosAntesDocumento = {
       'numero_documento_sei': atual.numeroDocumentoSei,
@@ -440,7 +430,7 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
 
   /// Mesmo formato bruto que `to_jsonb(i.*)` produziria para uma linha de
   /// `documentos_sei_itens` — só os campos que o histórico de alterações
-  /// (PROMPT 11.3.8) de fato usa (identidade + os editáveis).
+  /// de fato usa (identidade + os editáveis).
   Map<String, Object?> _itemParaJsonBruto(SeiItemPendente item) => {
     'id': item.id,
     'linha': item.linha,
@@ -650,7 +640,7 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
     );
   }
 
-  /// PROMPT 11.5.9.2 — sem efeito quando [patrimonioRepository] não foi
+  /// Sem efeito quando [patrimonioRepository] não foi
   /// informado, ou quando [item] não tem `patrimonioId`/ainda não existe
   /// nesse fake de patrimônios (mesma tolerância — nunca lança: uma
   /// conclusão SEI em teste não precisa necessariamente de um patrimônio
@@ -924,7 +914,7 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
     final registrado = _lotes[loteId];
     if (registrado == null) return null;
 
-    // PROMPT 11.5.6.1 — mesma checagem de identidade completa da
+    // Mesma checagem de identidade completa da
     // implementação real: o `loteId` bater sozinho nunca basta.
     final itemIdsEsperados = {...itemIds}.toList()..sort();
     final observacaoEsperadaNormalizada = nullIfBlank(observacao);
@@ -1068,7 +1058,7 @@ class FakeDocumentosSeiRepository implements DocumentosSeiRepository {
   }
 }
 
-/// PROMPT 11.5.5 — `itemIds` de [FakeDocumentosSeiRepository] já chega
+/// `itemIds` de [FakeDocumentosSeiRepository] já chega
 /// CANÔNICO (distinto + ordenado) dos dois lados desta comparação; uma
 /// checagem elemento a elemento evita depender de `package:collection`
 /// (não é dependência direta deste projeto) só para isto.
@@ -1080,7 +1070,7 @@ bool _mesmaListaDeIds(List<String> a, List<String> b) {
   return true;
 }
 
-/// PROMPT 11.5.5 — os 6 campos de IDENTIDADE de um lote já registrado
+/// Os 6 campos de IDENTIDADE de um lote já registrado
 /// (mesmo conjunto comparado por `documentos_sei_lotes_conclusao` na RPC
 /// real), mais o `resultado` a devolver num retry idêntico.
 class _LoteFake {

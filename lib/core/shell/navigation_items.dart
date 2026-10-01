@@ -14,11 +14,8 @@ class NavigationItem {
   final String label;
   final IconData icon;
 
-  /// `null` = visível para qualquer perfil ativo. Hoje todos os perfis
-  /// enxergam os mesmos menus operacionais (ver docs desta etapa) — o campo
-  /// existe para quando isso divergir (ex.: administração de usuários,
-  /// restrita a ADMIN/GESTOR). Isto é só controle visual: a autorização
-  /// real continua em RLS/RPCs no banco.
+  /// `null` = visível para qualquer perfil ativo. Isto é só controle
+  /// visual: a autorização real continua em RLS/RPCs no banco.
   final List<ProfilePerfil>? perfisPermitidos;
 
   bool visivelPara(ProfilePerfil perfil) {

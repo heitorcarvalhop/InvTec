@@ -64,10 +64,9 @@ class _MovimentacaoCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
-              // PROMPT 11.3.5.4: sigla cadastrada — card compacto, sem
-              // espaço para tooltip por segmento (o diálogo de detalhe,
-              // aberto ao tocar o card, mostra o nome completo por
-              // tooltip).
+              // Sigla cadastrada — card compacto, sem espaço para tooltip
+              // por segmento (o diálogo de detalhe, aberto ao tocar o
+              // card, mostra o nome completo por tooltip).
               Text(
                 '${siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome) ?? '—'} → '
                 '${siglaOuNomeSetor(sigla: item.setorDestinoSigla, nome: item.setorDestinoNome) ?? '—'}',

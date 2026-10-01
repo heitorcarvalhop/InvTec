@@ -7,16 +7,16 @@ import '../../../../core/widgets/setor_compact_text.dart';
 import '../../domain/patrimonio_detalhe.dart';
 import 'patrimonio_status_chip.dart';
 
-/// Altura mínima confortável de uma linha da lista (PROMPT 11.3.10).
+/// Altura mínima confortável de uma linha da lista.
 const double _alturaMinimaLinha = 56;
 
 /// Lista estruturada (não `DataTable`, para não sofrer overflow horizontal
 /// em janelas estreitas — cada célula usa `Expanded` normal).
 ///
-/// PROMPT 11.3.10 — LISTAGEM = identificação e consulta rápida; DETALHE =
+/// LISTAGEM = identificação e consulta rápida; DETALHE =
 /// informações completas. Colunas: Patrimônio (em destaque), Equipamento
-/// (tipo + marca/modelo; PROMPT 11.3.10.1), Setor (sigla, nome completo por
-/// tooltip), Status, Ações. Série, localização, responsável e a descrição
+/// (tipo + marca/modelo), Setor (sigla, nome completo por tooltip), Status,
+/// Ações. Série, localização, responsável e a descrição
 /// integral continuam disponíveis na ficha (`PatrimonioDetailPage`) — a
 /// MESMA que "Ver detalhes" e o clique na linha abrem (`onTap`); `onEdit` é
 /// um botão à parte e nunca dispara `onTap` junto.
@@ -188,10 +188,10 @@ class _DataRowState extends State<_DataRow> {
 }
 
 /// Tamanho máximo do trecho da descrição usado como linha secundária
-/// quando marca e modelo não existem (PROMPT 11.3.10.1).
+/// quando marca e modelo não existem.
 const int _tamanhoTrechoDescricao = 48;
 
-/// O que a célula Equipamento mostra para um patrimônio (PROMPT 11.3.10.1):
+/// O que a célula Equipamento mostra para um patrimônio:
 /// [tipo] na primeira linha; [secundaria] na segunda — "marca modelo" quando
 /// existirem (sem repetir o tipo), senão um trecho curto da descrição, senão
 /// nada (nunca inventa texto); [tooltip] guarda tudo sem reticências,

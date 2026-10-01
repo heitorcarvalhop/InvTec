@@ -10,9 +10,9 @@ import '../../../../patrimonios/domain/patrimonio_detalhe.dart';
 import '../../../../patrimonios/domain/patrimonio_search_field.dart';
 import '../../../../patrimonios/presentation/widgets/patrimonio_status_chip.dart';
 
-/// Passo 1 do wizard de Nova Movimentação (PROMPT 10.2, seção 4): localizar
-/// o patrimônio por número/série/descrição, reaproveitando a MESMA busca
-/// server-side já usada na listagem de Patrimônios
+/// Passo 1 do wizard de Nova Movimentação: localizar o patrimônio por
+/// número/série/descrição, reaproveitando a MESMA busca server-side já
+/// usada na listagem de Patrimônios
 /// ([PatrimonioRepository.listar] com `campoBusca: tudo`) — nunca carrega
 /// os 1.744 patrimônios em memória para montar um seletor.
 class PatrimonioBuscaStep extends ConsumerStatefulWidget {
@@ -134,10 +134,9 @@ class _ListaResultados extends StatelessWidget {
           for (var i = 0; i < itens.length; i++) ...[
             ListTile(
               title: Text(itens[i].patrimonio.numeroPatrimonio ?? '(sem número)'),
-              // PROMPT 11.3.5.4: sigla cadastrada no lugar do nome completo
-              // do setor — item de lista, sem espaço para tooltip por
-              // segmento (o resumo abaixo, ao selecionar, mostra o nome
-              // completo por tooltip).
+              // Sigla cadastrada no lugar do nome completo do setor — item
+              // de lista, sem espaço para tooltip por segmento (o resumo
+              // abaixo, ao selecionar, mostra o nome completo por tooltip).
               subtitle: Text('${itens[i].tipoNome} · ${itens[i].setorExibidoCompacto}'),
               trailing: PatrimonioStatusChip(status: itens[i].patrimonio.status),
               onTap: () => onSelecionar(itens[i]),
@@ -150,9 +149,9 @@ class _ListaResultados extends StatelessWidget {
   }
 }
 
-/// Resumo do patrimônio escolhido (seção 4 do prompt): patrimônio,
-/// equipamento, status atual, setor atual, localização atual, responsável
-/// atual — nunca mostra um UUID cru.
+/// Resumo do patrimônio escolhido: patrimônio, equipamento, status atual,
+/// setor atual, localização atual, responsável atual — nunca mostra um
+/// UUID cru.
 class _ResumoPatrimonio extends StatelessWidget {
   const _ResumoPatrimonio({required this.detalhe, required this.onTrocar});
 
@@ -205,7 +204,7 @@ class _LinhaResumo extends StatelessWidget {
   final String rotulo;
   final String valor;
 
-  /// PROMPT 11.3.5.4 — nome completo de um setor exibido pela sigla.
+  /// nome completo de um setor exibido pela sigla.
   final String? valorTooltip;
 
   @override

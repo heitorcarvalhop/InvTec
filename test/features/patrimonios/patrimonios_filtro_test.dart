@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/patrimonios/presentation/patrimonios_filtro.dart';
 
 void main() {
-  group('intervaloDeDataValido (PROMPT 9.2, seção 5)', () {
+  group('intervaloDeDataValido', () {
     test('data inicial antes da final: válido', () {
       expect(intervaloDeDataValido(DateTime(2026, 9, 1), DateTime(2026, 9, 16)), isTrue);
     });

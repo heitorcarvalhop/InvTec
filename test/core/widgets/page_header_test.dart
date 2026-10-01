@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/core/widgets/page_header.dart';
 
-/// PROMPT 11.3.9.1 — reproduz, isolado do resto da tela, o defeito do
+/// Reproduz, isolado do resto da tela, o defeito do
 /// vídeo: em largura de TABLET (600–1024px, onde `compact` continua
 /// `false` — só telas < 600 usam a pilha vertical), um `Row` com
 /// `Expanded(child: titulo)` ao lado de um `Wrap` de botões NÃO flexível
@@ -39,7 +39,7 @@ void main() {
     );
   }
 
-  group('PROMPT 11.3.9.1 — InvTecPageHeader (não-compacto) nunca esmaga título/botões', () {
+  group('InvTecPageHeader (não-compacto) nunca esmaga título/botões', () {
     for (final tamanho in [const Size(1920, 1080), const Size(1280, 720), const Size(800, 600), const Size(700, 600)]) {
       testWidgets('em ${tamanho.width.toInt()}x${tamanho.height.toInt()}: sem overflow, título e botões legíveis', (
         tester,

@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../sei_import_controller.dart';
 
-/// Passo 1 do assistente (PROMPT 11.1, seção 4) — só seleciona e envia o
-/// arquivo para leitura; nome/tamanho são mostrados assim que escolhidos,
-/// quantidade de páginas só depois de o PDF ser aberto (passo "Lendo
-/// documento..." é o próprio [SeiImportStep.lendo], sem UI própria aqui).
+/// Passo 1 do assistente — só seleciona e envia o arquivo para leitura;
+/// nome/tamanho são mostrados assim que escolhidos, quantidade de páginas
+/// só depois de o PDF ser aberto (passo "Lendo documento..." é o próprio
+/// [SeiImportStep.lendo], sem UI própria aqui).
 class SeiArquivoStep extends ConsumerWidget {
   const SeiArquivoStep({super.key});
 
@@ -52,10 +52,8 @@ class SeiArquivoStep extends ConsumerWidget {
   }
 }
 
-/// Estado "Lendo documento..." (seção 4) — extração de PDF + parsing +
-/// cruzamento com o InvTec acontecem em segundo plano; a interface nunca
-/// trava (nenhum `flutter analyze`/build travou testando com o PDF de 5
-/// páginas / 33 bens de referência).
+/// Estado "Lendo documento..." — extração de PDF + parsing + cruzamento
+/// com o InvTec acontecem em segundo plano; a interface nunca trava.
 class SeiLendoDocumentoStep extends StatelessWidget {
   const SeiLendoDocumentoStep({super.key, this.nomeArquivo});
 

@@ -55,7 +55,7 @@ SeiDocumentoExtraido _documento({MovimentacaoTipo? tipo = MovimentacaoTipo.trans
 }
 
 void main() {
-  group('PROMPT 11.3, seção 5 — construirDocumentoPendenteRascunho', () {
+  group('construirDocumentoPendenteRascunho', () {
     test('tipo de movimentação não inferido → retorna null (nunca inventa o tipo)', () {
       final resultado = const SeiDocumentoAnalyzer().analisar(
         documento: _documento(tipo: null),

@@ -49,11 +49,11 @@ void main() {
     expect(atualizado.id, setor.id);
   });
 
-  // PROMPT 11.3.5.4 — `SetorExibicaoCompacta` é o ponto único que telas com
+  // `SetorExibicaoCompacta` é o ponto único que telas com
   // um `Setor` inteiro (dropdowns/resumos) usam para decidir sigla vs. nome
   // completo — mesma regra de `siglaOuNomeSetor`, sem lista fixa de
   // setores conhecidos.
-  group('PROMPT 11.3.5.4 — rotuloCompacto/rotuloCompactoComStatus/nomeComStatus', () {
+  group('rotuloCompacto/rotuloCompactoComStatus/nomeComStatus', () {
     Setor setorComNomeLongo({String? sigla, bool ativo = true}) => Setor(
       id: 'setor-1',
       nome: 'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',

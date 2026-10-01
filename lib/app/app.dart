@@ -13,8 +13,8 @@ class InvTecApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
-    // Enquanto a preferência salva ainda não carregou (raríssimo, só no
-    // instante do cold start), assume claro — nunca trava a UI esperando.
+    // Enquanto a preferência salva ainda não carregou, assume claro em vez
+    // de travar a UI esperando.
     final themeMode = ref.watch(themeModeControllerProvider).value ?? ThemeMode.light;
 
     return MaterialApp.router(
@@ -24,24 +24,10 @@ class InvTecApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       routerConfig: router,
-      // PROMPT 11.3.4, seção 3 — "mostrar claramente qual projeto será
-      // utilizado" não vale só para scripts: sempre que o `.env` ativo NÃO
-      // declarar explicitamente `SUPABASE_ENV=producao`, a faixa fica
-      // visível na tela inteira (inclusive um `.env` sem essa chave — o
-      // caso "ambiente não declarado" nunca é tratado como produção).
-      //
-      // PROMPT 11.5.17 — essa faixa é um indicador para quem está
-      // DESENVOLVENDO (rodar/depurar localmente sem saber, de bate-pronto,
-      // se está contra homologação ou produção), nunca algo que o pacote
-      // final para os funcionários da GETEC deveria mostrar. O `.env` de
-      // produção deste projeto historicamente não declara `SUPABASE_ENV`
-      // (comportamento preservado, ver `EnvConfig.supabaseEnv`), então
-      // `isProducao` sozinho é `false` mesmo apontando para o projeto
-      // Supabase certo — SEM o `!kReleaseMode` abaixo, a faixa vermelha
-      // "AMBIENTE?" apareceria também no build Release de distribuição.
-      // `kReleaseMode` nunca é `true` num `flutter run`/`flutter build
-      // --debug`/`--profile` (só em `--release`), então debug/profile
-      // continuam EXATAMENTE como antes — nada muda para quem desenvolve.
+      // Faixa vermelha com o nome do ambiente, visível em builds debug/profile
+      // sempre que o Supabase ativo não estiver declarado como produção (um
+      // `.env` sem `SUPABASE_ENV` nunca é tratado como produção). Some em
+      // builds release para não aparecer ao usuário final.
       builder: (context, child) {
         if (child == null || kReleaseMode || EnvConfig.isProducao) return child ?? const SizedBox.shrink();
         return Banner(

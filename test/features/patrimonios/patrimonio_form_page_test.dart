@@ -303,7 +303,7 @@ void main() {
   });
 
   testWidgets(
-    'PROMPT 11.3.5.4 — dropdowns Origem/Destino mostram a sigla real, e o cadastro continua usando o ID',
+    'dropdowns Origem/Destino mostram a sigla real, e o cadastro continua usando o ID',
     (tester) async {
       final repo = FakePatrimonioRepository();
       final setores = [

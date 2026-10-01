@@ -6,31 +6,26 @@ import 'patrimonio_decisao.dart';
 /// `operacaoConcluirItemSei` em `sei_conclusao_erros.dart`).
 const operacaoAplicarDecisaoComparacao = 'aplicar_decisao_comparacao_patrimonio';
 
-/// PROMPT 11.6.5, seção 5 — códigos que o pacote `postgrest` (versão 2.9.1,
-/// `lib/src/postgrest_builder.dart`, `_parseResponse`) usa como
-/// `PostgrestException.code` quando a resposta NÃO veio do PostgreSQL de
-/// verdade: um proxy/gateway devolvendo 502/503/504 (ou 500/408) faz o corpo
-/// não ser um JSON de erro do Postgrest válido — `jsonDecode` lança, o catch
-/// genérico da biblioteca cria a exceção com `code: '${response.statusCode}'`
-/// (o código HTTP cru, como string) em vez de um SQLSTATE real (`P0040`,
-/// `42501`, `23505`...). Chamadas RPC são sempre POST, então NUNCA entram no
-/// retry automático da biblioteca (`isRetryableMethod` só cobre GET/HEAD) —
-/// cada uma dessas falhas chega ao app como uma `PostgrestException` comum,
-/// indistinguível de uma recusa real só pelo tipo. Tratar qualquer uma
-/// destas como recusa DEFINITIVA seria o erro que a seção 5 descreve
-/// explicitamente: "erros de transporte, gateway, timeout... podem
-/// representar operações cujo resultado ainda não foi conhecido pelo
-/// cliente" — por isso [PatrimonioRepositorySupabase.aplicarDecisaoComparacao]
-/// NUNCA envolve um destes códigos em [ComparacaoExecucaoFalhouException]:
-/// deixa a exceção passar sem tratamento, para
+/// Códigos que o pacote `postgrest` usa como `PostgrestException.code`
+/// quando a resposta NÃO veio do PostgreSQL de verdade: um proxy/gateway
+/// devolvendo 502/503/504 (ou 500/408) faz o corpo não ser um JSON de erro
+/// do Postgrest válido, então a biblioteca usa o código HTTP cru como
+/// `code`, nunca um SQLSTATE real (`P0040`, `42501`, `23505`...). Chamadas
+/// RPC são sempre POST, então nunca entram no retry automático da
+/// biblioteca — cada uma dessas falhas chega ao app indistinguível de uma
+/// recusa real só pelo tipo. Tratar qualquer uma destas como recusa
+/// DEFINITIVA seria um erro: o resultado real pode já ter sido aplicado no
+/// servidor sem o cliente saber — por isso
+/// [PatrimonioRepositorySupabase.aplicarDecisaoComparacao] NUNCA envolve um
+/// destes códigos em [ComparacaoExecucaoFalhouException], deixando
 /// [ComparacaoExecucaoController] classificar como resultado desconhecido
 /// (retry seguro, nunca uma nova operação).
 bool ehFalhaDeTransporte(String? codigo) => const {'500', '502', '503', '504', '408'}.contains(codigo);
 
-/// PROMPT 11.6.4 — mensagem COMPREENSÍVEL para o usuário de um erro de
+/// mensagem COMPREENSÍVEL para o usuário de um erro de
 /// [operacaoAplicarDecisaoComparacao]. Códigos definidos pela própria RPC:
 ///  * `P0040` conflito de versão — o patrimônio foi alterado depois da
-///    comparação (revalidação da seção 5);
+///    comparação (revalidação otimista);
 ///  * `P0041` `operacao_id` reaproveitado com parâmetros/usuário diferentes;
 ///  * `P0042` pendência SEI aberta incompatível com a alteração de setor/
 ///    localização;
@@ -66,7 +61,7 @@ String mensagemErroExecucaoComparacao({required String? codigo, required String 
   }
 }
 
-/// PROMPT 11.6.4 — mesma forma de [SeiEscritaFalhouException]
+/// mesma forma de [SeiEscritaFalhouException]
 /// (`lib/features/movimentacoes/sei/domain/sei_pendencia_exceptions.dart`):
 /// a RPC RECUSOU de forma síncrona — a transação foi desfeita, NADA foi
 /// escrito por esta chamada. Qualquer OUTRA exceção (rede/timeout) nunca
@@ -145,13 +140,13 @@ class ResultadoAplicacaoDecisao {
 
   /// `true` quando esta chamada não escreveu nada de novo — a RPC encontrou
   /// uma execução anterior com o mesmo `operacao_id` e devolveu o resultado
-  /// já gravado (retry seguro após um resultado desconhecido — seção 6).
+  /// já gravado (retry seguro após um resultado desconhecido).
   final bool jaExecutado;
   final String? movimentacaoId;
   final DateTime? concluidoEm;
 }
 
-/// PROMPT 11.6.4 — decisão de UM patrimônio, CONGELADA no momento da
+/// decisão de UM patrimônio, CONGELADA no momento da
 /// confirmação (mesmo espírito de `SeiDecisaoLoteConfirmada`): [operacaoId]
 /// é gerado UMA ÚNICA VEZ e nunca recriado, mesmo num retry — é isso que
 /// torna reenviar a mesma chamada seguro (idempotência do lado do
@@ -199,20 +194,18 @@ class DecisaoItemParaExecutar {
   bool get temMovimentacao => novoSetorId != null || novaLocalizacaoId != null;
 }
 
-/// PROMPT 11.6.4 — traduz [ComparacaoLote] + [decisoes] (estado 100% em
-/// memória da tela de revisão, PROMPT 11.6.3) na lista CONGELADA de itens
-/// que a execução segura vai enviar, um por patrimônio. PURO (nenhuma
-/// chamada de rede/gerador aleatório direto — [gerarOperacaoId] é
-/// injetado, mesmo padrão de `gerarLoteId` em `SeiConclusaoLoteController`),
-/// testável sem fakes de repositório.
+/// traduz [ComparacaoLote] + [decisoes] (estado 100% em
+/// memória da tela de revisão) na lista CONGELADA de itens que a execução
+/// segura vai enviar, um por patrimônio. PURO (nenhuma chamada de
+/// rede/gerador aleatório direto — [gerarOperacaoId] é injetado), testável
+/// sem fakes de repositório.
 ///
 /// Um patrimônio só entra na lista quando tem AO MENOS UMA decisão
 /// [DecisaoCampoValor.aplicar] (nunca um item 100% ignorado/pendente) — e só
-/// os campos com decisão [DecisaoCampoValor.aplicar] entram nos parâmetros
-/// (seção 4: "nunca executar atualizações dos campos ignorados"). Itens
-/// [ClassificacaoComparacao.bloqueado] ou [ClassificacaoComparacao.novo]
-/// NUNCA entram aqui (seção 7: "não cadastrar automaticamente... não
-/// incluir os idênticos... " — bloqueados nem têm decisão possível, ver
+/// os campos com decisão [DecisaoCampoValor.aplicar] entram nos parâmetros,
+/// nunca os ignorados. Itens [ClassificacaoComparacao.bloqueado] ou
+/// [ClassificacaoComparacao.novo] NUNCA entram aqui (bloqueados nem têm
+/// decisão possível — ver
 /// `PatrimonioImportController._campoDivergenteElegiveis`).
 ///
 /// Defesa adicional: uma divergência de setor/localização com decisão

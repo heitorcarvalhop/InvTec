@@ -22,7 +22,7 @@ String _removerAcentos(String valor) {
 /// Distância de Levenshtein — usada apenas para SUGERIR uma correspondência
 /// aproximada de tipo/setor (ex.: "Notebok" -> sugestão "Notebook"). A
 /// aplicação da sugestão é sempre uma ação explícita do usuário, nunca
-/// automática (ver seções 13/14 da especificação de importação).
+/// automática.
 int distanciaLevenshtein(String a, String b) {
   if (a == b) return 0;
   if (a.isEmpty) return b.length;

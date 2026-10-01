@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/core/utils/file_hash.dart';
 
 void main() {
-  group('PROMPT 11.1 — sha256Hex', () {
+  group('sha256Hex', () {
     test('hash conhecido de "abc" (vetor de teste padrão do SHA-256)', () {
       expect(
         sha256Hex(Uint8List.fromList(utf8.encode('abc'))),

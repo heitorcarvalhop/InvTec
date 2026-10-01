@@ -4,8 +4,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 
-/// Categoria semântica de um [StatusChip] (PROMPT 9.3) — a cor é só reforço
-/// visual, o rótulo em texto é sempre exibido junto (nunca só a cor).
+/// Categoria semântica de um [StatusChip] — a cor é só reforço visual, o
+/// rótulo em texto é sempre exibido junto (nunca só a cor).
 enum AppStatusKind { success, warning, error, info, neutral }
 
 /// Badge em formato de pílula usado para status em toda a aplicação

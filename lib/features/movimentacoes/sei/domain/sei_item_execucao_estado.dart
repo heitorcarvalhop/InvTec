@@ -4,7 +4,7 @@ import 'sei_duplicidade.dart';
 /// Estado de PREPARAÇÃO de uma linha, mantido pela UI/controller —
 /// deliberadamente separado de `SeiValidacaoItem` (que é puro, recalculado
 /// a cada análise/revalidação): seleção e confirmação são decisões do
-/// usuário, nunca resultado de parsing (PROMPT 11.2, seções 7/8).
+/// usuário, nunca resultado de parsing.
 class SeiItemExecucaoEstado {
   const SeiItemExecucaoEstado({
     this.selecionado = false,
@@ -20,23 +20,22 @@ class SeiItemExecucaoEstado {
 
   final bool selecionado;
 
-  /// Seção 7: "Conferi o número deste patrimônio no documento original" —
-  /// obrigatório para linhas com confiança MÉDIA (ex.: os 6 estabilizadores
-  /// reconstruídos) antes de poderem ser selecionadas. Nunca promovido
-  /// automaticamente.
+  /// "Conferi o número deste patrimônio no documento original" —
+  /// obrigatório para linhas com confiança MÉDIA antes de poderem ser
+  /// selecionadas. Nunca promovido automaticamente.
   final bool avisoConfirmado;
 
   final SeiDuplicidadeResultado? duplicidade;
 
-  /// Seção 5 (PROMPT 11.2): true quando a revalidação encontrou uma
-  /// divergência entre o que foi analisado e o estado atual no InvTec —
-  /// bloqueia seleção até nova revisão.
+  /// true quando a revalidação encontrou uma divergência entre o que foi
+  /// analisado e o estado atual no InvTec — bloqueia seleção até nova
+  /// revisão.
   final bool desatualizado;
 
-  /// PROMPT 11.2.1, seção 4: decisão explícita para a localização de
-  /// destino — o documento SEI nunca a informa, e `pendente` bloqueia a
-  /// elegibilidade do item no plano (nunca resolvido automaticamente pela
-  /// autorização geral do documento).
+  /// Decisão explícita para a localização de destino — o documento SEI
+  /// nunca a informa, e `pendente` bloqueia a elegibilidade do item no
+  /// plano (nunca resolvido automaticamente pela autorização geral do
+  /// documento).
   final SeiDecisaoCampo decisaoLocalizacao;
   final String? localizacaoDestinoId;
   final String? localizacaoDestinoNome;

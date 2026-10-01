@@ -98,7 +98,7 @@ void main() {
 
     await _pumpDetailPage(tester, detalhe: detalhe);
 
-    // Título combina "Patrimônio" + número (PROMPT 9.3); o campo
+    // Título combina "Patrimônio" + número; o campo
     // "Número patrimonial" mostra o número sozinho.
     expect(find.text('Patrimônio 00045872'), findsOneWidget);
     expect(find.text('00045872'), findsOneWidget);
@@ -164,7 +164,7 @@ void main() {
     );
   });
 
-  testWidgets('PROMPT 11.3.5.4 — timeline de histórico mostra a sigla do setor, não o nome completo', (
+  testWidgets('timeline de histórico mostra a sigla do setor, não o nome completo', (
     tester,
   ) async {
     final detalhe = PatrimonioDetalhe(
@@ -296,7 +296,7 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Editar'), findsNothing);
   });
 
-  testWidgets('PROMPT 11.3.5.4 — campo Gerência mostra a sigla, com o nome completo no tooltip', (
+  testWidgets('campo Gerência mostra a sigla, com o nome completo no tooltip', (
     tester,
   ) async {
     final detalhe = PatrimonioDetalhe(
@@ -331,7 +331,7 @@ void main() {
     );
   });
 
-  testWidgets('PROMPT 11.3.10 — a ficha mostra tudo que saiu da listagem (marca, modelo, série, localização, '
+  testWidgets('a ficha mostra tudo que saiu da listagem (marca, modelo, série, localização, '
       'responsável, descrição completa e nome completo do setor)', (tester) async {
     const descricaoLonga =
         'Notebook corporativo com 32 GB de memória, SSD de 1 TB, docking station e garantia estendida até 2028';

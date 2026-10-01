@@ -10,10 +10,10 @@ import '../domain/sei_item_extraido.dart';
 import '../domain/sei_validacao_item.dart';
 
 /// Extrai a sigla de uma unidade a partir do texto do documento — no
-/// INÍCIO ("GETEC - Gerencia de Tecnologia") ou no FIM ("Gerência de ... –
-/// GEASI"), as duas convenções observadas no SEI (PROMPT 11.1, seção
-/// 17/18). Nunca decide sozinha qual é a unidade real: só normaliza o
-/// candidato para comparação contra `Setor.sigla`.
+/// início ("GETEC - Gerencia de Tecnologia") ou no fim ("Gerência de ... –
+/// GEASI"), as duas convenções observadas no SEI. Nunca decide sozinha qual
+/// é a unidade real: só normaliza o candidato para comparação contra
+/// `Setor.sigla`.
 String? _extrairSigla(String? texto) {
   if (texto == null) return null;
   final noFim = RegExp(r'[–-]\s*([A-ZÀ-Ü]{2,12})\s*$').firstMatch(texto);
@@ -22,11 +22,10 @@ String? _extrairSigla(String? texto) {
   return noInicio?.group(1);
 }
 
-/// Cruzamento READ-ONLY entre o que foi extraído do PDF e o que existe no
-/// InvTec (PROMPT 11.1, seções 16-20) — recebe os dados já buscados EM LOTE
-/// pelo controller (nunca faz I/O sozinho, nunca decide uma query aqui:
-/// isso evita N+1 por construção, seção 16). Não altera nada; produz só o
-/// veredito de cada linha.
+/// Cruzamento read-only entre o que foi extraído do PDF e o que existe no
+/// InvTec — recebe os dados já buscados em lote pelo controller (nunca faz
+/// I/O sozinho, nunca decide uma query aqui: isso evita N+1 por
+/// construção). Não altera nada; produz só o veredito de cada linha.
 class SeiDocumentoAnalyzer {
   const SeiDocumentoAnalyzer();
 
@@ -75,12 +74,11 @@ class SeiDocumentoAnalyzer {
     final bloqueios = <String>[];
 
     // ---- patrimônio -------------------------------------------------
-    // PROMPT 11.1.1, seção 4: um candidato de comprimento atípico
-    // (confiancaPatrimonio == baixa, mas numeroPatrimonio != null) NUNCA é
-    // bloqueado só por isso — é o cruzamento com o InvTec (já buscado em
-    // lote pelo controller) que decide: se o candidato existe de fato,
-    // vira apenas um aviso de revisão; se não existe, bloqueia com o
-    // mesmo motivo de qualquer patrimônio não encontrado.
+    // Um candidato de comprimento atípico (confiancaPatrimonio == baixa,
+    // mas numeroPatrimonio != null) nunca é bloqueado só por isso — é o
+    // cruzamento com o InvTec que decide: se o candidato existe de fato,
+    // vira apenas um aviso de revisão; se não existe, bloqueia com o mesmo
+    // motivo de qualquer patrimônio não encontrado.
     PatrimonioDetalhe? patrimonio;
     if (item.numeroPatrimonio == null) {
       bloqueios.add('Número do patrimônio não identificado nesta linha.');

@@ -3,7 +3,7 @@ import '../domain/sei_pendencia_exceptions.dart';
 /// Nome da RPC — usado no texto técnico e no log.
 const operacaoConcluirItemSei = 'concluir_item_documento_sei';
 
-/// PROMPT 11.5.5 — nome da RPC de conclusão em LOTE. Propaga, sem alteração,
+/// nome da RPC de conclusão em LOTE. Propaga, sem alteração,
 /// todos os códigos de erro de [operacaoConcluirItemSei] (ela chama a RPC
 /// individual por dentro, item a item) mais dois novos, só dela: `P0036` e
 /// `P0037` — por isso reaproveita a MESMA [mensagemErroConclusaoSei] abaixo,
@@ -11,11 +11,11 @@ const operacaoConcluirItemSei = 'concluir_item_documento_sei';
 const operacaoConcluirItensSeiLote = 'concluir_itens_documento_sei_lote';
 
 /// Mensagem COMPREENSÍVEL para o usuário de um erro de
-/// `concluir_item_documento_sei` (PROMPT 11.4.3) OU de
-/// `concluir_itens_documento_sei_lote` (PROMPT 11.5.5 — a RPC de lote chama a
-/// individual por dentro, então qualquer código dela pode chegar aqui do
-/// mesmo jeito). O texto cru do Postgres (com UUIDs e jargão) nunca é a
-/// mensagem principal — fica só nos detalhes técnicos ([falhaDeConclusaoSei]).
+/// `concluir_item_documento_sei` OU de `concluir_itens_documento_sei_lote`
+/// (a RPC de lote chama a individual por dentro, então qualquer código dela
+/// pode chegar aqui do mesmo jeito). O texto cru do Postgres (com UUIDs e
+/// jargão) nunca é a mensagem principal — fica só nos detalhes técnicos
+/// ([falhaDeConclusaoSei]).
 ///
 /// Códigos definidos pela RPC individual:
 ///  * `P0030` estado inconsistente do item;
@@ -26,7 +26,7 @@ const operacaoConcluirItensSeiLote = 'concluir_itens_documento_sei_lote';
 ///  * `P0035` confirmação necessária para a limpeza de localização/responsável;
 /// e os já existentes `42501`, `P0001`, `P0002`, `P0010`.
 ///
-/// Códigos definidos SÓ pela RPC de lote (PROMPT 11.5.5):
+/// Códigos definidos só pela RPC de lote:
 ///  * `P0036` um ou mais itens do lote não estão mais PENDENTE (concluídos
 ///    ou cancelados por uma operação diferente deste `lote_id`) — a chamada
 ///    inteira é recusada, nenhum item do lote é concluído;
@@ -101,28 +101,17 @@ String mensagemErroConclusaoSei({required String? codigo, required String mensag
   }
 }
 
-/// PROMPT 11.5.14 — texto técnico SEGURO para o painel de
+/// Texto técnico seguro para o painel de
 /// `SeiConclusaoLoteStatus.conflitoDeIntegridade` (`sei_concluir_lote_dialog.dart`).
 ///
-/// Causa do bug relatado: `SeiEscritaFalhouException.textoTecnico` inclui a
-/// linha `Mensagem: ${mensagemErroConclusaoSei(...)}` — e o texto amigável
-/// de `P0037` (acima) termina com "feche esta tela, releia o documento e
-/// comece uma nova conclusão". Essa orientação foi escrita para uma recusa
-/// DEFINITIVA e ISOLADA (P0037 recebido diretamente por um `confirmar()`
-/// nunca antes tentado sob aquele `loteId`) — não para um
-/// `conflitoDeIntegridade`, que só existe porque uma tentativa ANTERIOR
-/// teve resultado desconhecido e continua CONGELADA: não é seguro sugerir
-/// "comece uma nova conclusão" ali, e o aviso principal do próprio painel
-/// já diz o oposto ("nenhuma ação automática é permitida"). Em vez de
-/// alterar [mensagemErroConclusaoSei] (o que mudaria a mensagem também no
-/// caso definitivo/isolado, homologado e coberto por teste — requisito 3
-/// do PROMPT 11.5.14: não alterar regra já homologada sem necessidade),
-/// este texto SUBSTITUI só a linha de mensagem por uma orientação segura,
-/// reaproveitando o restante de [falha] (já sanitizado — nunca token,
-/// credencial ou os parâmetros enviados, ver o comentário de
-/// [SeiEscritaFalhouException]) e acrescentando o `loteId`, quando
-/// conhecido, para facilitar a investigação (é só um identificador técnico
-/// — UUID gerado no cliente — nunca um dado pessoal ou uma observação).
+/// A mensagem padrão de `P0037` (acima) orienta "feche esta tela e comece
+/// uma nova conclusão", o que é seguro para uma recusa definitiva e isolada
+/// mas não para um conflito de integridade: ali uma tentativa anterior tem
+/// resultado desconhecido e continua congelada, então repetir não é seguro.
+/// Em vez de alterar [mensagemErroConclusaoSei] (mudaria a mensagem também
+/// no caso definitivo/isolado, já homologado), este texto substitui só a
+/// linha de mensagem por uma orientação segura, reaproveitando o restante
+/// de [falha] (já sanitizado) e acrescentando o `loteId`, quando conhecido.
 String textoTecnicoConflitoDeIntegridade(SeiEscritaFalhouException falha, {String? loteId}) {
   final linhas = <String>[
     'Operação: ${falha.operacao}',
@@ -140,12 +129,11 @@ String textoTecnicoConflitoDeIntegridade(SeiEscritaFalhouException falha, {Strin
 /// `message`, e o erro original do servidor (código/mensagem/detalhes/dica)
 /// preservado para "Detalhes técnicos".
 ///
-/// PROMPT 11.5.5 — [operacao] identifica QUAL RPC recusou, para o log e para
+/// [operacao] identifica QUAL RPC recusou, para o log e para
 /// "Detalhes técnicos" (`SeiEscritaFalhouException.textoTecnico`); o mapeamento
 /// de código→mensagem amigável ([mensagemErroConclusaoSei]) é o MESMO nos
 /// dois casos, porque a RPC de lote propaga os códigos da individual sem
-/// alteração. Default [operacaoConcluirItemSei] preserva o comportamento
-/// anterior a este prompt para todo chamador existente.
+/// alteração.
 SeiEscritaFalhouException falhaDeConclusaoSei({
   required String? codigo,
   required String mensagemDoServidor,

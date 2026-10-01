@@ -18,7 +18,7 @@ import 'package:invtec/features/movimentacoes/sei/presentation/sei_conclusao_lot
 import '../../auth/fake_auth_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.5.6/11.5.6.1 — `SeiConclusaoLoteController`: congelamento da
+/// `SeiConclusaoLoteController`: congelamento da
 /// decisão, geração única de `loteId`, prevenção de chamadas concorrentes,
 /// retry seguro sobre resultado desconhecido (incluindo reconciliação com
 /// validação de identidade completa) e isolamento entre documentos/sessões.
@@ -302,7 +302,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.11 — reconciliar() devolve o desfecho da consulta (mesma state, retorno a mais)', () {
+  group('reconciliar() devolve o desfecho da consulta (mesma state, retorno a mais)', () {
     test('registro não encontrado: devolve aindaDesconhecido — state.status permanece resultadoDesconhecido, idêntico a antes', () async {
       repo.falhaNaConclusao = Exception('timeout simulado');
       final notifier = container.read(testeControllerProvider.notifier);
@@ -402,7 +402,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.6.1 — reconciliação: identidade completa, nunca só o loteId', () {
+  group('reconciliação: identidade completa, nunca só o loteId', () {
     test('mesmo lote_id, mas o registro encontrado tem parâmetros DIFERENTES: bloqueia, nunca aceita', () async {
       // Semeia um registro real para 'lote-fixo', mas com uma seleção de
       // itens DIFERENTE da que a decisão local vai congelar a seguir —
@@ -433,7 +433,7 @@ void main() {
       await notifier.reconciliar();
 
       final estado = container.read(testeControllerProvider);
-      // PROMPT 11.5.6.2 — NUNCA aceita o resultado alheio como se fosse
+      // NUNCA aceita o resultado alheio como se fosse
       // desta decisão, e NUNCA vira uma recusa "encerrada": uma divergência
       // descoberta por leitura/comparação no cliente não tem a mesma
       // garantia de "nada foi escrito" que uma recusa SÍNCRONA do servidor
@@ -523,8 +523,8 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.6.1 — recusa recebida durante um retry() de tentativa antes desconhecida', () {
-    // PROMPT 11.5.8.2 — P0037 NÃO entra mais neste loop: diferente de
+  group('recusa recebida durante um retry() de tentativa antes desconhecida', () {
+    // P0037 NÃO entra mais neste loop: diferente de
     // P0010/P0036 (só disparados quando o `loteId` já foi procurado e NADA
     // foi encontrado — uma recusa confiável), P0037 significa que a RPC
     // ENCONTROU um registro para este `loteId` com identidade divergente —
@@ -559,7 +559,7 @@ void main() {
         expect(estado.temTentativaPendente, isFalse);
         // O loteId do retry foi o MESMO da tentativa original — nunca outro.
         expect(estado.decisao!.loteId, loteIdOriginal);
-        // PROMPT 11.5.8 — a recusa só foi aceita DEPOIS de confirmar, por
+        // A recusa só foi aceita DEPOIS de confirmar, por
         // leitura direta, que nada estava registrado sob este loteId.
         expect(repo.buscarLotePorIdCallCount, 1);
 
@@ -570,7 +570,7 @@ void main() {
     }
   });
 
-  group('PROMPT 11.5.8.2 — P0037 no retry() NUNCA é tratado como ausência do registro', () {
+  group('P0037 no retry() NUNCA é tratado como ausência do registro', () {
     test(
       'P0037 no retry() (RPC encontrou o loteId com identidade divergente) vira conflitoDeIntegridade, '
       'nunca recusado — mesmo que a leitura de verificação devolva null',
@@ -689,7 +689,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.8 — auditoria: retry() nunca aceita uma recusa sem confirmar por leitura direta', () {
+  group('auditoria: retry() nunca aceita uma recusa sem confirmar por leitura direta', () {
     test(
       'retry() recebe 42501 (checagem de permissão, ANTES da checagem de loteId na RPC real) mas a tentativa '
       'ORIGINAL já havia sido aplicada — a recusa NUNCA é apresentada; o resultado real vira sucesso',
@@ -822,7 +822,7 @@ void main() {
   });
 
   group(
-    'PROMPT 11.5.8.1 — retry() com 42501 e verificação retornando null (RLS pode ocultar um registro que existe)',
+    'retry() com 42501 e verificação retornando null (RLS pode ocultar um registro que existe)',
     () {
       test(
         'null NÃO prova ausência de execução: permanece resultadoDesconhecido, loteId/parâmetros preservados, '
@@ -975,7 +975,7 @@ void main() {
     },
   );
 
-  group('PROMPT 11.5.6.1 — isolamento entre documentos', () {
+  group('isolamento entre documentos', () {
     test('tentativa pendente do Documento A bloqueia confirmar() para o Documento B (nunca troca de decisão)', () async {
       repo.falhaNaConclusao = Exception('timeout simulado');
       final notifier = container.read(testeControllerProvider.notifier);
@@ -1004,7 +1004,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.6.1 — isolamento entre sessões autenticadas', () {
+  group('isolamento entre sessões autenticadas', () {
     test('logout descarta uma decisão pendente do estado local (nunca reaproveitada pela próxima sessão)', () async {
       repo.falhaNaConclusao = Exception('timeout simulado');
       final notifier = container.read(testeControllerProvider.notifier);
@@ -1068,7 +1068,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.5.6.2 — troca efetiva de usuário também descarta um conflito de integridade (mesmo isolamento)',
+      'troca efetiva de usuário também descarta um conflito de integridade (mesmo isolamento)',
       () async {
         // Chega a um conflito de integridade (não só resultadoDesconhecido).
         await repo.concluirItensLote(
@@ -1091,9 +1091,9 @@ void main() {
         await notifier.reconciliar();
         expect(container.read(testeControllerProvider).status, SeiConclusaoLoteStatus.conflitoDeIntegridade);
 
-        // Troca EFETIVA de usuário — segue o mesmo isolamento do PROMPT
-        // 11.5.6.1: mesmo um conflito de integridade não sobrevive a uma
-        // sessão diferente (nada é reaproveitado por outra sessão).
+        // Troca EFETIVA de usuário — segue o mesmo isolamento: mesmo um
+        // conflito de integridade não sobrevive a uma sessão diferente
+        // (nada é reaproveitado por outra sessão).
         await authRepo.signIn(email: 'outra@example.com', password: 'x');
         await container.read(authControllerProvider.future);
 
@@ -1105,7 +1105,7 @@ void main() {
     );
   });
 
-  group('PROMPT 11.5.6.1 — preservação da conclusão individual', () {
+  group('preservação da conclusão individual', () {
     test('concluirItem continua funcionando, sem interferência do controller de lote', () async {
       repo.falhaNaConclusao = Exception('timeout simulado');
       final notifier = container.read(testeControllerProvider.notifier);

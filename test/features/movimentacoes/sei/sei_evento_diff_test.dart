@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/movimentacoes/sei/application/sei_evento_diff.dart';
 
-/// PROMPT 11.3.8 — testes PUROS (sem widgets, sem Flutter) da extração de
+/// Testes PUROS (sem widgets, sem Flutter) da extração de
 /// diffs de um evento EDICAO, a partir de `dados_antes`/`dados_depois` no
 /// MESMO formato bruto que `editar_documento_sei_pendente` grava
 /// (`{'documento': {...4 campos...}, 'itens': [linhas inteiras de

@@ -17,10 +17,9 @@ import '../sei_import_controller.dart';
 import '../sei_status_visual.dart';
 import 'sei_item_detalhe_dialog.dart';
 
-/// Passo de revisão (PROMPT 11.1, seções 22/23) — resumo do documento +
-/// contadores por status + tabela de prévia filtrável. Termina no botão
-/// "Concluir análise" do diálogo pai; esta tela nunca dispara nenhuma
-/// escrita sozinha.
+/// Passo de revisão — resumo do documento + contadores por status + tabela
+/// de prévia filtrável. Termina no botão "Concluir análise" do diálogo
+/// pai; esta tela nunca dispara nenhuma escrita sozinha.
 class SeiRevisaoStep extends ConsumerWidget {
   const SeiRevisaoStep({super.key, required this.resultado});
 
@@ -59,10 +58,10 @@ class SeiRevisaoStep extends ConsumerWidget {
   }
 }
 
-/// PROMPT 11.2, seção 2: aviso obrigatório — PRONTO no parser é só
-/// validação técnica, nunca autorização administrativa. Uma checkbox
-/// explícita registra a confirmação do usuário (`SeiEstagioPreparacao.autorizado`),
-/// mas mesmo confirmada NENHUM botão de escrita aparece nesta versão.
+/// Aviso obrigatório — PRONTO no parser é só validação técnica, nunca
+/// autorização administrativa. Uma checkbox explícita registra a
+/// confirmação do usuário (`SeiEstagioPreparacao.autorizado`), mas mesmo
+/// confirmada NENHUM botão de escrita aparece nesta versão.
 class _AvisoAutorizacao extends ConsumerWidget {
   const _AvisoAutorizacao();
 
@@ -123,15 +122,12 @@ class _RodapeSelecao extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selecionados = execucao.values.where((e) => e.selecionado).length;
-    // PROMPT 11.2.1, seção 5: "documento analisado", "documento
-    // autorizado" e "itens efetivamente aptos" são três coisas distintas —
-    // aptos nunca é resolvido pela autorização geral do documento.
+    // "Documento analisado", "documento autorizado" e "itens efetivamente
+    // aptos" são três coisas distintas — aptos nunca é resolvido pela
+    // autorização geral do documento.
     final aptos = itensElegiveis(resultado: resultado, execucao: execucao).length;
-    // PROMPT 11.3.5.2: `Expanded` (não um `Text` solto no `Row`) — sem
-    // largura limitada o texto pedia sua largura natural em uma linha só e
-    // estourava o diálogo em janelas estreitas/texto maior. Com `Expanded`
-    // ele quebra em várias linhas normalmente (nunca trunca, nunca usa
-    // reticências) e o botão ao lado mantém seu tamanho natural.
+    // `Expanded` (não um `Text` solto no `Row`) — sem largura limitada o
+    // texto estourava o diálogo em janelas estreitas/texto maior.
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -231,8 +227,8 @@ class _ResumoDocumento extends StatelessWidget {
   }
 
   String _rotuloTipo(SeiDocumentoExtraido documento) {
-    // Só TRANSFERENCIA existe nesta V1 (seção 12) — rótulo fixo para o
-    // único caso suportado, sem depender de um mapa genérico ainda inútil.
+    // Só TRANSFERENCIA existe nesta V1 — rótulo fixo para o único caso
+    // suportado, sem depender de um mapa genérico ainda inútil.
     return 'Transferência patrimonial';
   }
 }
@@ -319,9 +315,8 @@ class _DataRow extends ConsumerWidget {
   final SeiItemExecucaoEstado estado;
 
   /// Mesmo critério único de elegibilidade do controller/plano
-  /// (`itemEstaApto`, PROMPT 11.2.1 seção 5) — nunca duplicado aqui, para a
-  /// checkbox e a seleção real nunca divergirem. Desmarcar é sempre
-  /// permitido.
+  /// (`itemEstaApto`) — nunca duplicado aqui, para a checkbox e a seleção
+  /// real nunca divergirem. Desmarcar é sempre permitido.
   bool get _podeSelecionar => estado.selecionado || itemEstaApto(validacao: item, estado: estado);
 
   @override
@@ -371,9 +366,9 @@ class _DataRow extends ConsumerWidget {
             Expanded(flex: 3, child: Text(item.item.equipamento ?? '—', style: AppTypography.body(context))),
             Expanded(
               flex: 3,
-              // PROMPT 11.3.5.4: setor RESOLVIDO no InvTec mostra a sigla
-              // (nome completo por tooltip); setor não resolvido continua
-              // mostrando o texto original extraído do documento.
+              // Setor RESOLVIDO no InvTec mostra a sigla (nome completo por
+              // tooltip); setor não resolvido continua mostrando o texto
+              // original extraído do documento.
               child: item.origem.entidadeEncontrada != null
                   ? SetorCompactText(
                       nome: item.origem.entidadeEncontrada!.nome,

@@ -18,7 +18,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import '../../auth/fake_auth_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.3.11 — cancelamento em MASSA de pendências SEI.
+/// Cancelamento em MASSA de pendências SEI.
 ///
 /// Só repositório fake e funções puras: nenhum cancelamento real, nenhuma
 /// chamada ao Supabase. O bug real (documento fictício `999999/2026/
@@ -167,7 +167,7 @@ void main() {
         preparar: (repo) => repo.cancelarItem(itemId: 'item-1', motivo: 'Motivo do cancelamento individual'),
       );
       expect(_resumo(2, 1, 0, 1), findsOneWidget, reason: '1 pendente, 0 concluídos, 1 cancelado');
-      // PROMPT 11.5.15.1 — singular correto no botão de cancelamento em
+      // Singular correto no botão de cancelamento em
       // massa: "1 item pendente", nunca "1 item(ns) pendente(s)" (o
       // resumo do cabeçalho, "2 item(ns) — ...", é outro texto, fora do
       // escopo deste ajuste — continua com o formato de sempre).

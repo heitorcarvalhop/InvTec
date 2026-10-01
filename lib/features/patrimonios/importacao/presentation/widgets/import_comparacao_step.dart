@@ -9,16 +9,16 @@ import '../../domain/patrimonio_decisao.dart';
 import '../patrimonio_import_controller.dart';
 import '../patrimonio_import_state.dart';
 
-/// Passo "Comparar e Atualizar" (PROMPT 11.6.3) — modo ADMIN, alcançado a
-/// partir do MESMO assistente de importação (nunca um segundo importador):
-/// mostra [ComparacaoResumo], a lista filtrável de
+/// Passo "Comparar e Atualizar" — modo ADMIN, alcançado a partir do MESMO
+/// assistente de importação (nunca um segundo importador): mostra
+/// [ComparacaoResumo], a lista filtrável de
 /// [PatrimonioImportState.itensComparacaoFiltrados] (idênticos JÁ excluídos)
 /// e a comparação campo a campo de cada divergência, consumindo
-/// [CampoDivergente] diretamente — NENHUM widget aqui recompara nada:
-/// [PatrimonioComparador] já fez isso (PROMPT 11.6.2).
+/// [CampoDivergente] diretamente — nenhum widget aqui recompara nada:
+/// [PatrimonioComparador] já fez isso.
 ///
-/// LIMITE DESTA ETAPA (seção 10): só prepara decisões em memória. Nenhum
-/// botão aqui chama `cadastrar`/`atualizar`/qualquer RPC de escrita.
+/// Só prepara decisões em memória. Nenhum botão aqui chama
+/// `cadastrar`/`atualizar`/qualquer RPC de escrita.
 class ImportComparacaoStep extends ConsumerWidget {
   const ImportComparacaoStep({super.key, required this.state});
 
@@ -95,7 +95,7 @@ class ImportComparacaoStep extends ConsumerWidget {
   }
 }
 
-/// PROMPT 11.6.3, seção 10 — deixa claro, em toda a tela, que nada aqui
+/// deixa claro, em toda a tela, que nada aqui
 /// executa uma alteração real. Sem isso, os controles de decisão poderiam
 /// parecer um botão operacional de confirmação definitiva (proibido pela
 /// seção 10).

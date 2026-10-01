@@ -21,10 +21,10 @@ import 'nova_movimentacao/tipo_step.dart';
 
 const _tituloPassos = ['Patrimônio', 'Tipo', 'Detalhes', 'Revisão'];
 
-/// Wizard de registro de movimentação (PROMPT 10.2) — a ÚNICA escrita que
-/// ele realiza é `registrar_movimentacao(...)`, e só depois do clique
-/// humano explícito em "Confirmar movimentação" no último passo. Retorna
-/// `true` quando a movimentação foi registrada com sucesso.
+/// Wizard de registro de movimentação — a ÚNICA escrita que ele realiza é
+/// `registrar_movimentacao(...)`, e só depois do clique humano explícito em
+/// "Confirmar movimentação" no último passo. Retorna `true` quando a
+/// movimentação foi registrada com sucesso.
 Future<bool?> showNovaMovimentacaoDialog(BuildContext context) {
   return showDialog<bool>(context: context, builder: (context) => const NovaMovimentacaoDialog());
 }
@@ -92,8 +92,8 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
 
   /// Trocar de patrimônio ou de tipo invalida destino/localização/
   /// confirmação já escolhidos — eles só fazem sentido para o tipo/
-  /// patrimônio anterior (seção 6 do prompt: nunca herdar um estado que não
-  /// corresponde mais à escolha atual).
+  /// patrimônio anterior; nunca herdar um estado que não corresponde mais à
+  /// escolha atual.
   void _resetarEscolhasDeTipo({bool preservarTipo = false}) {
     if (!preservarTipo) _rascunho.tipo = null;
     _rascunho.destinoSetorId = null;
@@ -110,11 +110,10 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
   void _voltar() => setState(() => _step--);
 
   Future<void> _confirmar() async {
-    // Guarda contra double-submit (PROMPT 10.2, seção 11): o botão já fica
-    // desabilitado durante o envio, mas a checagem aqui é a garantia real —
-    // um segundo clique que escape à desabilitação do botão (ex.: chegando
-    // antes do primeiro `setState` repintar a UI) ainda não dispara uma
-    // segunda chamada.
+    // Guarda contra double-submit: o botão já fica desabilitado durante o
+    // envio, mas a checagem aqui é a garantia real — um segundo clique que
+    // escape à desabilitação do botão (ex.: chegando antes do primeiro
+    // `setState` repintar a UI) ainda não dispara uma segunda chamada.
     if (_isSubmitting || !_podeConfirmar) return;
 
     setState(() {
@@ -142,13 +141,12 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
             numeroChamado: _rascunho.chamadoController.text,
           );
 
-      // Sucesso (PROMPT 10.2, seção 12; PROMPT 10.2.1, seção 3): invalida só
-      // o que pode ter mudado, nunca um refresh completo do app. Inclui o
-      // histórico/timeline do patrimônio (`patrimonioHistoricoProvider`) —
-      // sem isso, a tela de detalhe continuaria mostrando a timeline antiga
-      // até o usuário sair e voltar. `ref.invalidate` é seguro mesmo para um
-      // provider que não está sendo assistido no momento (ex.: o dashboard,
-      // se a tela atual for Movimentações) — ele só marca a próxima leitura
+      // Sucesso: invalida só o que pode ter mudado, nunca um refresh
+      // completo do app. Inclui o histórico/timeline do patrimônio
+      // (`patrimonioHistoricoProvider`) — sem isso, a tela de detalhe
+      // continuaria mostrando a timeline antiga até o usuário sair e
+      // voltar. `ref.invalidate` é seguro mesmo para um provider que não
+      // está sendo assistido no momento — ele só marca a próxima leitura
       // como precisando recarregar.
       ref.invalidate(patrimonioDetalheProvider(patrimonioId));
       ref.invalidate(patrimonioHistoricoProvider(patrimonioId));
@@ -158,18 +156,18 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
 
       if (mounted) Navigator.of(context).pop(true);
     } on AppException catch (e) {
-      // Erro da RPC (seção 13): nunca escondido, nunca uma segunda escrita
+      // Erro da RPC: nunca escondido, nunca uma segunda escrita
       // compensatória — só mostra a mensagem e mantém o formulário/revisão
       // preenchidos para o usuário corrigir ou tentar de novo.
       //
-      // Concorrência (seção 14): o estado mostrado na abertura do
-      // formulário pode ter mudado antes da confirmação (outra sessão
-      // moveu o mesmo patrimônio nesse meio-tempo) — a RPC já é a
-      // autoridade que rejeitou, mas a UI ainda mostraria o status ANTIGO
-      // se o usuário voltasse para revisar. Refaz a leitura do patrimônio
-      // (melhor esforço: se essa leitura falhar, o erro original da RPC já
-      // foi mostrado, então não sobrescreve por um erro secundário) para
-      // que "voltar e revisar de novo" realmente parta do estado atual.
+      // Concorrência: o estado mostrado na abertura do formulário pode ter
+      // mudado antes da confirmação (outra sessão moveu o mesmo patrimônio
+      // nesse meio-tempo) — a RPC já é a autoridade que rejeitou, mas a UI
+      // ainda mostraria o status ANTIGO se o usuário voltasse para revisar.
+      // Refaz a leitura do patrimônio (melhor esforço: se essa leitura
+      // falhar, o erro original da RPC já foi mostrado, então não
+      // sobrescreve por um erro secundário) para que "voltar e revisar de
+      // novo" realmente parta do estado atual.
       final atualizado = await ref.read(patrimonioRepositoryProvider).buscarDetalhePorId(patrimonioId).catchError(
         (_) => _patrimonio,
       );

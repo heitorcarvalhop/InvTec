@@ -4,8 +4,8 @@ import '../../../../core/widgets/status_chip.dart';
 import '../domain/sei_documento_situacao.dart';
 import '../domain/sei_item_pendencia_status.dart';
 
-/// Ícone + categoria semântica por situação geral de documento (PROMPT
-/// 11.3, seção 7) — mesma linguagem visual de `visualDoStatusSei`.
+/// Ícone + categoria semântica por situação geral de documento — mesma
+/// linguagem visual de `visualDoStatusSei`.
 (IconData, AppStatusKind) visualDaSituacaoDocumentoSei(SeiDocumentoSituacao situacao) {
   return switch (situacao) {
     SeiDocumentoSituacao.pendente => (Icons.hourglass_empty, AppStatusKind.warning),

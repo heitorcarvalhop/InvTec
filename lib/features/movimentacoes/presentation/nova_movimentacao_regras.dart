@@ -1,11 +1,11 @@
 import '../../patrimonios/domain/patrimonio.dart';
 import '../domain/movimentacao.dart';
 
-/// Regras de UX para o formulário de Nova Movimentação (PROMPT 10.2) —
-/// espelham a matriz de transição e a tabela "Regras por tipo" documentadas
-/// em docs/database.md, só para adaptar QUAIS campos o formulário mostra e
-/// habilita. Isto é só conveniência de interface: a RPC `registrar_movimentacao`
-/// é quem valida de verdade (ver seção 16 do prompt — "Flutter = UX, RPC =
+/// Regras de UX para o formulário de Nova Movimentação — espelham a matriz
+/// de transição e a tabela "Regras por tipo" documentadas em
+/// docs/database.md, só para adaptar QUAIS campos o formulário mostra e
+/// habilita. Isto é só conveniência de interface: a RPC
+/// `registrar_movimentacao` é quem valida de verdade ("Flutter = UX, RPC =
 /// autoridade") e pode rejeitar mesmo algo que passou por aqui (ex.: um
 /// setor foi desativado por outra sessão entre a abertura do formulário e a
 /// confirmação).
@@ -65,12 +65,11 @@ bool tipoExigeDestino(MovimentacaoTipo tipo) {
 bool tipoProibeDestino(MovimentacaoTipo tipo) =>
     tipo == MovimentacaoTipo.baixa || tipo == MovimentacaoTipo.alteracaoResponsavel;
 
-/// A RPC real (PROMPT 10.2.2, seção 3 — auditada em produção) rejeita
-/// `destino_id = setor_atual_id` para estes seis tipos ("deslocamento
-/// físico" clássico): "Destino igual ao setor atual do patrimônio não é
-/// permitido para %". TRANSFERENCIA é a ÚNICA exceção — para ela o mesmo
-/// setor atual é a forma explícita de pedir "movimentação interna", nunca
-/// um erro.
+/// A RPC real rejeita `destino_id = setor_atual_id` para estes seis tipos
+/// ("deslocamento físico" clássico): "Destino igual ao setor atual do
+/// patrimônio não é permitido para %". TRANSFERENCIA é a ÚNICA exceção —
+/// para ela o mesmo setor atual é a forma explícita de pedir "movimentação
+/// interna", nunca um erro.
 bool tipoExigeDestinoDiferente(MovimentacaoTipo tipo) {
   switch (tipo) {
     case MovimentacaoTipo.entrada:
@@ -126,10 +125,10 @@ bool ehTransferenciaInterna({
 /// setor atual do patrimônio (nunca `true` para "Manter o setor atual", que
 /// chega aqui como `destinoId == null`, nem para um `destinoId` que por
 /// acaso seja igual ao atual). Decide entre os dois modos visuais do campo
-/// de localização (PROMPT 10.2.2, seção 5): "Manter/Definir/Limpar" quando
-/// o setor não muda, ou "Selecionar localização do novo setor/Não informar
-/// localização" quando muda — nunca oferece "Manter" depois de trocar de
-/// setor, porque não há mais o que preservar.
+/// de localização: "Manter/Definir/Limpar" quando o setor não muda, ou
+/// "Selecionar localização do novo setor/Não informar localização" quando
+/// muda — nunca oferece "Manter" depois de trocar de setor, porque não há
+/// mais o que preservar.
 bool ajusteInventarioTrocouSetor({required String? destinoId, required String setorAtualId}) {
   return destinoId != null && destinoId != setorAtualId;
 }

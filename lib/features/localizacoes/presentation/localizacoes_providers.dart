@@ -25,10 +25,10 @@ final localizacoesPorSetorProvider = FutureProvider.family<List<Localizacao>, St
 });
 
 /// Localizações ATIVAS para o filtro "Localização" da listagem de
-/// patrimônios (PROMPT 9.2, seção 2) — `family` por Setor opcional: sem
-/// Setor selecionado (`null`), lista todas as localizações acessíveis; com
-/// um Setor selecionado, restringe às localizações daquela gerência (nunca
-/// mistura localização de outra).
+/// patrimônios — `family` por Setor opcional: sem Setor selecionado
+/// (`null`), lista todas as localizações acessíveis; com um Setor
+/// selecionado, restringe às localizações daquela gerência (nunca mistura
+/// localização de outra).
 final localizacoesParaFiltroProvider = FutureProvider.family<List<Localizacao>, String?>((
   ref,
   setorId,

@@ -1,5 +1,5 @@
 // =============================================================================
-// PROMPT 11.5.9 — PRÉVIA LOCAL DA CONCLUSÃO EM LOTE (SEI), SOMENTE DADOS
+// PRÉVIA LOCAL DA CONCLUSÃO EM LOTE (SEI), SOMENTE DADOS
 // FICTÍCIOS.
 // =============================================================================
 // Entrypoint EXCLUSIVO de desenvolvimento — nunca usado pelo app operacional
@@ -52,8 +52,7 @@ import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 
-// PROMPT 11.5.9 — reaproveita os MESMOS fakes já homologados pela suíte de
-// testes (1099 testes aprovados em cima deles até o PROMPT 11.5.8.2), em vez
+// Reaproveita os MESMOS fakes já homologados pela suíte de testes, em vez
 // de escrever uma segunda simulação da RPC só para a prévia: a prévia nunca
 // corre o risco de "inventar" um comportamento que diverge do que já foi
 // auditado. Nenhum destes arquivos depende de `package:flutter_test` (só
@@ -65,7 +64,7 @@ import '../features/patrimonios/fake_patrimonio_repository.dart';
 const _docId = 'previa-doc-1';
 const _usuarioPreviaId = 'previa-user-1';
 
-/// PROMPT 11.5.15 — SÓ para esta prévia: substitui `textoAvisoLote`
+/// SÓ para esta prévia: substitui `textoAvisoLote`
 /// ("...movimentações patrimoniais reais...", em `sei_concluir_lote_dialog.dart`)
 /// via o parâmetro opcional `textoAviso`/`textoAvisoConclusaoLote` — o
 /// aviso de responsabilidade do app operacional continua o mesmo, sempre
@@ -85,8 +84,8 @@ void main() {
 /// troca a geração, o que força o Flutter a descartar TODOS os providers
 /// (inclusive [seiConclusaoLoteControllerProvider] e os fakes) e montar um
 /// conjunto novo — nenhum atalho de UI para "descartar" uma tentativa
-/// pendente isoladamente (isso continua proibido, mesmo aqui: ver
-/// PROMPT 11.5.6.2/11.5.8). É a única forma de "resetar" a prévia.
+/// pendente isoladamente (isso continua proibido, mesmo aqui). É a única
+/// forma de "resetar" a prévia.
 class SeiLotePreviewRoot extends StatefulWidget {
   const SeiLotePreviewRoot({super.key});
 
@@ -115,7 +114,7 @@ class SeiLotePreviewRootState extends State<SeiLotePreviewRoot> {
     );
     final documento = documentoPreviewDemo();
     final repoPatrimonios = FakePatrimonioRepository(itens: patrimoniosPreviewDemo());
-    // PROMPT 11.5.9.2 — conecta os dois fakes: sem isto, concluir um item
+    // Conecta os dois fakes: sem isto, concluir um item
     // (individual ou em lote) atualiza o documento SEI mas NUNCA o cadastro
     // do patrimônio fictício (setor/localização/responsável atuais ficam
     // "congelados"), diferente da RPC real (que atualiza os dois na mesma
@@ -137,7 +136,7 @@ class SeiLotePreviewRootState extends State<SeiLotePreviewRoot> {
         title: 'Prévia — Conclusão em lote SEI',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
-        // PROMPT 11.5.9 — identificação visível "PRÉVIA LOCAL — DADOS
+        // Identificação visível "PRÉVIA LOCAL — DADOS
         // FICTÍCIOS" em TODA tela desta prévia (não só na home), via
         // `builder`: qualquer diálogo/rota aberta por cima continua com a
         // faixa visível.
@@ -178,14 +177,6 @@ class _SeiLotePreviewHome extends ConsumerWidget {
     return false;
   }
 
-  /// PROMPT 11.5.13 — corrige a causa exata do bug relatado: antes, esta
-  /// função exigia o controller OCIOSO em TODAS as chamadas, mesmo quando
-  /// [modoFalha] é `null` (isto é, quando o clique é só "abrir o documento
-  /// existente", sem preparar nada novo) — impedindo reabrir o documento
-  /// depois de "Preparar conflito de integridade"/qualquer outro cenário
-  /// que deixe uma tentativa pendente, e com isso impedindo demonstrar
-  /// "Concluir selecionados" → "Consultar o que aconteceu" sobre ela.
-  ///
   /// A distinção certa é entre as DUAS coisas que este método faz:
   ///  * [modoFalha] não-nulo → vai ALTERAR `repo.falhaNaConclusao` para
   ///    simular uma FALHA NOVA na próxima escrita — isto é "preparar um
@@ -197,8 +188,8 @@ class _SeiLotePreviewHome extends ConsumerWidget {
   ///    `repo.falhaNaConclusao` nem no controller — isto é indistinguível
   ///    de reabrir a tela no app real, e o app real NUNCA bloqueia abrir um
   ///    documento só porque há uma decisão de lote pendente em algum canto
-  ///    (quem bloqueia é o próprio diálogo, item a item, via PROMPT
-  ///    11.5.12 — este entrypoint não deve reimplementar esse bloqueio de
+  ///    (quem bloqueia é o próprio diálogo, item a item — este entrypoint
+  ///    não deve reimplementar esse bloqueio de
   ///    forma mais restritiva do que o app real). Nenhuma decisão nova é
   ///    criada, nenhum `loteId` é gerado, o controller não é substituído
   ///    nem reiniciado, e nenhuma conclusão roda sozinha — é só a MESMA
@@ -208,7 +199,7 @@ class _SeiLotePreviewHome extends ConsumerWidget {
     repo.falhaNaConclusao = modoFalha;
     if (!context.mounted) return;
     try {
-      // PROMPT 11.5.15 — substitui, SÓ nesta prévia, o aviso de
+      // Substitui, SÓ nesta prévia, o aviso de
       // responsabilidade sobre movimentações REAIS (`textoAvisoLote`, em
       // `sei_concluir_lote_dialog.dart`) por uma indicação de que aqui é
       // tudo fictício/em memória — o app operacional continua chamando
@@ -227,9 +218,9 @@ class _SeiLotePreviewHome extends ConsumerWidget {
     }
   }
 
-  /// PROMPT 11.5.9 — choreografa a MESMA sequência que a auditoria 11.5.8.2
-  /// corrigiu: confirma uma decisão que "trava" em resultado desconhecido
-  /// (timeout simulado) e, por fora do controller (como se fosse outra
+  /// Choreografa uma sequência: confirma uma decisão que "trava" em
+  /// resultado desconhecido (timeout simulado) e, por fora do controller
+  /// (como se fosse outra
   /// operação/outra aba reaproveitando o mesmo loteId), grava um registro
   /// DIVERGENTE para aquele mesmo `loteId` — nenhuma regra nova: só
   /// orquestra chamadas já existentes do fake/controller, para o usuário
@@ -338,13 +329,13 @@ class _SeiLotePreviewHome extends ConsumerWidget {
                   label: const Text('Abrir documento (sempre permitido, mesmo com tentativa pendente)'),
                 ),
                 const SizedBox(height: 4),
-                // PROMPT 11.5.13 — requisito 7: a prévia deixava a impressão de
+                // A prévia deixava a impressão de
                 // que TODA ação aqui embaixo era bloqueada por uma tentativa
                 // pendente — na real, só PREPARAR um cenário NOVO é.
                 const Text(
                   'Abrir o documento acima nunca é bloqueado, mesmo com uma tentativa de lote pendente '
                   '(resultado desconhecido/conflito) — é o mesmo comportamento do app real: quem bloqueia '
-                  'escritas é o próprio diálogo, item a item (PROMPT 11.5.12), não a abertura da tela. É assim '
+                  'escritas é o próprio diálogo, item a item, não a abertura da tela. É assim '
                   'que se chega a "Concluir selecionados" → "Consultar o que aconteceu" para resolver ou '
                   'demonstrar uma tentativa já preparada abaixo.',
                   style: TextStyle(fontStyle: FontStyle.italic),
@@ -422,17 +413,16 @@ SeiDocumentoPendente documentoPreviewDemo() {
   );
 }
 
-/// PROMPT 11.5.9.1 — FONTE ÚNICA de verdade por item: tanto [_itensDemo]
+/// FONTE ÚNICA de verdade por item: tanto [_itensDemo]
 /// quanto [patrimoniosPreviewDemo] derivam do MESMO [_ItemFixture], para nunca
 /// mais divergir por acidente entre "onde o documento diz que o patrimônio
 /// está" (`origemSetorId`, no item) e "onde o patrimônio fictício
-/// realmente está" (`setorAtualPatrimonioId`, no `Patrimonio`) — foi
-/// exatamente essa divergência ACIDENTAL (11.5.9 gerava o setor de origem
-/// do item e o setor atual do patrimônio de duas formas independentes)
-/// que bloqueava DEMO-0001/DEMO-0002 com "Origem divergente" no PROMPT
-/// 11.5.9.1. `setorAtualPatrimonioId` default PARA `origemSetorId` — só
-/// diverge quando um item PROPOSITALMENTE precisa disso (ver o item 18,
-/// abaixo), nunca por omissão.
+/// realmente está" (`setorAtualPatrimonioId`, no `Patrimonio`) — essa
+/// divergência ACIDENTAL (gerar o setor de origem do item e o setor atual
+/// do patrimônio de duas formas independentes) já bloqueou itens com
+/// "Origem divergente" por engano. `setorAtualPatrimonioId` default PARA
+/// `origemSetorId` — só diverge quando um item PROPOSITALMENTE precisa
+/// disso (ver o item 18, abaixo), nunca por omissão.
 class _ItemFixture {
   _ItemFixture({
     required this.linha,
@@ -495,7 +485,7 @@ List<_ItemFixture> _fixturesDemo() {
   // 18: BLOQUEADO por ORIGEM DIVERGENTE, de propósito — o item aponta a
   // origem "Gerência de Tecnologia (fictícia)", mas o patrimônio fictício
   // está hoje em "Almoxarifado (fictício)" (`setorAtualPatrimonioId`
-  // explicitamente diferente de `origemSetorId`). PROMPT 11.5.10 —
+  // explicitamente diferente de `origemSetorId`).
   // "Concluir todos os aptos" já busca o patrimônio atual dos candidatos
   // e EXCLUI este item da seleção automática (com o motivo listado em
   // "não incluídos"); selecioná-lo manualmente ainda bloqueia o lote
@@ -624,7 +614,7 @@ List<PatrimonioDetalhe> patrimoniosPreviewDemo() {
           numeroPatrimonio: 'DEMO-${f.linha.toString().padLeft(4, '0')}',
           tipoId: 'previa-tipo-1',
           status: PatrimonioStatus.emUso,
-          // PROMPT 11.5.9.1 — setor ATUAL do patrimônio fictício: igual à
+          // Setor ATUAL do patrimônio fictício: igual à
           // origem do item em qualquer caso, exceto no item 18 (demo
           // proposital de "Origem divergente" — ver `_fixturesDemo`).
           setorAtualId: f.setorAtualPatrimonioId,

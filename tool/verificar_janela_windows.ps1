@@ -1,6 +1,6 @@
 ﻿<#
-PROMPT 11.3.9.2 — verificação REAL (Win32) da política de tamanho da janela do
-InvTec Windows. Testes de widget não enxergam a restrição do runner
+Verificação REAL (Win32) da política de tamanho da janela do InvTec
+Windows. Testes de widget não enxergam a restrição do runner
 (`windows/runner/main.cpp` + WM_GETMINMAXINFO em `win32_window.cpp`); este
 script abre o executável de verdade e a exercita. Só lê/redimensiona a
 janela: nenhuma escrita em banco, nenhum login.

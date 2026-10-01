@@ -15,7 +15,7 @@ import '../../domain/sei_documento_pendente.dart';
 import '../../domain/sei_item_pendente.dart';
 import '../sei_conclusao_lote_controller.dart';
 
-/// PROMPT 11.5.7 — como o diálogo de LOTE terminou. `null` (o `showDialog`
+/// como o diálogo de LOTE terminou. `null` (o `showDialog`
 /// devolve `null`) só quando o usuário cancelou ANTES de confirmar (nenhuma
 /// chamada foi feita) — nesses três campos preenchidos, sempre HOUVE uma
 /// tentativa de `confirmar()`.
@@ -40,39 +40,33 @@ const textoAvisoLote = 'Esta ação registrará movimentações patrimoniais rea
 const textoConfirmacaoEntregaFisicaLote =
     'Confirmo que TODOS os patrimônios listados acima foram efetivamente entregues aos destinos informados.';
 
-/// PROMPT 11.5.15 — "1 item"/"2 itens" (nunca "item(ns)"): só a FORMA da
-/// palavra — a contagem é sempre escrita por quem chama, ao lado.
+/// "1 item"/"2 itens" (nunca "item(ns)"): só a FORMA da palavra — a contagem
+/// é sempre escrita por quem chama, ao lado.
 String _plural(int quantidade, String singular, String plural) => quantidade == 1 ? singular : plural;
 
-/// PROMPT 11.5.7 — revisão e confirmação da conclusão em LOTE de itens SEI.
+/// Revisão e confirmação da conclusão em LOTE de itens SEI.
 ///
 /// NADA é executado ao abrir: carrega a situação ATUAL de cada patrimônio
-/// selecionado (nunca reaproveita uma foto antiga vinda da tela anterior),
-/// monta o [SeiPlanoConclusaoLote] via [planejarConclusaoLote] (nenhuma
-/// regra duplicada aqui) e exige (1) a confirmação de que a entrega física
-/// de TODOS os itens aconteceu e (2) — só quando o lote exigiria limpeza de
+/// selecionado, monta o [SeiPlanoConclusaoLote] via [planejarConclusaoLote]
+/// e exige (1) confirmação de que a entrega física de TODOS os itens
+/// aconteceu e (2) — só quando o lote exigiria limpeza de
 /// localização/responsável em algum item — uma segunda confirmação
 /// explícita e AGREGADA (a RPC só recebe uma flag para o lote inteiro).
 ///
-/// O diálogo NÃO tem máquina de estados própria: ele só RENDERIZA o estado
-/// atual de [seiConclusaoLoteControllerProvider] — o `loteId` é gerado uma
-/// única vez pelo controller (nunca aqui), e o payload congelado nunca é
-/// reenviado com parâmetros diferentes. Reabrir este diálogo enquanto uma
-/// tentativa anterior estiver pendente (`resultadoDesconhecido` ou
-/// `conflitoDeIntegridade`) mostra o PAINEL daquele estado diretamente,
-/// ignorando a seleção passada em [itensSelecionados] — o controller é
-/// quem decide, nunca o widget.
+/// O diálogo NÃO tem máquina de estados própria: só RENDERIZA o estado atual
+/// de [seiConclusaoLoteControllerProvider] — o `loteId` é gerado uma única
+/// vez pelo controller, nunca reenviado com parâmetros diferentes. Reabrir
+/// este diálogo com uma tentativa anterior pendente mostra o PAINEL daquele
+/// estado diretamente, ignorando [itensSelecionados] — o controller decide,
+/// nunca o widget.
 Future<SeiConclusaoLoteDesfecho?> showSeiConcluirLoteDialog(
   BuildContext context, {
   required SeiDocumentoPendente documento,
   required List<SeiItemPendente> itensSelecionados,
   List<SeiItemNaoIncluidoLote> naoIncluidos = const [],
-  // PROMPT 11.5.15 — `null` (padrão) preserva [textoAvisoLote] EXATAMENTE
-  // como sempre foi no app operacional (o aviso de responsabilidade sobre
-  // movimentações REAIS nunca muda ali). Existe só para a prévia local
-  // (`test/tools/sei_lote_preview_app.dart`) poder mostrar, no MESMO
-  // widget real, que a movimentação ali é fictícia/em memória — nenhuma
-  // rota nova, nenhum widget duplicado.
+  // `null` (padrão) preserva [textoAvisoLote] exatamente como no app
+  // operacional. Existe só para a prévia local mostrar, no MESMO widget
+  // real, que a movimentação ali é fictícia.
   String? textoAviso,
 }) {
   return showDialog<SeiConclusaoLoteDesfecho>(
@@ -114,14 +108,10 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
   bool _limpezaConfirmada = false;
   bool _mostrarTecnico = false;
 
-  // PROMPT 11.5.11 — só FEEDBACK VISUAL da ÚLTIMA consulta de reconciliação
-  // (`_consultar`/`SeiReconciliacaoController.reconciliar`), nunca uma
-  // segunda máquina de estados: quando `state.status` muda (sucesso/
-  // conflito), o `switch` de `build` já troca de painel sozinho e estes dois
-  // campos ficam sem efeito. Eles só importam no único caso em que
-  // `state.status` permanece IDÊNTICO ao de antes da consulta
-  // ([SeiConclusaoLoteStatus.resultadoDesconhecido] antes e depois) — sem
-  // isto, essa consulta específica não deixava NENHUM rastro visível.
+  // Só FEEDBACK VISUAL da última consulta de reconciliação, nunca uma
+  // segunda máquina de estados: quando `state.status` muda, o `switch` de
+  // `build` já troca de painel sozinho. Só importam quando `state.status`
+  // permanece `resultadoDesconhecido` antes e depois da consulta.
   bool _consultando = false;
   String? _avisoConsulta;
 
@@ -140,7 +130,7 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
   /// Só LÊ a situação ATUAL de cada patrimônio selecionado — nunca escreve
   /// nada, e NUNCA reaproveita um [PatrimonioDetalhe] que a tela anterior já
   /// tinha em mãos: uma foto antiga não é suficiente para confirmar a
-  /// conclusão (PROMPT 11.5.7).
+  /// conclusão.
   Future<void> _carregarPatrimonios() async {
     final repositorio = ref.read(patrimonioRepositoryProvider);
     final buscas = <Future<void>>[];
@@ -175,12 +165,10 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
         );
   }
 
-  /// PROMPT 11.5.11 — dispara [SeiConclusaoLoteController.reconciliar] e
-  /// traduz o [SeiReconciliacaoResultado] devolvido (nenhuma regra
-  /// reimplementada aqui) num aviso visível quando `state.status` continuar
-  /// [SeiConclusaoLoteStatus.resultadoDesconhecido] depois da chamada — nos
-  /// outros casos (sucesso/conflito) o `switch` de `build` já troca de
-  /// painel sozinho, então nenhum aviso extra é necessário.
+  /// Dispara [SeiConclusaoLoteController.reconciliar] e traduz o
+  /// [SeiReconciliacaoResultado] num aviso visível quando `state.status`
+  /// continuar [SeiConclusaoLoteStatus.resultadoDesconhecido] depois da
+  /// chamada — nos outros casos o `switch` de `build` já troca de painel.
   Future<void> _consultar() async {
     setState(() {
       _consultando = true;
@@ -190,13 +178,9 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
     if (!mounted) return;
     setState(() {
       _consultando = false;
-      // PROMPT 11.5.15 — texto CURTO de propósito: as informações de
-      // segurança completas (nada foi repetido, a tentativa permanece
-      // congelada, o que os botões abaixo fazem) já estão no bloco
-      // principal, que não muda — repeti-las aqui só alongava o alerta e
-      // soava redundante. Isto é só um rótulo de "o que a última consulta
-      // encontrou", renderizado à parte (ver `_painelDesfecho`), nunca
-      // dentro do mesmo bloco vermelho.
+      // Texto CURTO de propósito: as informações de segurança completas já
+      // estão no bloco principal (inalterado). Isto é só um rótulo de "o
+      // que a última consulta encontrou", renderizado à parte.
       _avisoConsulta = switch (resultado) {
         SeiReconciliacaoResultado.aindaDesconhecido => 'Última consulta: ainda sem confirmação.',
         SeiReconciliacaoResultado.falhaDeConsulta =>
@@ -398,11 +382,8 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
   }
 
   // ---------------------------------------------------------------------
-  // EXECUTANDO — PROMPT 11.5.11: texto distinto quando é só uma CONSULTA
-  // (`_consultar`/`reconciliar`, uma leitura) em vez de uma escrita
-  // (`confirmar`/`retry`) — sem isso, um simples "Consultar o que
-  // aconteceu" mostrava "Confirmando a conclusão em lote…", como se uma
-  // nova escrita estivesse em andamento.
+  // EXECUTANDO — texto distinto quando é só uma CONSULTA (leitura) em vez
+  // de uma escrita (`confirmar`/`retry`).
   // ---------------------------------------------------------------------
   Widget _buildExecutando(BuildContext context) {
     return Padding(
@@ -489,14 +470,9 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
             'NÃO repita esta ação de outra forma: use as opções abaixo, que reenviam exatamente os mesmos '
             'parâmetros já confirmados.',
       ],
-      // PROMPT 11.5.15 — resultado da ÚLTIMA consulta feita por "Consultar
-      // o que aconteceu" (`_consultar`), quando ela termina sem mudar
-      // `state.status` (continua incerto): fora do bloco vermelho acima —
-      // antes (PROMPT 11.5.11) essa linha era anexada DENTRO do mesmo
-      // `_CaixaDeAviso`, deixando o alerta cada vez mais longo a cada
-      // clique em "Consultar" sem confirmação; nenhuma informação de
-      // segurança se perde (continua toda no bloco principal, inalterado),
-      // isto é só o rastro de "o que a última consulta encontrou".
+      // Resultado da última consulta feita por "Consultar o que aconteceu",
+      // renderizado fora do bloco vermelho principal — nenhuma informação
+      // de segurança se perde (continua toda ali, inalterada).
       avisoSecundario: _avisoConsulta,
       acoes: [
         OutlinedButton(
@@ -509,11 +485,8 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
           onPressed: state.executando || _consultando
               ? null
               : () {
-                  // Limpa o aviso da consulta anterior: um "Tentar
-                  // novamente" é uma ação DIFERENTE (uma escrita, não uma
-                  // consulta) — manter o texto da última consulta aqui
-                  // seria enganoso se este retry também terminar em
-                  // resultado desconhecido.
+                  // "Tentar novamente" é uma ação DIFERENTE (escrita, não
+                  // consulta) — limpa o aviso da consulta anterior.
                   setState(() => _avisoConsulta = null);
                   notifier.retry();
                 },
@@ -547,13 +520,9 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
             'nem repetir, nem consultar de novo, nem começar uma nova decisão para este documento.',
         'Contate o suporte técnico com os detalhes técnicos abaixo.',
       ],
-      // PROMPT 11.5.14 — NUNCA `falha?.textoTecnico` aqui: aquele texto
-      // reaproveita a mensagem amigável de P0037 (`mensagemErroConclusaoSei`),
-      // que orienta "comece uma nova conclusão" — seguro para uma recusa
-      // definitiva e isolada, mas contraditório e inseguro neste painel
-      // (ver o comentário de `textoTecnicoConflitoDeIntegridade`). O
-      // `loteId` vem de `state.decisao` (a decisão CONGELADA), nunca
-      // recalculado.
+      // NUNCA `falha?.textoTecnico` aqui: aquele texto orienta "comece uma
+      // nova conclusão", seguro para uma recusa definitiva mas contraditório
+      // num conflito de integridade. `loteId` vem da decisão CONGELADA.
       detalhesTecnicos: falha == null ? null : textoTecnicoConflitoDeIntegridade(falha, loteId: state.decisao?.loteId),
       // PROPOSITALMENTE sem nenhum botão de ação além de fechar — nunca
       // contorna os guards do controller (retry/reconciliar/reiniciar
@@ -575,13 +544,9 @@ class _SeiConcluirLoteDialogState extends ConsumerState<_SeiConcluirLoteDialog> 
     required String titulo,
     required List<String> linhas,
     String? detalhesTecnicos,
-    // PROMPT 11.5.15 — nota CURTA e SEPARADA do bloco de alerta principal
-    // (nunca outra cor de erro/alarme — um tom neutro, discreto): hoje só
-    // usado pelo resultado da última consulta em
-    // [SeiConclusaoLoteStatus.resultadoDesconhecido] (ver
-    // `_buildResultadoDesconhecido`), mas genérico o bastante para
-    // qualquer painel futuro que precise de um rastro de "o que a última
-    // ação encontrou" sem inchar a caixa vermelha principal.
+    // Nota CURTA e SEPARADA do bloco de alerta principal (tom neutro,
+    // discreto) — hoje só usada pelo resultado da última consulta em
+    // [SeiConclusaoLoteStatus.resultadoDesconhecido].
     String? avisoSecundario,
     List<Widget> acoes = const [],
     required Widget botaoFechar,
@@ -719,10 +684,8 @@ class _ItemRevisao extends StatelessWidget {
 }
 
 /// PENDENTE não é "sem informação": só CONFIRMADO_SEM_INFORMACAO mostra
-/// [textoNaoInformado]; PENDENTE mostra [textoPendenteDeDefinicao]. Mesma
-/// lógica de `sei_concluir_entrega_dialog.dart` (não exportada de lá —
-/// duplicada aqui de propósito: é só apresentação de texto, não uma regra
-/// de negócio do lote).
+/// [textoNaoInformado]; PENDENTE mostra [textoPendenteDeDefinicao]. Duplicado
+/// de propósito de `sei_concluir_entrega_dialog.dart` — só apresentação.
 String _valorDoDestinoLote(SeiDecisaoCampo decisao, String? valor) {
   switch (decisao) {
     case SeiDecisaoCampo.pendente:
@@ -735,7 +698,7 @@ String _valorDoDestinoLote(SeiDecisaoCampo decisao, String? valor) {
 }
 
 /// Itens PENDENTES que "Concluir todos os aptos" NÃO incluiu na seleção —
-/// só informativo, NUNCA enviado à RPC (PROMPT 11.5.7, seção 3).
+/// só informativo, NUNCA enviado à RPC.
 class _NaoIncluidos extends StatelessWidget {
   const _NaoIncluidos({required this.itens});
 
@@ -744,16 +707,9 @@ class _NaoIncluidos extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // PROMPT 11.5.15.1 — auditoria visual encontrou: [itens] chega nesta
-    // ordem de CONSTRUÇÃO (triagem preliminar por item primeiro, depois os
-    // excluídos SÓ na reavaliação por patrimônio são ANEXADOS ao final —
-    // ver `selecionarAptosParaLoteComPatrimonios`), não na ordem de LINHA
-    // do documento: na prévia, por exemplo, DEMO-0018 (excluído só na
-    // reavaliação) aparecia DEPOIS de DEMO-0019/20/21/22, fora de ordem.
-    // Reordena SÓ para exibição — nenhuma regra de elegibilidade muda, e
-    // cada [SeiItemNaoIncluidoLote] carrega o item e seus motivos JUNTOS
-    // (o mesmo objeto é só reordenado, nunca desmontado/remontado), então
-    // a associação item↔motivo nunca pode ficar incorreta.
+    // [itens] chega na ordem de CONSTRUÇÃO (ver
+    // `selecionarAptosParaLoteComPatrimonios`), não na ordem de LINHA do
+    // documento — reordena só para exibição, nenhuma regra de elegibilidade muda.
     final itensOrdenados = [...itens]..sort((a, b) => a.item.linha.compareTo(b.item.linha));
     return Theme(
       data: theme.copyWith(dividerColor: Colors.transparent),
@@ -769,16 +725,9 @@ class _NaoIncluidos extends StatelessWidget {
             Padding(
               key: Key('sei-concluir-lote-nao-incluido-${naoIncluido.item.id}'),
               padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              // PROMPT 11.5.15 — auditoria visual encontrou: o patrimônio
-              // aqui começava rente à borda esquerda, enquanto o mesmo dado
-              // na lista de itens INCLUÍDOS (`_ItemRevisao`, acima) começa
-              // recuado depois de um ícone (18px + AppSpacing.sm) — as duas
-              // listas, exibidas juntas na mesma revisão, ficavam com o
-              // número do patrimônio desalinhado entre uma seção e outra.
-              // Mesmo Row/Icon/Expanded de `_ItemRevisao` (ícone SEMPRE
-              // "bloqueado", já que todo item aqui é, por definição, um não
-              // incluído) padroniza o recuo — nenhuma regra de elegibilidade
-              // nova, só o mesmo padrão visual já usado ao lado.
+              // Mesmo Row/Icon/Expanded de `_ItemRevisao` para manter o
+              // patrimônio alinhado entre as duas listas (ícone sempre
+              // "bloqueado": todo item aqui é, por definição, não incluído).
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

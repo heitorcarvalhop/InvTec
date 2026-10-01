@@ -7,9 +7,8 @@ class _RegraSugestao {
   final List<String> nomesTipoSugeridos;
 }
 
-/// Sugestões NÃO VINCULANTES para os grupos conhecidos dos 37 registros
-/// ainda pendentes de tipo (auditoria `getec_auditoria_tipos_pendentes.md`,
-/// seção 6 do PROMPT 8.13). Cada entrada é o(s) nome(s) exato(s) do catálogo
+/// Sugestões NÃO VINCULANTES para os grupos conhecidos de registros ainda
+/// pendentes de tipo. Cada entrada é o(s) nome(s) exato(s) do catálogo
 /// oficial — ainda precisam ser resolvidos contra os tipos realmente ativos
 /// por quem exibir a sugestão (nunca hardcoda um UUID).
 ///
@@ -39,7 +38,7 @@ final _regrasSugestao = <_RegraSugestao>[
 /// Devolve os nomes de tipo sugeridos (0, 1 ou 2) para [descricao] — vazio
 /// quando nenhuma regra conhecida bate; nunca inventa uma sugestão fora
 /// desta lista fechada. Quem exibir o resultado deve deixar claro que é uma
-/// "Sugestão", nunca uma "Classificação definida" (PROMPT 8.13, seção 6).
+/// "Sugestão", nunca uma "Classificação definida".
 List<String> sugerirTiposNaoVinculantes(String? descricao) {
   if (descricao == null) return const [];
   final normalizado = normalizarTextoComparacao(descricao);

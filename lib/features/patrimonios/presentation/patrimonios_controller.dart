@@ -73,20 +73,15 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
     return PatrimoniosListState(filtro: _filtro, resultado: resultado);
   }
 
-  /// Busca com debounce (seção 8: 300ms — evita uma consulta remota a cada
-  /// tecla) — sempre volta para a primeira página. `invalidateSelf()` só é
-  /// chamado depois do debounce expirar; se o texto mudar de novo antes
-  /// disso, o timer anterior é cancelado e nenhuma consulta chega a ser
-  /// disparada para ele (nunca dois `invalidateSelf()` por uma sequência de
-  /// teclas). Ainda assim, se duas consultas ficarem em voo ao mesmo tempo
-  /// por qualquer outro motivo (ex.: um filtro mudou enquanto a busca
-  /// debounced anterior ainda não tinha resolvido), o próprio mecanismo do
-  /// `AsyncNotifier`/`invalidateSelf()` garante que só o resultado da
-  /// consulta mais recente é aplicado ao estado — uma resposta antiga que
-  /// chegue depois nunca sobrescreve um estado mais novo. Timer próprio
-  /// (nunca compartilhado com marca/modelo/responsável, ver campo
-  /// [_debounceBusca]): trocar um filtro imediato nunca cancela uma
-  /// digitação pendente em outro campo.
+  /// Busca com debounce de 300ms (evita uma consulta remota a cada tecla) —
+  /// sempre volta para a primeira página. `invalidateSelf()` só é chamado
+  /// depois do debounce expirar; se o texto mudar antes disso, o timer
+  /// anterior é cancelado. Se duas consultas ainda assim ficarem em voo ao
+  /// mesmo tempo (ex.: um filtro mudou enquanto a busca anterior não tinha
+  /// resolvido), o próprio `AsyncNotifier`/`invalidateSelf()` garante que só
+  /// o resultado mais recente é aplicado — uma resposta antiga nunca
+  /// sobrescreve um estado mais novo. Timer próprio (nunca compartilhado com
+  /// marca/modelo/responsável, ver [_debounceBusca]).
   void buscar(String texto) {
     _debounceBusca?.cancel();
     _debounceBusca = Timer(const Duration(milliseconds: 300), () {
@@ -95,7 +90,7 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
     });
   }
 
-  /// Troca do seletor de campo de busca (seção 2/8) — dispara nova pesquisa
+  /// Troca do seletor de campo de busca — dispara nova pesquisa
   /// imediatamente, sem debounce (é uma seleção discreta, não digitação).
   void definirCampoBusca(PatrimonioSearchField campo) {
     _debounceBusca?.cancel();
@@ -113,9 +108,9 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
     ref.invalidateSelf();
   }
 
-  /// Seção 2: trocar o Setor limpa a Localização selecionada — uma
-  /// localização de outra gerência nunca fica "presa" filtrando um
-  /// resultado que não faz mais sentido com o novo Setor.
+  /// Trocar o Setor limpa a Localização selecionada — uma localização de
+  /// outra gerência nunca fica "presa" filtrando um resultado que não faz
+  /// mais sentido com o novo Setor.
   void filtrarPorSetor(String? setorId) {
     _filtro = _filtro.copyWith(setorId: setorId, localizacaoId: null, semLocalizacao: false, pagina: 0);
     ref.invalidateSelf();
@@ -133,8 +128,8 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
     ref.invalidateSelf();
   }
 
-  /// Filtros avançados textuais (seção 3/4) — mesmo mecanismo de debounce
-  /// da busca principal, mas com um timer PRÓPRIO por campo: independentes
+  /// Filtros avançados textuais — mesmo mecanismo de debounce da busca
+  /// principal, mas com um timer PRÓPRIO por campo: independentes
   /// entre si, do campo/termo de busca principal, e de qualquer filtro
   /// imediato trocado enquanto o usuário ainda digita em outro campo.
   void definirMarca(String texto) {
@@ -162,8 +157,8 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
   }
 
   /// Datas nunca chegam aqui inválidas: a UI valida (data inicial <= data
-  /// final, seção 5) e só chama este método quando o intervalo é válido —
-  /// nenhuma consulta inválida é disparada.
+  /// final) e só chama este método quando o intervalo é válido — nenhuma
+  /// consulta inválida é disparada.
   void definirDataCadastro(DateTime? de, DateTime? ate) {
     _filtro = _filtro.copyWith(dataCadastroDe: de, dataCadastroAte: ate, pagina: 0);
     ref.invalidateSelf();
@@ -174,9 +169,8 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
     ref.invalidateSelf();
   }
 
-  /// Seção 8/10: trocar o tamanho da página sempre volta para a página 1 —
-  /// nunca mantém um número de página que pode não existir mais no novo
-  /// tamanho.
+  /// Trocar o tamanho da página sempre volta para a página 1 — nunca
+  /// mantém um número de página que pode não existir mais no novo tamanho.
   void definirTamanhoPagina(int tamanho) {
     _filtro = _filtro.copyWith(tamanhoPagina: tamanho, pagina: 0);
     ref.invalidateSelf();

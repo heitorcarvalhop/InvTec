@@ -22,12 +22,12 @@ import '../../setores/fake_setor_repository.dart';
 import '../fake_patrimonio_repository.dart';
 import '../fake_tipo_patrimonio_repository.dart';
 
-/// PROMPT 8.13.1, seção 2: o dropdown de localização precisa refletir o
-/// ESTADO EFETIVO da decisão (mesmo quando ela veio de resolução automática
-/// ou de uma regra conhecida, não só de uma escolha manual anterior) —
-/// nunca mostrar "Deixar pendente" ao lado de um status "Localização
-/// resolvida". Monta o estado diretamente (bypassa `carregarArquivo`, que
-/// usa `compute()` e pode travar sob `testWidgets`) — ver
+/// O dropdown de localização precisa refletir o ESTADO EFETIVO da decisão
+/// (mesmo quando ela veio de resolução automática ou de uma regra
+/// conhecida, não só de uma escolha manual anterior) — nunca mostrar
+/// "Deixar pendente" ao lado de um status "Localização resolvida". Monta o
+/// estado diretamente (bypassa `carregarArquivo`, que usa `compute()` e
+/// pode travar sob `testWidgets`) — ver
 /// `import_tipos_pendentes_step_test.dart` para o mesmo raciocínio.
 final _localizacoesReais = [
   Localizacao(

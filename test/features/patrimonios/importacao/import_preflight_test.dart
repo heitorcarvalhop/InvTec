@@ -11,7 +11,7 @@ Setor _setor({required String sigla, required bool ativo}) => Setor(
 );
 
 void main() {
-  group('ImportPreflight.validarGerenciaUnica (PROMPT 8.10)', () {
+  group('ImportPreflight.validarGerenciaUnica', () {
     test('exatamente uma gerência com a sigla, ativa: ok', () {
       final resultado = ImportPreflight.validarGerenciaUnica(
         setores: [_setor(sigla: 'GETEC', ativo: true), _setor(sigla: 'TI', ativo: true)],
@@ -50,7 +50,7 @@ void main() {
     });
   });
 
-  group('ImportPreflight.validarNomesEsperados (PROMPT 8.10)', () {
+  group('ImportPreflight.validarNomesEsperados', () {
     test('todos os nomes esperados presentes (com variação de caixa/espaço): ok', () {
       final resultado = ImportPreflight.validarNomesEsperados(
         nomesEncontrados: ['getec - universitário', '  Home Office  ', 'Situação/Situada - PA'],

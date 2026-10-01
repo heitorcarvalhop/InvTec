@@ -1,8 +1,7 @@
 /// Interpreta uma data de planilha textual — só os formatos comuns em
 /// planilhas brasileiras. Retorna `null` (nunca lança) quando o texto é
 /// ambíguo ou desconhecido: a linha chamadora decide marcar para revisão
-/// em vez de adivinhar (seção 38: "não converter silenciosamente um valor
-/// ambíguo").
+/// em vez de adivinhar um valor.
 DateTime? interpretarDataTexto(String texto) {
   final valor = texto.trim();
   if (valor.isEmpty) return null;

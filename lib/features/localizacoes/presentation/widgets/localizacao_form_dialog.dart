@@ -7,8 +7,8 @@ import '../../domain/localizacao.dart';
 import '../localizacoes_controller.dart';
 
 /// Formulário de criação/edição de localização — nunca mostra/edita
-/// `setorId` (imutável depois de criada, seção 5 da especificação; o
-/// próprio banco rejeita a tentativa).
+/// `setorId` (imutável depois de criada; o próprio banco rejeita a
+/// tentativa).
 Future<bool?> showLocalizacaoFormDialog(
   BuildContext context, {
   required String setorId,

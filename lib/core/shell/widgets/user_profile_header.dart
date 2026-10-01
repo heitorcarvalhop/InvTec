@@ -6,8 +6,7 @@ import '../../theme/app_spacing.dart';
 
 /// Nome + perfil do usuário atual. Usado tanto no cabeçalho desktop
 /// (superfície normal, [onDarkSurface] = false) quanto no topo do drawer
-/// mobile (fundo azul-marinho da navegação, [onDarkSurface] = true —
-/// PROMPT 9.3).
+/// mobile (fundo azul-marinho da navegação, [onDarkSurface] = true).
 class UserProfileHeader extends StatelessWidget {
   const UserProfileHeader({super.key, required this.profile, this.onDarkSurface = false});
 
@@ -29,10 +28,9 @@ class UserProfileHeader extends StatelessWidget {
           child: Text(_iniciais(profile.nome)),
         ),
         const SizedBox(width: AppSpacing.sm),
-        // PROMPT 11.3.9.2 — `Flexible` + reticências: um nome longo (ou uma
-        // janela estreita) nunca pode estourar a topbar do desktop
-        // (`RenderFlex overflowed ... on the right`, reproduzido em
-        // app_shell.dart). O nome completo continua acessível pelo tooltip.
+        // `Flexible` + reticências: um nome longo (ou uma janela estreita)
+        // nunca pode estourar a topbar do desktop. O nome completo
+        // continua acessível pelo tooltip.
         Flexible(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,9 +1,9 @@
 import 'movimentacao.dart';
 
-/// Uma linha da listagem geral de movimentações (PROMPT 10.1) — já traz
-/// tudo que a tabela/detalhe precisam exibir (patrimônio, setores,
-/// localizações e autor) resolvido via embed do Postgrest numa única
-/// consulta, nunca uma por linha.
+/// Uma linha da listagem geral de movimentações — já traz tudo que a
+/// tabela/detalhe precisam exibir (patrimônio, setores, localizações e
+/// autor) resolvido via embed do Postgrest numa única consulta, nunca uma
+/// por linha.
 class MovimentacaoListagemItem {
   const MovimentacaoListagemItem({
     required this.id,
@@ -74,7 +74,7 @@ class MovimentacaoListagemItem {
   final String? patrimonioTipoNome;
 
   /// Ids brutos de setor (origem/destino) — só para permitir o filtro
-  /// "Setor" (PROMPT 10.1); a UI usa sempre os nomes resolvidos abaixo.
+  /// "Setor"; a UI usa sempre os nomes resolvidos abaixo.
   final String? setorOrigemId;
   final String? setorDestinoId;
   final String? setorOrigemNome;
@@ -97,11 +97,10 @@ class MovimentacaoListagemItem {
   /// cai para o de origem só quando não há destino (ex.: BAIXA).
   String? get responsavelExibido => responsavelDestino ?? responsavelOrigem;
 
-  /// Texto exibido para o autor (PROMPT 10.1.1) — nunca "—". `realizado_por`
-  /// é `not null` no banco (ver migration), então um `autorNome` ausente
-  /// aqui é sempre a RLS ocultando o nome de outro usuário (policy
-  /// `profiles_select`: só ADMIN/GESTOR ou o próprio autor enxergam o
-  /// nome), nunca falta de dado. Um texto diferente de "—" evita que o
-  /// usuário leia isso como "autor não registrado".
+  /// Texto exibido para o autor — nunca "—". `realizado_por` é `not null`
+  /// no banco, então um `autorNome` ausente aqui é sempre a RLS ocultando o
+  /// nome de outro usuário (policy `profiles_select`: só ADMIN/GESTOR ou o
+  /// próprio autor enxergam o nome), nunca falta de dado. Um texto diferente
+  /// de "—" evita que o usuário leia isso como "autor não registrado".
   String get autorExibido => autorNome ?? 'Não disponível';
 }

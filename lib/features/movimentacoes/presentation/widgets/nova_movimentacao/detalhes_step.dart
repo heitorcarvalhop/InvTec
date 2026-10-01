@@ -12,10 +12,10 @@ import '../../../domain/movimentacao.dart';
 import '../../nova_movimentacao_regras.dart';
 import 'nova_movimentacao_rascunho.dart';
 
-/// Passo 3 do wizard (PROMPT 10.2, seções 6-9): campos adaptados ao tipo
-/// escolhido. A UI só adapta QUAIS campos aparecem — os valores enviados são
-/// exatamente o que o usuário escolheu, sem a UI derivar ou "corrigir" nada
-/// que a RPC já deriva/valida sozinha (seção 6/16 do prompt).
+/// Passo 3 do wizard: campos adaptados ao tipo escolhido. A UI só adapta
+/// QUAIS campos aparecem — os valores enviados são exatamente o que o
+/// usuário escolheu, sem a UI derivar ou "corrigir" nada que a RPC já
+/// deriva/valida sozinha.
 class DetalhesStep extends ConsumerWidget {
   const DetalhesStep({
     super.key,
@@ -59,12 +59,11 @@ class DetalhesStep extends ConsumerWidget {
     );
     final setorParaLocalizacao = rascunho.destinoSetorId ?? patrimonio.setorAtualId;
 
-    // PROMPT 10.2.2, seção 6: a RPC real permite AJUSTE_INVENTARIO em
-    // patrimônio BAIXADO só para registrar motivo/observação/documento/
-    // chamado — proíbe mudar setor, localização (trocar OU limpar) e
-    // responsável (responsável já é proibido para AJUSTE_INVENTARIO em
-    // qualquer status). Nunca oferece esses campos aqui: a RPC rejeitaria
-    // de qualquer forma, mas a UI não pode nem sugerir que é possível.
+    // A RPC real permite AJUSTE_INVENTARIO em patrimônio BAIXADO só para
+    // registrar motivo/observação/documento/chamado — proíbe mudar setor,
+    // localização (trocar OU limpar) e responsável. Nunca oferece esses
+    // campos aqui: a RPC rejeitaria de qualquer forma, mas a UI não pode
+    // nem sugerir que é possível.
     final ajusteEmBaixado = tipo == MovimentacaoTipo.ajusteInventario && patrimonio.status == PatrimonioStatus.baixado;
     final mostraDestino = !ajusteEmBaixado && (exigeDestino || destinoOpcional);
     final mostraLocalizacao = !ajusteEmBaixado && tipoPermiteLocalizacao(tipo);
@@ -88,9 +87,9 @@ class DetalhesStep extends ConsumerWidget {
             setorAtualId: patrimonio.setorAtualId,
             value: rascunho.destinoSetorId,
             obrigatorio: exigeDestino,
-            // Seção 3 do PROMPT 10.2.2: a RPC rejeita destino == setor atual
-            // para estes tipos — nunca oferece a opção em vez de deixar o
-            // usuário descobrir isso só depois de tentar confirmar.
+            // A RPC rejeita destino == setor atual para estes tipos — nunca
+            // oferece a opção em vez de deixar o usuário descobrir isso só
+            // depois de tentar confirmar.
             excluirSetorAtual: exigeDestinoDiferente,
             enabled: enabled,
             onChanged: _onDestinoChanged,
@@ -126,7 +125,7 @@ class DetalhesStep extends ConsumerWidget {
               // Movimentação interna: a localização atual pertence ao MESMO
               // setor de destino (setor não muda), então apareceria na
               // lista — a RPC rejeita se for reselecionada, então a UI nunca
-              // a oferece (seção 4 do PROMPT 10.2.2).
+              // a oferece.
               idExcluido: interna ? patrimonio.localizacaoAtualId : null,
               onChanged: (value) {
                 rascunho.localizacaoDestinoId = value;
@@ -200,9 +199,9 @@ class _SetorDestinoField extends ConsumerWidget {
   final String? value;
   final bool obrigatorio;
 
-  /// PROMPT 10.2.2, seção 3: para os tipos em que a RPC rejeita
-  /// `destino_id == setor_atual_id`, o setor atual nem aparece na lista —
-  /// nunca depende só do erro da RPC para impedir essa escolha.
+  /// Para os tipos em que a RPC rejeita `destino_id == setor_atual_id`, o
+  /// setor atual nem aparece na lista — nunca depende só do erro da RPC
+  /// para impedir essa escolha.
   final bool excluirSetorAtual;
   final bool enabled;
   final ValueChanged<String?> onChanged;
@@ -222,8 +221,7 @@ class _SetorDestinoField extends ConsumerWidget {
             if (!excluirSetorAtual || setor.id != setorAtualId)
               DropdownMenuItem(
                 value: setor.id,
-                // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
-                // tooltip.
+                // Sigla cadastrada, nome completo por tooltip.
                 child: Tooltip(message: setor.nome, child: Text(setor.rotuloCompacto)),
               ),
         ],
@@ -252,9 +250,9 @@ class _LocalizacaoSimples extends ConsumerWidget {
   final bool enabled;
   final ValueChanged<String?> onChanged;
 
-  /// PROMPT 10.2.2, seção 4: em movimentação interna, a localização ATUAL
-  /// não pode ser reescolhida como destino — a RPC rejeita ("precisa ser
-  /// diferente da localização atual"), então nunca aparece na lista.
+  /// Em movimentação interna, a localização ATUAL não pode ser reescolhida
+  /// como destino — a RPC rejeita ("precisa ser diferente da localização
+  /// atual"), então nunca aparece na lista.
   final String? idExcluido;
 
   @override
@@ -294,9 +292,9 @@ class _LocalizacaoSimples extends ConsumerWidget {
   }
 }
 
-/// Controle de três estados de AJUSTE_INVENTARIO (PROMPT 10.2, seção 15):
-/// Manter / Definir nova / Limpar — nunca confunde os três (ver
-/// `p_localizacao_destino_id` × `p_limpar_localizacao` em docs/database.md).
+/// Controle de três estados de AJUSTE_INVENTARIO: Manter / Definir nova /
+/// Limpar — nunca confunde os três (ver `p_localizacao_destino_id` ×
+/// `p_limpar_localizacao` em docs/database.md).
 class _LocalizacaoComLimpar extends StatelessWidget {
   const _LocalizacaoComLimpar({
     required this.setorId,
@@ -311,10 +309,10 @@ class _LocalizacaoComLimpar extends StatelessWidget {
   final bool enabled;
   final VoidCallback onChanged;
 
-  /// PROMPT 10.2.2, seção 5: quando o setor de destino é diferente do atual,
-  /// "Manter a localização atual" deixa de fazer sentido (a localização
-  /// atual pertence ao setor ANTERIOR) — o controle muda de 3 para 2
-  /// segmentos e nunca usa a palavra "Manter" nesse modo.
+  /// Quando o setor de destino é diferente do atual, "Manter a localização
+  /// atual" deixa de fazer sentido (a localização atual pertence ao setor
+  /// ANTERIOR) — o controle muda de 3 para 2 segmentos e nunca usa a
+  /// palavra "Manter" nesse modo.
   final bool setorMudou;
 
   @override

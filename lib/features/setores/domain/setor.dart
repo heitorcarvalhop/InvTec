@@ -56,10 +56,10 @@ class Setor {
   }
 }
 
-/// Exibição compacta de um [Setor] (PROMPT 11.3.5.4) — usada em todo
-/// dropdown/lista que ofereça um [Setor] inteiro (diferente das telas que só
-/// têm nome/sigla resolvidos via embed, que usam [siglaOuNomeSetor]/
-/// `SetorCompactText` diretamente).
+/// Exibição compacta de um [Setor] — usada em todo dropdown/lista que
+/// ofereça um [Setor] inteiro (diferente das telas que só têm nome/sigla
+/// resolvidos via embed, que usam [siglaOuNomeSetor]/`SetorCompactText`
+/// diretamente).
 extension SetorExibicaoCompacta on Setor {
   /// Sigla cadastrada, ou o nome completo quando não há sigla — nunca uma
   /// abreviação inventada. Ver [siglaOuNomeSetor].

@@ -4,10 +4,10 @@ import 'sei_item_pendencia_status.dart';
 import 'sei_item_pendente.dart';
 
 /// O que o assistente de importação envia para persistir quando o usuário
-/// escolhe "Salvar como pendência" (PROMPT 11.3, seção 1) — ainda sem id:
-/// o repositório é quem cria o registro e devolve o [SeiDocumentoPendente]
-/// completo. Importar e salvar um despacho SEMPRE cria uma solicitação
-/// PENDENTE; nunca altera um patrimônio.
+/// escolhe "Salvar como pendência" — ainda sem id: o repositório é quem
+/// cria o registro e devolve o [SeiDocumentoPendente] completo. Importar e
+/// salvar um despacho SEMPRE cria uma solicitação PENDENTE; nunca altera um
+/// patrimônio.
 class SeiDocumentoPendenteRascunho {
   const SeiDocumentoPendenteRascunho({
     this.numeroDocumentoSei,
@@ -30,31 +30,20 @@ class SeiDocumentoPendenteRascunho {
   final List<SeiItemPendenteRascunho> itens;
 }
 
-/// Documento SEI persistido como pendência (PROMPT 11.3) — SEPARADO do
-/// histórico de `movimentacoes`: nenhum item aqui altera um patrimônio só
-/// por existir. Somente uma etapa FUTURA (não implementada nesta versão),
-/// quando a GETEC confirmar a conclusão de um item, poderia vir a registrar
-/// uma movimentação efetiva e vinculá-la ao item (`SeiItemPendente.
-/// movimentacaoId`).
+/// Documento SEI persistido como pendência — SEPARADO do histórico de
+/// `movimentacoes`: nenhum item aqui altera um patrimônio só por existir.
+/// A conclusão de um item é que registra a movimentação efetiva e a
+/// vincula ao item (`SeiItemPendente.movimentacaoId`).
 class SeiDocumentoPendente {
   factory SeiDocumentoPendente.fromJson(Map<String, dynamic> json) {
     final autor = json['autor'] as Map<String, dynamic>?;
-    // PROMPT 11.3.5.3 — a causa dos contadores zerados na aba Pendências:
-    // `documentos_sei_repository_supabase.dart` tem DUAS consultas
-    // diferentes. `obterPorId` (detalhe) busca a tabela base com um embed
-    // `itens:documentos_sei_itens(...)` — a chave "itens" existe no JSON.
-    // `listar` (a listagem da aba Pendências) busca a VIEW
-    // `documentos_sei_com_situacao`, que já manda os totais PRONTOS
-    // (`total_itens`/`total_pendentes`/`total_concluidos`/
-    // `total_cancelados`/`situacao`) mas NUNCA embeda os itens — a chave
-    // "itens" simplesmente não existe nesse JSON. Antes desta correção,
-    // totais/situação eram sempre GETTERS calculados a partir de [itens];
-    // numa linha de listagem, [itens] ficava `[]` (a chave nunca existiu),
-    // então todo contador dava 0 — mesmo com a view já retornando 33/33/0/0
-    // corretamente. `json.containsKey('itens')` distingue as duas
-    // consultas: com a chave presente, os itens são a fonte de verdade
-    // (mais atual, e é o único caso onde os itens de fato existem para
-    // calcular); sem ela, os totais/situação vêm direto da view.
+    // `documentos_sei_repository_supabase.dart` tem duas consultas: `obterPorId`
+    // (detalhe) busca a tabela base com embed `itens:documentos_sei_itens(...)`
+    // — a chave "itens" existe no JSON. `listar` busca a VIEW
+    // `documentos_sei_com_situacao`, que já manda os totais prontos mas nunca
+    // embeda os itens. `containsKey('itens')` distingue as duas: com a chave
+    // presente, os itens são a fonte de verdade; sem ela, os totais/situação
+    // vêm direto da view.
     final temItensEmbed = json.containsKey('itens');
     final itensJson = json['itens'] as List<dynamic>?;
     final itens = (itensJson ?? const []).cast<Map<String, dynamic>>().map(SeiItemPendente.fromJson).toList()
@@ -171,15 +160,15 @@ class SeiDocumentoPendente {
   final MovimentacaoTipo tipoOperacaoPretendida;
   final String nomeArquivo;
 
-  /// Guardado só como metadado (seção 2): NUNCA usado sozinho como
-  /// identidade do documento nem como chave de deduplicação — o mesmo
-  /// despacho pode ser reexportado do SEI com bytes diferentes.
+  /// Guardado só como metadado: NUNCA usado sozinho como identidade do
+  /// documento nem como chave de deduplicação — o mesmo despacho pode ser
+  /// reexportado do SEI com bytes diferentes.
   final String hashSha256;
 
-  /// Controle de concorrência otimista (seção 14) — toda edição exige o
-  /// cliente enviar a [versao] que ele leu; a base rejeita quando ela não
-  /// bate mais com a atual (outra sessão editou/concluiu/cancelou entre a
-  /// leitura e a tentativa de escrita).
+  /// Controle de concorrência otimista — toda edição exige o cliente
+  /// enviar a [versao] que ele leu; a base rejeita quando ela não bate mais
+  /// com a atual (outra sessão editou/concluiu/cancelou entre a leitura e a
+  /// tentativa de escrita).
   final int versao;
 
   final DateTime criadoEm;
@@ -189,26 +178,23 @@ class SeiDocumentoPendente {
 
   final List<SeiItemPendente> itens;
 
-  /// PROMPT 11.3.5.3 — situação e totais deixaram de ser getters calculados
-  /// só a partir de [itens] (sempre `[]` numa linha de listagem, onde a
-  /// view já manda os totais prontos e os itens nunca são embedados) e
-  /// passaram a ser campos definidos uma vez em [fromJson]/[copyWith],
-  /// conforme a fonte disponível em cada consulta — ver comentário em
-  /// [fromJson].
+  /// Situação e totais são campos definidos em [fromJson]/[copyWith] (nunca
+  /// getters calculados de [itens]): numa linha de listagem [itens] vem
+  /// vazio e a view já manda os totais prontos.
   final SeiDocumentoSituacao situacao;
   final int totalItens;
   final int totalPendentes;
   final int totalConcluidos;
   final int totalCancelados;
 
-  /// Seção 8 — REGRA DEFINITIVA: o documento inteiro (dados principais e
-  /// itens) só pode ser editado enquanto nenhum item estiver concluído.
-  /// Depois da primeira conclusão, editar fica bloqueado — cancelar/
-  /// concluir itens PENDENTES continua possível (ver seção 9), mas isso
-  /// nunca reabre a edição dos dados originais.
+  /// REGRA DEFINITIVA: o documento inteiro (dados principais e itens) só
+  /// pode ser editado enquanto nenhum item estiver concluído. Depois da
+  /// primeira conclusão, editar fica bloqueado — cancelar/concluir itens
+  /// PENDENTES continua possível, mas isso nunca reabre a edição dos dados
+  /// originais.
   bool get podeSerEditado => itens.every((i) => i.status != SeiItemPendenciaStatus.concluido);
 
-  /// PROMPT 11.3.12 — documento ENCERRADO: nenhum item PENDENTE (todos
+  /// documento ENCERRADO: nenhum item PENDENTE (todos
   /// concluídos e/ou cancelados). Não há mais nada a corrigir, concluir ou
   /// cancelar: fica só consulta e histórico. Usa os totais do documento (a
   /// listagem da view não traz `itens`).
@@ -220,9 +206,7 @@ class SeiDocumentoPendente {
 
   SeiDocumentoPendente copyWith({int? versao, DateTime? atualizadoEm, List<SeiItemPendente>? itens}) {
     // Sempre recalculado a partir dos itens (nunca copiado de `this`) —
-    // este `copyWith` só faz sentido quando [itens] está carregado (como
-    // em [fromJson] com o embed presente), então os itens continuam sendo
-    // a fonte de verdade aqui.
+    // só faz sentido quando [itens] está carregado.
     final totais = _TotaisDocumento.deItens(itens ?? this.itens);
     return SeiDocumentoPendente(
       id: id,

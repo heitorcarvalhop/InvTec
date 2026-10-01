@@ -9,11 +9,10 @@ import '../comparacao_execucao_controller.dart';
 import '../patrimonio_import_controller.dart';
 import '../patrimonio_import_state.dart';
 
-/// Passo "Resumo das decisões" (PROMPT 11.6.3, seção 8 + PROMPT 11.6.4).
-/// Continua mostrando o resumo só de LEITURA de
-/// [PatrimonioImportState.resumoDecisoes] — a diferença do PROMPT 11.6.4 é
-/// que agora existe um botão real de execução, que só aparece depois de uma
-/// confirmação explícita com justificativa administrativa.
+/// Passo "Resumo das decisões": mostra o resumo só de LEITURA de
+/// [PatrimonioImportState.resumoDecisoes] e o botão real de execução, que
+/// só aparece depois de uma confirmação explícita com justificativa
+/// administrativa.
 class ImportComparacaoResumoStep extends ConsumerWidget {
   const ImportComparacaoResumoStep({super.key, required this.state});
 
@@ -25,7 +24,7 @@ class ImportComparacaoResumoStep extends ConsumerWidget {
     final theme = Theme.of(context);
     final resumo = state.resumoDecisoes;
     final execucao = ref.watch(comparacaoExecucaoControllerProvider);
-    // PROMPT 11.6.4, seção 3 — defesa em profundidade: mesmo alcançando esta
+    // defesa em profundidade: mesmo alcançando esta
     // tela (já protegida no controller/toggle), o botão de execução some se
     // a sessão atual não for ADMIN (ex.: perfil rebaixado no meio da
     // revisão) — a autoridade de verdade continua sendo a RPC no servidor.
@@ -115,7 +114,7 @@ class ImportComparacaoResumoStep extends ConsumerWidget {
               style: TextStyle(color: theme.colorScheme.error),
             )
           else if (!EnvConfig.comparacaoExecucaoHabilitada)
-            // PROMPT 11.6.5, seção 9 — trava operacional explícita: a
+            // trava operacional explícita: a
             // execução real fica indisponível até uma liberação explícita
             // de configuração, independente de perfil/kReleaseMode/a
             // migration já existir no banco.

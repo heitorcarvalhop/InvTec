@@ -1,8 +1,8 @@
-/// Valores padrão da importação (seção 10): usados quando a coluna
-/// correspondente não existe na planilha ou a célula está vazia na linha —
-/// o valor da linha, quando presente, sempre tem prioridade (seção 11).
-/// Nunca hardcoded: [origemPadraoId]/[destinoPadraoId] só podem apontar
-/// para setores realmente cadastrados (ver ImportDefaultsStep).
+/// Valores padrão da importação: usados quando a coluna correspondente não
+/// existe na planilha ou a célula está vazia na linha — o valor da linha,
+/// quando presente, sempre tem prioridade. Nunca hardcoded:
+/// [origemPadraoId]/[destinoPadraoId] só podem apontar para setores
+/// realmente cadastrados (ver ImportDefaultsStep).
 ///
 /// [dataPadrao] é deliberadamente nulo até o usuário configurar um valor —
 /// se uma linha tiver data de entrada não reconhecida e não houver

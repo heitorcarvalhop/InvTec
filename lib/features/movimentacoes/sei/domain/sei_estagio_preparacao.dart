@@ -1,9 +1,8 @@
-/// Estágios explícitos da preparação de uma execução futura (PROMPT 11.2,
-/// seção 2) — nenhum deles, isolado ou combinado, e nenhuma tela desta
-/// versão, autoriza uma escrita real: o controller continua incapaz de
-/// chamar `registrarMovimentacao` (só passou também a LER
-/// `MovimentacaoRepository.listar`, para checagem de duplicidade — seção
-/// 4).
+/// Estágios explícitos da preparação de uma execução futura — nenhum
+/// deles, isolado ou combinado, e nenhuma tela desta versão, autoriza uma
+/// escrita real: o controller continua incapaz de chamar
+/// `registrarMovimentacao` (só passou também a LER
+/// `MovimentacaoRepository.listar`, para checagem de duplicidade).
 ///
 /// O status PRONTO/AVISO/BLOQUEADO de `SeiValidacaoItem` é só validação
 /// TÉCNICA (o parser conseguiu ler o número, ele existe no InvTec, a
@@ -25,7 +24,7 @@ enum SeiEstagioPreparacao {
   /// desatualizada. Ainda NÃO é autorização — só elegibilidade técnica.
   aptoParaExecucao,
 
-  /// O usuário confirmou explicitamente, através do aviso da seção 2, que o
+  /// O usuário confirmou explicitamente, através do aviso, que o
   /// procedimento patrimonial foi de fato autorizado e que deseja que as
   /// movimentações sejam registradas. Mesmo neste estágio, esta versão não
   /// disponibiliza nenhum botão que chame `registrarMovimentacao`.

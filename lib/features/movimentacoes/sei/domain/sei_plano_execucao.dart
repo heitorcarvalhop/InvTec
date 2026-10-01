@@ -1,9 +1,9 @@
 import 'sei_item_plano.dart';
 
-/// Plano de execução em memória, somente leitura (PROMPT 11.2, seção 9) —
-/// NUNCA persistido, nunca enviado a `registrarMovimentacao`. Existe só
-/// para dar ao usuário uma prévia exata do que uma futura confirmação (que
-/// esta versão não implementa) enviaria à RPC.
+/// Plano de execução em memória, somente leitura — NUNCA persistido, nunca
+/// enviado a `registrarMovimentacao`. Existe só para dar ao usuário uma
+/// prévia exata do que uma futura confirmação (que esta versão não
+/// implementa) enviaria à RPC.
 class SeiPlanoExecucao {
   const SeiPlanoExecucao({required this.itens});
 

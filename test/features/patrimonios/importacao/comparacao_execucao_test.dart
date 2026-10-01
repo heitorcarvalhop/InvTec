@@ -27,13 +27,11 @@ import '../../setores/fake_setor_repository.dart';
 import '../fake_patrimonio_repository.dart';
 import '../fake_tipo_patrimonio_repository.dart';
 
-/// PROMPT 11.6.4 — testes da execução segura das decisões de comparação
-/// (`ComparacaoExecucaoController`/`aplicarDecisaoComparacao`), cobrindo os
-/// 16 cenários exigidos pela seção 9. Tudo com dados FICTÍCIOS/fakes em
-/// memória — nenhuma chamada de rede/Supabase real (restrição da seção 10).
-/// Os testes SQL de autorização/atomicidade/idempotência da RPC (seção 9,
-/// último parágrafo) não são executáveis neste ambiente sem um Postgres
-/// real — ver a limitação anotada no relatório final do prompt.
+/// Testes da execução segura das decisões de comparação
+/// (`ComparacaoExecucaoController`/`aplicarDecisaoComparacao`), cobrindo 16
+/// cenários. Tudo com dados FICTÍCIOS/fakes em memória — nenhuma chamada de
+/// rede/Supabase real. Os testes SQL de autorização/atomicidade/idempotência
+/// da RPC não são executáveis neste ambiente sem um Postgres real.
 Profile _perfil(ProfilePerfil perfil, {String id = 'user-1'}) => Profile(
   id: id,
   nome: 'Usuária de Teste',
@@ -112,7 +110,7 @@ String Function() _geradorSequencial(String prefixo) {
   required ProfilePerfil perfil,
   String Function()? gerarLoteId,
   String Function()? gerarOperacaoId,
-  // PROMPT 11.6.5, seção 9 — a trava operacional é DESABILITADA por padrão
+  // A trava operacional é DESABILITADA por padrão
   // (`EnvConfig.comparacaoExecucaoHabilitada`, que lê dotenv/dart-define —
   // nenhum dos dois está configurado em teste). A suíte deste arquivo testa
   // o COMPORTAMENTO da execução (não a trava em si, coberta à parte), então
@@ -816,8 +814,8 @@ void main() {
       );
       expect(ctx.container.read(comparacaoExecucaoControllerProvider).temPendencia, isTrue);
 
-      // PROMPT 11.6.4, seção 7/9 — uma nova comparação nunca começa enquanto
-      // essa pendência não for resolvida (retry/reconciliar).
+      // Uma nova comparação nunca começa enquanto essa pendência não for
+      // resolvida (retry/reconciliar).
       final importController = ctx.container.read(patrimonioImportControllerProvider.notifier);
       await importController.compararParaAdmin();
 
@@ -843,7 +841,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.6.5 — auditoria de homologação', () {
+  group('auditoria de homologação', () {
     test('ehFalhaDeTransporte reconhece códigos de gateway/timeout, nunca um SQLSTATE real', () {
       for (final codigo in ['500', '502', '503', '504', '408']) {
         expect(ehFalhaDeTransporte(codigo), isTrue, reason: codigo);

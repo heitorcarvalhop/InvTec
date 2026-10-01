@@ -1,13 +1,11 @@
 import 'sei_conclusao_item_resultado.dart';
 
 /// Um elemento do array `itens` do envelope de `concluir_itens_documento_sei_lote`
-/// (PROMPT 11.5.5) — `{item_id, resultado}`. O `resultado` de cada item tem
-/// EXATAMENTE o mesmo formato `{ja_concluido, documento, item, movimentacao}`
-/// devolvido por `concluir_item_documento_sei` (a RPC de lote chama a RPC
-/// individual uma vez por item, sem alterar o formato dela — ver
-/// `supabase/migrations/20260928100000_add_concluir_itens_documento_sei_lote.sql`,
-/// passo 11), por isso reaproveita [SeiConclusaoItemResultado.fromJson] sem
-/// nenhuma adaptação.
+/// — `{item_id, resultado}`. O `resultado` de cada item tem EXATAMENTE o
+/// mesmo formato `{ja_concluido, documento, item, movimentacao}` devolvido
+/// por `concluir_item_documento_sei` (a RPC de lote chama a RPC individual
+/// uma vez por item, sem alterar o formato dela), por isso reaproveita
+/// [SeiConclusaoItemResultado.fromJson] sem nenhuma adaptação.
 class SeiConclusaoLoteItemResultado {
   const SeiConclusaoLoteItemResultado({required this.itemId, required this.resultado});
 
@@ -22,10 +20,9 @@ class SeiConclusaoLoteItemResultado {
   final SeiConclusaoItemResultado resultado;
 }
 
-/// Resultado de `concluir_itens_documento_sei_lote` (PROMPT 11.5.5) — o jsonb
+/// Resultado de `concluir_itens_documento_sei_lote` — o jsonb
 /// `{ja_executado, documento, itens: [{item_id, resultado}]}` devolvido pela
-/// RPC (ver a migration acima, passo 13/`v_resultado`). Este é o formato
-/// REAL, instalado e homologado (PROMPT 11.5.3) — nenhum campo aqui é
+/// RPC. Este é o formato REAL, instalado e homologado — nenhum campo aqui é
 /// inventado ou presumido.
 ///
 /// Assim como [SeiConclusaoItemResultado], `documento` na RPC é só a linha
@@ -65,8 +62,8 @@ class SeiConclusaoLoteResultado {
 
   /// Versão do documento DEPOIS de concluir TODOS os itens do lote — a
   /// versão avança UMA VEZ POR ITEM concluído, não uma vez só para o lote
-  /// inteiro (decisão do PROMPT 11.5.2, item V1); este é o valor final da
-  /// cadeia, útil para a próxima escrita no mesmo documento.
+  /// inteiro; este é o valor final da cadeia, útil para a próxima escrita
+  /// no mesmo documento.
   final int documentoVersao;
 
   /// Um elemento por item concluído, na ordem em que a RPC de fato os

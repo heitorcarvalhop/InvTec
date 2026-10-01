@@ -99,8 +99,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                   final setor = state.extra as Setor?;
                   if (setor == null) {
                     // navegação direta por URL (sem passar pela lista de
-                    // Setores) não é suportada nesta etapa — volta para a
-                    // lista em vez de quebrar a tela.
+                    // Setores) não é suportada — volta para a lista em vez
+                    // de quebrar a tela.
                     return const SetoresPage();
                   }
                   return LocalizacoesPage(setor: setor);

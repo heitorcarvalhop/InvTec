@@ -6,8 +6,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/page_header.dart';
 
-/// Configurações do InvTec (PROMPT 9.3). Por ora só a seção "Aparência" —
-/// o mesmo estado de tema controlado pelo botão do header (nenhuma lógica
+/// Configurações do InvTec. Por ora só a seção "Aparência" — o mesmo
+/// estado de tema controlado pelo botão do header (nenhuma lógica
 /// duplicada, ambos leem/escrevem [themeModeControllerProvider]).
 class ConfiguracoesPage extends ConsumerWidget {
   const ConfiguracoesPage({super.key});

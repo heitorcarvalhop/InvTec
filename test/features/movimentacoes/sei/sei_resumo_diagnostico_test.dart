@@ -10,7 +10,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/setores/domain/setor.dart';
 
-/// PROMPT 11.1.1, seção 10: o resumo de diagnóstico é só para
+/// O resumo de diagnóstico é só para
 /// auditoria/debug — precisa ser JSON válido, conter os campos relevantes e
 /// nunca disparar nenhuma leitura/escrita (a função é pura, recebe o
 /// resultado já calculado).

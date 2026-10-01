@@ -803,8 +803,8 @@ void main() {
     });
 
     test(
-      'localização "BAIXAS LOCALIZADAS" (PROMPT 8.12): NÃO gera mais aviso de possível '
-      'baixa, fica sem localização por regra conhecida, e segue a regra normal de cadastro',
+      'localização "BAIXAS LOCALIZADAS": não gera aviso de possível baixa, fica sem '
+      'localização por regra conhecida, e segue a regra normal de cadastro',
       () async {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);
@@ -818,8 +818,8 @@ void main() {
             .linhas
             .firstWhere((l) => l.numeroPatrimonio == '00012347');
 
-        // PROMPT 8.12: nova definição de negócio — "BAIXAS LOCALIZADAS" é um
-        // bem recuperado/relocalizado, nunca indício de baixa atual. O
+        // Definição de negócio: "BAIXAS LOCALIZADAS" é um bem
+        // recuperado/relocalizado, nunca indício de baixa atual. O
         // importador não gera mais o aviso, nem marca `possivelBaixa`.
         expect(linha.possivelBaixa, isFalse);
         expect(linha.issues.any((i) => i.message.contains('baixado')), isFalse);
@@ -850,7 +850,7 @@ void main() {
       },
     );
 
-    group('PROMPT 8.15.1 — nota histórica de BAIXAS LOCALIZADAS sobrevive a mapeamento manual', () {
+    group('nota histórica de BAIXAS LOCALIZADAS sobrevive a mapeamento manual', () {
       const notaRecuperacao =
           'Bem anteriormente baixado por não localização; localizado novamente e retornado à GETEC nesta carga.';
       final localizacoesComSituacaoPa = [
@@ -1027,7 +1027,7 @@ void main() {
 
     test(
       'localização sem decisão fica pendente e BLOQUEIA o envio '
-      '(PROMPT 8.9.1: nunca importa uma localização desconhecida sem decisão)',
+      '(nunca importa uma localização desconhecida sem decisão)',
       () async {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);
@@ -1121,7 +1121,7 @@ void main() {
       final controller = container.read(patrimonioImportControllerProvider.notifier);
 
       // Decide explicitamente "sem localização" para isolar este teste do
-      // bloqueio de localização pendente (PROMPT 8.9.1) — o que se quer
+      // bloqueio de localização pendente — o que se quer
       // verificar aqui é exclusivamente o comportamento de origem.
       await controller.carregarArquivo(nomeArquivo: 'getec.csv', bytes: _csv(csvGetec));
       controller.confirmarCabecalho();
@@ -1139,7 +1139,7 @@ void main() {
       expect(linha.status, isNot(ImportRowStatus.erro));
     });
 
-    group('PROMPT 8.9 — mapeamento oficial de localizações da GETEC', () {
+    group('mapeamento oficial de localizações da GETEC', () {
       // Localizações ativas carregadas do Supabase para este grupo: cobre um
       // nome oficial direto ("GETEC - Universitário"), o alvo canônico de um
       // apelido conhecido ("Situação/Situada - PA"), e OMITE de propósito
@@ -1287,8 +1287,7 @@ void main() {
       );
 
       test(
-        'valor completamente desconhecido fica pendente e BLOQUEADO até decisão explícita '
-        '(PROMPT 8.9.1)',
+        'valor completamente desconhecido fica pendente e BLOQUEADO até decisão explícita',
         () async {
           final repo = FakePatrimonioRepository();
           final container = _criarContainer(
@@ -1331,7 +1330,7 @@ void main() {
       });
     });
 
-    group('PROMPT 8.10 — preflight real (detecção em lote / zero escrita)', () {
+    group('preflight real (detecção em lote / zero escrita)', () {
       test(
         'tombamento já existente no banco é detectado e NUNCA tratado como cadastro novo',
         () async {
@@ -1413,7 +1412,7 @@ void main() {
       );
     });
 
-    group('PROMPT 8.13.1 — destino GETEC resolvido automaticamente (nunca hardcoded)', () {
+    group('destino GETEC resolvido automaticamente (nunca hardcoded)', () {
       test(
         'avancarAposPadroes resolve a gerência GETEC pela sigla e a usa como destino padrão, '
         'mesmo sem o usuário escolher nada no dropdown genérico "Destino padrão"',

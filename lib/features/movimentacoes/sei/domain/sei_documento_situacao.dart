@@ -1,11 +1,10 @@
 import 'sei_item_pendencia_status.dart';
 
-/// Situação GERAL de um documento pendente (PROMPT 11.3, seção 7) — sempre
-/// DERIVADA dos status dos itens, nunca um campo gravado independentemente
-/// (evita estado contraditório entre a situação exibida e os itens reais).
-/// A mesma lógica de [calcularSituacaoDocumento] é reproduzida em SQL, como
-/// função/view (nunca uma coluna gravável), na migration proposta — ver
-/// `documentos_sei_situacao`.
+/// Situação GERAL de um documento pendente — sempre DERIVADA dos status dos
+/// itens, nunca um campo gravado independentemente (evita estado
+/// contraditório entre a situação exibida e os itens reais). A mesma
+/// lógica de [calcularSituacaoDocumento] é reproduzida em SQL, como
+/// função/view (nunca uma coluna gravável) — ver `documentos_sei_situacao`.
 enum SeiDocumentoSituacao {
   /// Nenhum item foi concluído ou cancelado ainda (inclui documento sem
   /// nenhum item, ainda que este caso não deva ocorrer na prática).
@@ -27,8 +26,8 @@ enum SeiDocumentoSituacao {
 }
 
 /// Espelha os valores textuais que a coluna `situacao` da view
-/// `documentos_sei_com_situacao` devolve (PROMPT 11.3.5.3) — usado ao ler
-/// uma linha de LISTAGEM (a view já manda a situação pronta; ver
+/// `documentos_sei_com_situacao` devolve — usado ao ler uma linha de
+/// LISTAGEM (a view já manda a situação pronta; ver
 /// [calcularSituacaoDocumento] para quando os itens estão carregados e a
 /// situação é derivada localmente).
 SeiDocumentoSituacao situacaoDocumentoFromValue(String value) {
@@ -66,20 +65,14 @@ extension SeiDocumentoSituacaoLabel on SeiDocumentoSituacao {
 }
 
 /// Deriva a situação geral a partir do status de cada item — função pura,
-/// sem estados contraditórios possíveis (PROMPT 11.3, seção 7). Uma lista
-/// vazia é tratada como [SeiDocumentoSituacao.pendente] (documento recém
-/// criado, ainda sem itens carregados na leitura atual).
+/// sem estados contraditórios possíveis. Uma lista vazia é tratada como
+/// [SeiDocumentoSituacao.pendente] (documento recém criado).
 ///
-/// PROMPT 11.3.2, seção 2 — auditoria encontrou um caso classificado
-/// errado: 0 concluídos + itens pendentes + itens cancelados caía no
-/// `return parcialmenteConcluido` final porque nenhum `if` anterior cobria
-/// "ainda há pendente, mas nada foi concluído" separado de "ainda há
-/// pendente E algo foi concluído" — mas [SeiDocumentoSituacao.
-/// parcialmenteConcluido] exige, pelo próprio nome, ao menos UMA conclusão
-/// real; sem nenhuma movimentação efetiva, o documento continua
-/// simplesmente pendente, não importa quantos itens já foram cancelados.
-/// Mesma lógica mantida em espelho na view SQL `documentos_sei_com_situacao`
-/// da migration proposta — qualquer mudança aqui precisa ser replicada lá.
+/// [SeiDocumentoSituacao.parcialmenteConcluido] exige, pelo próprio nome,
+/// ao menos UMA conclusão real: itens cancelados sozinhos (sem nenhuma
+/// conclusão) mantêm o documento como [pendente]. Mesma lógica espelhada
+/// na view SQL `documentos_sei_com_situacao` — qualquer mudança aqui
+/// precisa ser replicada lá.
 SeiDocumentoSituacao calcularSituacaoDocumento(List<SeiItemPendenciaStatus> statusItens) {
   if (statusItens.isEmpty) return SeiDocumentoSituacao.pendente;
 

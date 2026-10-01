@@ -21,42 +21,24 @@ const double _larguraColunaLinha = 52;
 const double _larguraColunaStatus = 132;
 const double _larguraColunaAcao = 224;
 
-// PROMPT 11.5.15.1 — auditoria visual encontrou: com `maxLines: 1` +
-// `TextOverflow.ellipsis` (PROMPT 11.5.15) o cabeçalho "Chamado" parou de
-// quebrar linha, mas ainda cortava para "Chama..." — a coluna (flex: 3 de
-// 16) era estreita demais até para UMA palavra de 7 letras em certas
-// larguras. A correção original redistribuiu tirando 1 do Patrimônio
-// (5→4) — mas essa coluna também mostra DADO (o número de patrimônio, em
-// negrito, ex. "00045872"/"DEMO-0018"), não só um rótulo curto: com
-// flex:4 ele passou a truncar como "DEMO-00..." na tabela desktop
-// (PROMPT 11.5.16 — regressão visual identificada na auditoria final,
-// mais grave que a do cabeçalho: é o dado que identifica o patrimônio).
-// PROMPT 11.5.16 — correção: devolve o Patrimônio a 5 (nunca menos que
-// isso) e tira o espaço extra do Chamado de Origem→Destino (8→6) em vez
-// dele — aquela coluna usa `SetorCompactText`/`_TextoUmaLinha`, já
-// preparados para ceder espaço com reticências + tooltip, sem perder
-// nenhuma informação crítica. Soma continua 16; nenhuma coluna de
-// largura FIXA muda; o modo compacto (< 640px) nunca usa esta linha —
-// zero risco de overflow em 360px.
+// Patrimônio nunca deve ficar abaixo de flex:5 — a coluna mostra o número
+// de patrimônio em negrito, não só um rótulo, e trunca fácil se encolher.
+// Origem→Destino cede espaço primeiro (já usa reticências + tooltip).
+// Soma continua 16; colunas de largura FIXA nunca mudam.
 const int _flexColunaPatrimonio = 5;
 const int _flexColunaChamado = 5;
 const int _flexColunaOrigemDestino = 6;
 
-/// PROMPT 11.5.7 — largura fixa da coluna de seleção em lote (checkbox),
+/// largura fixa da coluna de seleção em lote (checkbox),
 /// mesmo padrão das demais colunas de largura fixa desta lista.
 const double _larguraColunaSelecao = 40;
 
-/// Itens de um Documento SEI pendente, dentro do diálogo de detalhe
-/// (PROMPT 11.3.10.2).
+/// Itens de um Documento SEI pendente, dentro do diálogo de detalhe.
 ///
-/// Substitui o `DataTable` de 7 colunas (~1150px) que vivia dentro de um
-/// diálogo de ~850px: o excedente ficava atrás de uma rolagem horizontal SEM
-/// barra visível (PROMPT 11.3.10), então "Status" era cortado na borda e o
-/// botão "Cancelar" — a última coluna — ficava fora da viewport. Agora cada
-/// item é UMA linha compacta e as duas coisas obrigatórias (status e ação
-/// Cancelar) têm largura FIXA e nunca dependem de rolagem horizontal; os
-/// textos longos (origem → destino) são os que cedem, com reticências e
-/// tooltip. Clicar na linha expande a ficha completa do item.
+/// Cada item é UMA linha compacta; status e ação "Cancelar" têm largura FIXA
+/// e nunca dependem de rolagem horizontal — só os textos longos (origem →
+/// destino) cedem, com reticências e tooltip. Clicar na linha expande a
+/// ficha completa do item.
 ///
 /// Só apresentação: [onCancelarItem] é o mesmo callback de antes, e o botão
 /// só aparece para item PENDENTE quando [podeGerenciar] (mesma regra —
@@ -76,13 +58,13 @@ class SeiItensPendenciaLista extends StatelessWidget {
   final bool podeGerenciar;
   final ValueChanged<String> onCancelarItem;
 
-  /// PROMPT 11.4.3 — "Concluir entrega" de um item. `null` esconde a ação.
+  /// "Concluir entrega" de um item. `null` esconde a ação.
   /// O botão só aparece para item PENDENTE quando [podeGerenciar] (ADMIN/
   /// GESTOR/OPERADOR): nunca para CANCELADO, CONCLUIDO nem CONSULTA, e nunca
   /// no lugar de "Cancelar" — são duas ações separadas.
   final ValueChanged<String>? onConcluirItem;
 
-  /// PROMPT 11.5.7 — seleção em LOTE, CONTROLADA pelo diálogo pai
+  /// seleção em LOTE, CONTROLADA pelo diálogo pai
   /// (`SeiPendenciaDetalheDialog`) e identificada pelos ids dos itens; esta
   /// lista nunca guarda o próprio estado de seleção. `onAlternarSelecao`
   /// `null` esconde a coluna de checkbox inteira (mesmo padrão de
@@ -132,26 +114,15 @@ class _Cabecalho extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = AppTypography.label(context);
-    // PROMPT 11.5.15 — auditoria visual encontrou: "Chamado" (a única
-    // palavra sem espaço, então sem onde quebrar "bonito") virava duas
-    // linhas na coluna flex:3 em algumas larguras de desktop, cortando a
-    // última letra visualmente. Nenhum cabeçalho de UMA palavra precisa
-    // ocupar duas linhas — `maxLines: 1` + `TextOverflow.ellipsis` (nunca
-    // usado aqui antes, diferente das células de dados que já usam
-    // `_TextoUmaLinha`) resolve para TODAS as colunas, sem mudar nenhuma
-    // largura/flex (a coluna continua exatamente do mesmo tamanho — só o
-    // texto nunca mais quebra). Este cabeçalho só existe no modo desktop
-    // (`!compacto`); o layout compacto de 360px nunca o renderiza.
     Widget cabecalho(String texto) => Text(texto, style: style, maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false);
     return Container(
       color: Theme.of(context).surfaceColors.tableHeader,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
       child: Row(
         children: [
-          // PROMPT 11.5.7 — espaço reservado da coluna de checkbox: sem
-          // "selecionar todos" aqui de propósito (não confundir "todo
-          // pendente" com "todo apto" — são conjuntos diferentes; "Concluir
-          // todos os aptos" é uma ação separada, fora desta lista).
+          // Sem "selecionar todos" aqui de propósito: "todo pendente" e "todo
+          // apto" são conjuntos diferentes; "Concluir todos os aptos" é uma
+          // ação separada, fora desta lista.
           if (mostrarSelecao) const SizedBox(width: _larguraColunaSelecao),
           SizedBox(
             width: _larguraColunaLinha,
@@ -213,7 +184,7 @@ class _ItemLinha extends StatefulWidget {
   final bool podeConcluir;
   final VoidCallback onConcluir;
 
-  /// PROMPT 11.5.7 — `true` quando a lista INTEIRA está em modo de seleção
+  /// `true` quando a lista INTEIRA está em modo de seleção
   /// (reserva o espaço da coluna, mesmo padrão de [_Cabecalho.mostrarSelecao]
   /// — a coluna nunca "pula" de largura entre linhas). [podeSelecionar] é
   /// por ITEM (`false` some com o checkbox — item não PENDENTE, ou sem
@@ -325,12 +296,9 @@ class _ItemLinhaState extends State<_ItemLinha> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // PROMPT 11.5.7 — linha PRÓPRIA para o checkbox de seleção, ANTES do
-        // resumo — nunca disputa espaço horizontal com ele: a linha de
-        // resumo abaixo já é ajustada bem rente ao limite em telas
-        // estreitas (Android 360px, ver o teste de overflow), então
-        // qualquer largura extra ali estoura. Verticalmente sobra espaço
-        // (o card já empilha origem→destino e ações em linhas separadas).
+        // Checkbox em linha própria, antes do resumo: a linha de resumo já
+        // fica rente ao limite em telas estreitas (Android 360px), então
+        // largura extra ali estoura.
         if (widget.mostrarColunaSelecao && widget.podeSelecionar)
           Align(
             alignment: Alignment.centerLeft,

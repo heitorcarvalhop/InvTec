@@ -4,9 +4,9 @@ import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 
 /// Testa só a montagem dos parâmetros da RPC (função pura, sem
 /// `SupabaseClient`) — nunca chama produção, nunca precisa de um client de
-/// verdade (PROMPT 10.2.3).
+/// verdade.
 void main() {
-  group('PROMPT 10.2.3 — buildRegistrarMovimentacaoParams: normalização de campos opcionais', () {
+  group('buildRegistrarMovimentacaoParams: normalização de campos opcionais', () {
     test('motivo/observacao/numero_documento/numero_chamado/responsavel_destino vazios viram null', () {
       final params = buildRegistrarMovimentacaoParams(
         patrimonioId: 'p1',

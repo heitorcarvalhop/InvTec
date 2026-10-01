@@ -19,7 +19,7 @@ import 'widgets/import_tipos_pendentes_step.dart';
 
 /// Assistente de importação de patrimônios via planilha (rota
 /// `/patrimonios/importar`). Nunca importa automaticamente — cada passo
-/// exige uma ação explícita do usuário antes de avançar (seção 3).
+/// exige uma ação explícita do usuário antes de avançar.
 class PatrimonioImportPage extends ConsumerWidget {
   const PatrimonioImportPage({super.key});
 
@@ -103,8 +103,8 @@ class _Cabecalho extends StatelessWidget {
 }
 
 /// Posição (0-based) de [step] entre os 7 marcos visuais do assistente —
-/// PROMPT 9.3: indicador de progresso puramente visual, nunca controla
-/// navegação. Os passos condicionais (Localizações/Tipos pendentes, hoje
+/// indicador de progresso puramente visual, nunca controla navegação. Os
+/// passos condicionais (Localizações/Tipos pendentes, hoje
 /// só do perfil GETEC) ficam agrupados dentro de "Padrões", já que só
 /// existem entre "Padrões" e "Revisão"; "Importando" fica agrupado com
 /// "Resultado" (é uma transição rápida, não um marco à parte).

@@ -4,7 +4,7 @@ import 'package:invtec/core/shell/navigation_items.dart';
 import 'package:invtec/core/shell/widgets/navigation_sidebar.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 
-/// PROMPT 11.3.9.1 — reproduz o `BOTTOM OVERFLOWED BY 71 PIXELS` do vídeo:
+/// Reproduz o `BOTTOM OVERFLOWED BY 71 PIXELS` do vídeo:
 /// em janelas BAIXAS, o `Column` da sidebar tinha um bloco fixo no fim
 /// ("Configurações"/"Sair") que nunca rolava — só a lista do meio rolava.
 /// Quando a altura ficava curta demais mesmo com a lista colapsada a zero,
@@ -37,7 +37,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  group('PROMPT 11.3.9.1 — NavigationSidebar nunca estoura, mesmo em janelas baixas', () {
+  group('NavigationSidebar nunca estoura, mesmo em janelas baixas', () {
     // As 4 resoluções pedidas na seção 6 (360x640 usa o Drawer mobile, não
     // esta sidebar — ver `Breakpoints.mobileMax`) + uma altura bem mais
     // curta, plausível durante um redimensionamento manual da janela (o

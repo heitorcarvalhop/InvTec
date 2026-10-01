@@ -79,7 +79,7 @@ Future<void> _pumpDialogo(WidgetTester tester, SeiDocumentoPendente documento) a
 }
 
 void main() {
-  group('PROMPT 11.3.5.3 — detalhamento do despacho SEI mostra siglas dos setores, não nomes longos', () {
+  group('detalhamento do despacho SEI mostra siglas dos setores, não nomes longos', () {
     testWidgets('GETEC/GEASI aparecem como siglas, e o nome completo fica no tooltip', (tester) async {
       final documento = SeiDocumentoPendente.fromItens(
         id: '4006bdf4-6927-444e-912b-0e4d42653500',
@@ -182,7 +182,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.10 — a ficha da pendência guarda o que saiu da listagem', () {
+  group('a ficha da pendência guarda o que saiu da listagem', () {
     testWidgets('mostra tipo, processo, assunto, data de cadastro, contadores, autor e todos os itens', (tester) async {
       final documento = SeiDocumentoPendente.fromItens(
         id: '4006bdf4-6927-444e-912b-0e4d42653500',

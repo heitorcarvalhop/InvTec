@@ -2,10 +2,10 @@ import '../../domain/movimentacao.dart';
 import '../../domain/movimentacao_listagem_item.dart';
 import '../domain/sei_duplicidade.dart';
 
-/// Classifica a duplicidade de UM item contra o histórico já lido em LOTE
+/// Classifica a duplicidade de UM item contra o histórico já lido em lote
 /// pelo controller (nunca uma consulta por linha — mesma disciplina do
-/// cruzamento com patrimônios/setores, PROMPT 11.1 seção 16). Função pura:
-/// não lê nada, só compara o que já foi buscado (PROMPT 11.2, seção 4).
+/// cruzamento com patrimônios/setores). Função pura: não lê nada, só
+/// compara o que já foi buscado.
 SeiDuplicidadeResultado classificarDuplicidade({
   required String patrimonioId,
   required MovimentacaoTipo? tipoProposto,

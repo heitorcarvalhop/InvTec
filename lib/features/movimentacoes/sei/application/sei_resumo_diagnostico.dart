@@ -3,8 +3,8 @@ import 'dart:convert';
 import '../domain/sei_analise_resultado.dart';
 import '../domain/sei_validacao_item.dart';
 
-/// Gera um resumo textual (JSON) da análise para fins de DIAGNÓSTICO/auditoria
-/// (PROMPT 11.1.1, seção 10) — só leitura, pura, sem nenhum efeito colateral.
+/// Gera um resumo textual (JSON) da análise para fins de diagnóstico/auditoria
+/// — só leitura, pura, sem nenhum efeito colateral.
 /// Contém metadados do documento, o hash SHA-256 (em memória, nunca
 /// persistido), cada item extraído e seu veredito (checks/avisos/bloqueios).
 /// Nunca inclui dado sensível: nenhum token, credencial ou dado pessoal além

@@ -95,14 +95,10 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
               data: (setores) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // PROMPT 8.13.1: para o perfil GETEC, o destino NUNCA é
-                  // escolhido pelo usuário aqui — a planilha nem tem coluna
-                  // de setor, e todos os bens desta carga pertencem à
-                  // gerência GETEC por definição. Mostrar o dropdown
-                  // genérico "Destino padrão: Nenhum" seria enganoso (dá a
-                  // entender que falta configurar algo que na verdade é
-                  // automático). O id real é resolvido em
-                  // `avancarAposPadroes` (nunca hardcoded).
+                  // Para o perfil GETEC, o destino nunca é escolhido pelo
+                  // usuário aqui — a planilha nem tem coluna de setor, e
+                  // todos os bens pertencem à gerência GETEC por definição.
+                  // O id real é resolvido em `avancarAposPadroes`.
                   if (widget.state.perfilAtivo == ImportProfileId.getecLegado)
                     _GerenciaGetecInfo(setores: setores)
                   else
@@ -118,8 +114,7 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
                         for (final setor in setores)
                           DropdownMenuItem(
                             value: setor.id,
-                            // PROMPT 11.3.5.4: sigla cadastrada, nome
-                            // completo por tooltip.
+                            // Sigla cadastrada, nome completo por tooltip.
                             child: Tooltip(message: setor.nome, child: Text(setor.rotuloCompacto)),
                           ),
                       ],
@@ -219,7 +214,7 @@ class _ImportDefaultsStepState extends ConsumerState<ImportDefaultsStep> {
   }
 }
 
-/// PROMPT 11.6.3, seção 1 — só ADMIN vê (e só ADMIN consegue ativar, ver
+/// só ADMIN vê (e só ADMIN consegue ativar, ver
 /// `PatrimonioImportController.definirModoComparacaoAdmin`) o toggle do
 /// modo "Comparar e Atualizar". Qualquer outro perfil nunca vê este
 /// widget: a importação convencional continua exatamente como sempre foi,
@@ -260,12 +255,10 @@ String _formatarDataHora(DateTime data) {
   return '${pad(local.day)}/${pad(local.month)}/${local.year} ${pad(local.hour)}:${pad(local.minute)}';
 }
 
-/// Painel informativo (PROMPT 8.13.1) que substitui o dropdown genérico
-/// "Destino padrão" quando o perfil GETEC está ativo: o destino não é uma
-/// escolha do usuário aqui — é sempre a gerência GETEC, encontrada pelo
-/// nome/sigla real entre os setores ativos carregados (nunca um UUID
-/// hardcoded). Deixa claro, sem ambiguidade, que "Nenhum" não se aplica a
-/// este perfil.
+/// Painel informativo que substitui o dropdown genérico "Destino padrão"
+/// quando o perfil GETEC está ativo: o destino não é uma escolha do usuário
+/// aqui — é sempre a gerência GETEC, encontrada pelo nome/sigla real entre
+/// os setores ativos carregados.
 class _GerenciaGetecInfo extends StatelessWidget {
   const _GerenciaGetecInfo({required this.setores});
 
@@ -283,8 +276,7 @@ class _GerenciaGetecInfo extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
-                // tooltip.
+                // Sigla cadastrada, nome completo por tooltip.
                 Tooltip(message: gerencia.nome, child: Text(gerencia.rotuloCompacto)),
                 Text(
                   'Definida automaticamente pelo perfil GETEC',

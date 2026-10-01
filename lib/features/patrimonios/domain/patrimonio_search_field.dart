@@ -1,5 +1,5 @@
-/// Campo em que a busca da tela de patrimônios é aplicada (PROMPT 9.1) —
-/// nunca strings mágicas espalhadas pela UI/repository. [tudo] é o modo
+/// Campo em que a busca da tela de patrimônios é aplicada — nunca strings
+/// mágicas espalhadas pela UI/repository. [tudo] é o modo
 /// padrão; os demais restringem a busca a um único critério, com
 /// [patrimonio] sendo o único que exige correspondência EXATA (nunca
 /// `ilike`/substring/similaridade — ver [PatrimonioRepository.listar]).

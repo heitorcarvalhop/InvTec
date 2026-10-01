@@ -5,10 +5,9 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../movimentacoes/domain/movimentacao.dart';
 import '../../../movimentacoes/domain/movimentacao_historico_item.dart';
 
-/// Timeline de movimentações de um patrimônio (PROMPT 9.3.2, seção 10) —
-/// somente leitura: o histórico é imutável e esta tela nunca oferece uma
-/// ação de editar/excluir uma entrada (ver docs/database.md, seção
-/// "Histórico imutável").
+/// Timeline de movimentações de um patrimônio — somente leitura: o
+/// histórico é imutável e esta tela nunca oferece uma ação de editar/
+/// excluir uma entrada (ver docs/database.md, seção "Histórico imutável").
 class PatrimonioHistoricoTimeline extends StatelessWidget {
   const PatrimonioHistoricoTimeline({super.key, required this.itens});
 
@@ -34,8 +33,8 @@ class _TimelineEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // PROMPT 11.3.5.4: sigla cadastrada (fallback nome completo) — timeline
-    // compacta, sem espaço para tooltip por segmento.
+    // Sigla cadastrada (fallback nome completo) — timeline compacta, sem
+    // espaço para tooltip por segmento.
     final origem = item.setorOrigemExibidoCompacto ?? '—';
     final destino = item.setorDestinoExibidoCompacto ?? '—';
 

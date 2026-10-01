@@ -11,17 +11,12 @@ import '../../data/documentos_sei_repository_supabase.dart';
 import '../../domain/sei_documento_pendente.dart';
 import '../../domain/sei_evento_documento.dart';
 
-/// "Histórico de alterações" de um Documento SEI pendente (PROMPT 11.3.8) —
-/// reaproveita INTEIRAMENTE a auditoria já gravada em
-/// `documentos_sei_eventos` pelas RPCs existentes (`criar_documento_sei_pendente`
-/// / `editar_documento_sei_pendente` / `cancelar_item_sei_pendente` /
-/// `cancelar_pendentes_documento_sei`) via
-/// `DocumentosSeiRepository.listarEventos` — nenhuma tabela nova, nenhuma
-/// escrita, nenhuma alteração de RPC/RLS. Só leitura: a policy de SELECT já
-/// concede a ADMIN/GESTOR/OPERADOR/CONSULTA (nenhuma policy de escrita
-/// concede INSERT/UPDATE/DELETE a ninguém), então este widget nunca precisa
-/// de checagem de permissão adicional na UI — quem consegue abrir o detalhe
-/// do documento já pode ver o histórico.
+/// "Histórico de alterações" de um Documento SEI pendente — lê a auditoria
+/// gravada em `documentos_sei_eventos` via
+/// `DocumentosSeiRepository.listarEventos`. Só leitura: a policy de SELECT
+/// já cobre todos os perfis e nenhuma policy de escrita concede
+/// INSERT/UPDATE/DELETE, então o widget não precisa de checagem de
+/// permissão adicional.
 class SeiHistoricoAlteracoes extends ConsumerWidget {
   const SeiHistoricoAlteracoes({super.key, required this.documento});
 
@@ -134,7 +129,7 @@ class _EventoTile extends StatelessWidget {
   }
 }
 
-/// PROMPT 11.4.3 — o que um evento ITEM_CONCLUIDO registrou (gravado por
+/// o que um evento ITEM_CONCLUIDO registrou (gravado por
 /// `concluir_item_documento_sei`): o patrimônio, a movimentação criada e o
 /// trajeto origem → destino. Só LÊ `dados_depois`; um campo ausente (evento
 /// mais antigo/de outro formato) simplesmente não é mostrado.
@@ -210,13 +205,6 @@ class _LinhaCampoAlterado extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // PROMPT 11.3.10.2 — antes: `[antes] → [depois]` lado a lado, cada um num
-    // `Flexible`. Com valores longos (assunto) os dois quebravam em várias
-    // linhas dentro de metades da largura e a seta ficava perdida entre
-    // eles. Agora cada valor ocupa a largura inteira em sua própria linha
-    // (Antes / seta + Depois) dentro de um bloco com filete lateral — os dois
-    // lados continuam claramente associados ao mesmo campo. O cálculo do
-    // diff e os valores mostrados são os mesmos.
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(top: 4),
@@ -279,9 +267,9 @@ class _LinhaValor extends StatelessWidget {
 
 /// Formata o valor bruto (jsonb) de um campo alterado — texto puro na
 /// maioria dos casos; `decisao_localizacao`/`decisao_responsavel` viram um
-/// rótulo pronto ([rotuloDecisaoBruta], sem I/O); `destino_setor_id`/
+/// rótulo pronto ([rotuloDecisaoBruta]); `destino_setor_id`/
 /// `localizacao_destino_id` são UUIDs que PRECISAM ser resolvidos para nome
-/// antes de aparecer (nunca mostrados brutos — seção 2 do PROMPT 11.3.8).
+/// antes de aparecer (nunca mostrados brutos).
 class _ValorCampoEvento extends ConsumerWidget {
   const _ValorCampoEvento({required this.chave, required this.valor});
 
@@ -372,13 +360,10 @@ String _rotuloDescricao(SeiTipoEventoDocumento tipo) {
   }
 }
 
-/// Para um evento ITEM_CANCELADO, identifica a linha afetada pelo
-/// `item_id` do próprio evento — resolvido contra os itens JÁ CARREGADOS de
-/// [documento] (nunca uma segunda consulta): o item cancelado continua
-/// presente na lista (cancelamento nunca remove a linha, só muda seu
-/// status), então a busca sempre encontra alguma correspondência real.
-/// Cai para um texto genérico só se o evento referenciar um item que, por
-/// algum motivo, não está mais na lista carregada — nunca inventa um número.
+/// Para um evento ITEM_CANCELADO, resolve o item afetado contra os itens JÁ
+/// CARREGADOS de [documento] (nunca uma segunda consulta) — cancelamento
+/// nunca remove a linha, só muda seu status. Cai para texto genérico só se o
+/// item não estiver mais na lista carregada.
 String _rotuloItemCancelado(SeiEventoDocumento evento, SeiDocumentoPendente documento) {
   final itemId = evento.itemId;
   if (itemId == null) return 'Item afetado: não identificado.';

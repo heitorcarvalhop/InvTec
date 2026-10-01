@@ -143,8 +143,8 @@ class _Detalhe extends ConsumerWidget {
               fields: [
                 _DetailField(
                   label: 'Gerência',
-                  // PROMPT 11.3.5.4: sigla cadastrada, nome completo por
-                  // tooltip (fallback para o nome quando não há sigla).
+                  // Sigla cadastrada, nome completo por tooltip (fallback
+                  // para o nome quando não há sigla).
                   value: detalhe.setorExibidoCompacto,
                   valueTooltip: detalhe.setorExibidoCompacto == detalhe.setorNome ? null : detalhe.setorNome,
                 ),
@@ -268,7 +268,7 @@ class _DetailField extends StatelessWidget {
   final String label;
   final String value;
 
-  /// PROMPT 11.3.5.4 — quando informado, mostra o `Tooltip` no valor (ex.:
+  /// quando informado, mostra o `Tooltip` no valor (ex.:
   /// o nome completo de um setor exibido pela sigla).
   final String? valueTooltip;
   final bool wide;

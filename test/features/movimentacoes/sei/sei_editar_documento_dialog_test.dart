@@ -27,10 +27,10 @@ import '../../localizacoes/fake_localizacao_repository.dart';
 import '../../setores/fake_setor_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.3.6 — conecta o botão "Editar documento" à RPC
-/// `editar_documento_sei_pendente` (já implementada desde o PROMPT 11.3.2
-/// em `DocumentosSeiRepository.editarDocumento`/`FakeDocumentosSeiRepository`
-/// — este arquivo testa só a camada de UI nova: o botão em
+/// Conecta o botão "Editar documento" à RPC `editar_documento_sei_pendente`
+/// (já implementada em
+/// `DocumentosSeiRepository.editarDocumento`/`FakeDocumentosSeiRepository`
+/// — este arquivo testa só a camada de UI: o botão em
 /// `sei_pendencia_detalhe_dialog.dart` e o formulário
 /// `sei_editar_documento_dialog.dart`). Nunca usa o Despacho 577 real, nunca
 /// chama `registrarMovimentacao`, nunca faz UPDATE/INSERT/DELETE em
@@ -287,7 +287,7 @@ class _RepositorioBloqueadoParaEdicao implements DocumentosSeiRepository {
 }
 
 void main() {
-  group('PROMPT 11.3.6 — botão "Editar documento"', () {
+  group('botão "Editar documento"', () {
     testWidgets('disponível (habilitado) enquanto nenhum item está concluído', (tester) async {
       final documento = _documento(id: 'doc-1', itens: [_itemPendente(), _itemPendente(linha: 2)]);
       await _pumpDetalheComEdicao(tester, documento);
@@ -319,7 +319,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.6 — formulário de edição', () {
+  group('formulário de edição', () {
     testWidgets('edição dos dados do documento (número SEI, processo, formatado, assunto) é salva', (tester) async {
       final documento = _documento(id: 'doc-1', itens: [_itemPendente()]);
       final fakeRepo = await _pumpDetalheComEdicao(tester, documento, setores: [_setorGetec, _setorGeasi]);

@@ -2,19 +2,16 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// PROMPT 11.5.2 — testes ESTRUTURAIS da migration (NÃO aplicada) da
-/// conclusão em LOTE de itens SEI:
+/// Testes ESTRUTURAIS da migration (NÃO aplicada) da conclusão em LOTE de
+/// itens SEI:
 ///
 ///  * `20260928100000_add_concluir_itens_documento_sei_lote.sql` — a tabela
 ///    `documentos_sei_lotes_conclusao` e a RPC atômica
 ///    `concluir_itens_documento_sei_lote`.
 ///
 /// Não há Postgres neste ambiente (nem local nem remoto foi tocado): os
-/// testes leem o TEXTO do arquivo. Cada cenário pedido no prompt vira uma
-/// asserção sobre o guard, o código de erro, a ORDEM dos passos ou a
-/// ausência de escrita — o que o SQL faz de fato quando roda só pode ser
-/// provado em homologação (mesmo formato do PROMPT 11.4.4), fora deste
-/// prompt.
+/// testes leem o TEXTO do arquivo — o que o SQL faz de fato quando roda só
+/// pode ser provado em homologação.
 const _dir = 'supabase/migrations/';
 const _lote = '${_dir}20260928100000_add_concluir_itens_documento_sei_lote.sql';
 const _individual = '${_dir}20260925140000_add_concluir_item_documento_sei.sql';
@@ -175,7 +172,7 @@ void main() {
       expect(norm.substring(i - 10, i + 200), contains('errcode = \'P0001\''));
     });
 
-    test('PROMPT 11.5.2.1 — rejeita p_confirmar_limpeza_destino nulo (P0001), antes de qualquer trabalho', () {
+    test('rejeita p_confirmar_limpeza_destino nulo (P0001), antes de qualquer trabalho', () {
       final i = _idx(norm, 'if p_confirmar_limpeza_destino is null then');
       expect(norm.substring(i, i + 180), contains('errcode = \'P0001\''));
       // antes da canonicalização, do advisory lock e de qualquer lock de linha
@@ -438,7 +435,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.2.1 — compatibilidade confirmada contra o SQL real de 20260925140000', () {
+  group('compatibilidade confirmada contra o SQL real de 20260925140000', () {
     late String individualNorm;
 
     setUpAll(() {
@@ -493,7 +490,7 @@ void main() {
       // documentos_sei, que tem a coluna `versao`.
       expect(individualNorm, contains('\'ja_concluido\', false, \'documento\', to_jsonb(v_documento)'));
       expect(individualNorm, contains('\'ja_concluido\', true, \'documento\', to_jsonb(v_documento)'));
-      // a coluna existe de fato na tabela (mesmo helper de checagem do PROMPT 11.4.2)
+      // a coluna existe de fato na tabela (mesmo helper de checagem usado em outras migrations)
       final schema = _norm(_ler(_sei));
       expect(schema, contains('versao integer not null default 1,'));
     });
@@ -613,7 +610,7 @@ void main() {
     });
   });
 
-  group('apoio: colunas referenciadas existem no schema (mesmo helper de checagem já usado no PROMPT 11.4.2)', () {
+  group('apoio: colunas referenciadas existem no schema (mesmo helper de checagem usado em outras migrations)', () {
     Set<String> colunas(String tabela) {
       final todo = [_sei, _localizacoes].map(_ler).join('\n');
       final bloco = RegExp('create table public\\.$tabela \\(\n([\\s\\S]*?)\n\\);').firstMatch(todo)?.group(1);

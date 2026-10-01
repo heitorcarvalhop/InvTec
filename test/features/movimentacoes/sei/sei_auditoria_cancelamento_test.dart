@@ -17,7 +17,7 @@ import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_pende
 import '../../auth/fake_auth_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.3.12 — auditoria do cancelamento e documento ENCERRADO.
+/// Auditoria do cancelamento e documento ENCERRADO.
 ///
 /// Só fake/local: nada é cancelado de verdade. Contrato de auditoria:
 ///  * botão da LINHA  → `cancelar_item_sei_pendente`        → 1 evento `ITEM_CANCELADO` (com `item_id`);

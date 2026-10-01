@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/core/utils/text_normalization.dart';
 
 void main() {
-  group('PROMPT 10.2.3 — nullIfBlank', () {
+  group('nullIfBlank', () {
     test('null permanece null', () {
       expect(nullIfBlank(null), isNull);
     });

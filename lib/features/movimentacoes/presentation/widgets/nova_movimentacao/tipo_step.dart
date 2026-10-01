@@ -7,10 +7,9 @@ import '../../../domain/movimentacao.dart';
 import '../../nova_movimentacao_regras.dart';
 import '../movimentacao_tipo_visual.dart';
 
-/// Passo 2 do wizard (PROMPT 10.2, seção 5): só oferece tipos que a matriz
-/// de transição documentada permite para o status ATUAL do patrimônio —
-/// puramente cosmético (item 16 do prompt): a RPC valida de novo e é quem
-/// decide de verdade.
+/// Passo 2 do wizard: só oferece tipos que a matriz de transição
+/// documentada permite para o status ATUAL do patrimônio — puramente
+/// cosmético: a RPC valida de novo e é quem decide de verdade.
 class TipoStep extends StatelessWidget {
   const TipoStep({super.key, required this.status, required this.selecionado, required this.onSelecionar});
 

@@ -1,23 +1,14 @@
 -- =============================================================================
--- InvTec — Documentos SEI / Pendências (PROMPT 11.3)
+-- InvTec — Documentos SEI / Pendências.
 --
--- IMPORTANTE: esta migration é uma PROPOSTA. Ela NÃO foi aplicada no
--- Supabase remoto e NÃO foi executada em nenhum PostgreSQL local. Revisar
--- antes de aplicar — em especial as seções 6 (funções), 8 (GRANTS) e 9
--- (RLS), e o comentário da seção 11 sobre a conclusão futura.
---
--- CONTEXTO DE NEGÓCIO: importar e salvar um despacho SEI cria uma
--- SOLICITAÇÃO PENDENTE — nunca altera um patrimônio. Só uma etapa FUTURA
--- (não implementada aqui), quando a GETEC confirmar que um item foi
--- efetivamente concluído, poderia vir a registrar uma movimentação real
--- (via `public.registrar_movimentacao`, já existente) e vinculá-la ao item.
--- Nenhuma função desta migration chama `registrar_movimentacao`.
+-- Importar e salvar um despacho SEI cria uma SOLICITAÇÃO PENDENTE — nunca
+-- altera um patrimônio diretamente. Só uma etapa futura, quando a GETEC
+-- confirmar que um item foi efetivamente concluído, registraria a
+-- movimentação real (via `public.registrar_movimentacao`) e a vincularia ao
+-- item. Nenhuma função desta migration chama `registrar_movimentacao`.
 --
 -- Estas tabelas são SEPARADAS de `public.movimentacoes`: um documento
--- pendente nunca aparece no histórico de movimentações efetivas, mesmo
--- depois de concluído (o que aparece lá, nesse caso futuro, é a
--- movimentação em si, referenciada por `documentos_sei_itens.
--- movimentacao_id`).
+-- pendente nunca aparece no histórico de movimentações efetivas.
 -- =============================================================================
 
 -- =============================================================================
@@ -30,8 +21,8 @@ create type public.documento_sei_item_status as enum (
   'CANCELADO'
 );
 
--- Mesma semântica de `SeiDecisaoCampo` no Flutter (PROMPT 11.2.1): o
--- documento SEI nunca informa localização/responsável de destino, então
+-- Mesma semântica de `SeiDecisaoCampo` no Flutter: o documento SEI nunca
+-- informa localização/responsável de destino, então
 -- "ausência no PDF" nunca pode ser confundida com "decisão de deixar sem
 -- informação" — a segunda exige uma ação humana explícita.
 create type public.documento_sei_decisao_campo as enum (
@@ -47,8 +38,8 @@ create type public.documento_sei_decisao_campo as enum (
 -- ---------------------------------------------------------------------------
 -- documentos_sei
 -- ---------------------------------------------------------------------------
--- Seção 5 da especificação: NENHUMA coluna aqui é usada sozinha como chave
--- de deduplicação. `numero_documento_sei` NÃO tem índice único — o mesmo
+-- NENHUMA coluna aqui é usada sozinha como chave de deduplicação.
+-- `numero_documento_sei` NÃO tem índice único — o mesmo
 -- despacho pode legitimamente ser reimportado (nova sessão de análise,
 -- versão corrigida) e o hash muda a cada exportação do SEI. A
 -- deduplicação é uma checagem de LEITURA (`buscarPossivelDuplicata`, ver
@@ -62,11 +53,11 @@ create table public.documentos_sei (
   assunto text,
   tipo_operacao_pretendida public.movimentacao_tipo not null,
   nome_arquivo text not null,
-  -- metadado de auditoria/diagnóstico (seção 2); NUNCA a identidade do
-  -- documento nem critério de deduplicação (ver comentário acima).
+  -- metadado de auditoria/diagnóstico; NUNCA a identidade do documento nem
+  -- critério de deduplicação (ver comentário acima).
   hash_sha256 text not null,
-  -- controle de concorrência otimista (seção 14): toda edição exige o
-  -- cliente enviar a versão que leu; ver `editar_documento_sei_pendente`.
+  -- controle de concorrência otimista: toda edição exige o cliente enviar a
+  -- versão que leu; ver `editar_documento_sei_pendente`.
   versao integer not null default 1,
   criado_em timestamptz not null default now(),
   criado_por uuid not null references public.profiles (id) on delete restrict,
@@ -84,8 +75,8 @@ create table public.documentos_sei (
 -- ---------------------------------------------------------------------------
 -- documentos_sei_itens
 -- ---------------------------------------------------------------------------
--- Seção 5/13: guarda o valor ORIGINAL do parser e o valor CORRIGIDO
--- manualmente separadamente — nunca sobrescreve um com o outro. Quem/quando
+-- Guarda o valor ORIGINAL do parser e o valor CORRIGIDO manualmente
+-- separadamente — nunca sobrescreve um com o outro. Quem/quando
 -- corrigiu é rastreado uma vez por item (a correção mais recente); o
 -- histórico completo de cada correção (inclusive correções anteriores,
 -- substituídas por uma nova) fica em `documentos_sei_eventos.dados_antes/
@@ -119,8 +110,8 @@ create table public.documentos_sei_itens (
   equipamento_texto_original text,
   equipamento_texto_corrigido text,
 
-  -- decisão humana de destino (PROMPT 11.2.1) — nunca preenchida pelo
-  -- parser; ver `public.documento_sei_decisao_campo`.
+  -- decisão humana de destino — nunca preenchida pelo parser; ver
+  -- `public.documento_sei_decisao_campo`.
   localizacao_destino_id uuid references public.localizacoes (id) on delete restrict,
   decisao_localizacao public.documento_sei_decisao_campo not null default 'PENDENTE',
   responsavel_destino text,
@@ -129,14 +120,13 @@ create table public.documentos_sei_itens (
   status public.documento_sei_item_status not null default 'PENDENTE',
   motivo_cancelamento text,
 
-  -- Seção 15: o vínculo INEQUÍVOCO com a movimentação efetiva — só uma
-  -- etapa futura preenche isto. `documentos_sei_itens_movimentacao_unica`
-  -- (seção 3, índices) garante que uma movimentação nunca é reclamada por
-  -- dois itens diferentes.
+  -- Vínculo INEQUÍVOCO com a movimentação efetiva — só uma etapa futura
+  -- preenche isto. `documentos_sei_itens_movimentacao_unica` (índices)
+  -- garante que uma movimentação nunca é reclamada por dois itens.
   movimentacao_id uuid references public.movimentacoes (id) on delete restrict,
 
-  -- rastreio da correção mais recente (seção 13) — `null` quando nenhum
-  -- campo deste item jamais foi corrigido.
+  -- rastreio da correção mais recente — `null` quando nenhum campo deste
+  -- item jamais foi corrigido.
   corrigido_por uuid references public.profiles (id) on delete restrict,
   corrigido_em timestamptz,
   motivo_correcao text,
@@ -146,20 +136,19 @@ create table public.documentos_sei_itens (
 
   constraint documentos_sei_itens_documento_linha_unica unique (documento_id, linha),
 
-  -- Seção 6: nenhum estado contraditório — CONCLUIDO exige movimentação
-  -- vinculada; CANCELADO exige motivo; PENDENTE não tem nenhum dos dois.
+  -- Nenhum estado contraditório — CONCLUIDO exige movimentação vinculada;
+  -- CANCELADO exige motivo; PENDENTE não tem nenhum dos dois.
   constraint documentos_sei_itens_status_coerente check (
     (status = 'PENDENTE' and movimentacao_id is null and motivo_cancelamento is null)
     or (status = 'CONCLUIDO' and movimentacao_id is not null and motivo_cancelamento is null)
     or (status = 'CANCELADO' and movimentacao_id is null and motivo_cancelamento is not null)
   ),
 
-  -- PROMPT 11.3.1, seção 2/5 — auditoria encontrou: nada impedia
-  -- `decisao_localizacao = 'DEFINIDO'` sem `localizacao_destino_id`, nem
-  -- `decisao_localizacao = 'CONFIRMADO_SEM_INFORMACAO'` COM um id presente
-  -- (contradição: "decidi que fica sem informação" + um valor definido ao
-  -- mesmo tempo). Mesma lógica do lado responsável, usando texto vazio
-  -- normalizado como NULL (ver `trg_documentos_sei_itens_normalize`).
+  -- Impede `decisao_localizacao = 'DEFINIDO'` sem `localizacao_destino_id`,
+  -- e `CONFIRMADO_SEM_INFORMACAO` com um id presente (contradição: "decidi
+  -- que fica sem informação" + um valor definido ao mesmo tempo). Mesma
+  -- lógica do lado responsável, usando texto vazio normalizado como NULL
+  -- (ver `trg_documentos_sei_itens_normalize`).
   constraint documentos_sei_itens_decisao_localizacao_coerente check (
     (decisao_localizacao = 'PENDENTE' and localizacao_destino_id is null)
     or (decisao_localizacao = 'DEFINIDO' and localizacao_destino_id is not null)
@@ -173,12 +162,11 @@ create table public.documentos_sei_itens (
 );
 
 -- ---------------------------------------------------------------------------
--- documentos_sei_eventos: trilha de auditoria IMUTÁVEL (seção 5)
+-- documentos_sei_eventos: trilha de auditoria IMUTÁVEL
 -- ---------------------------------------------------------------------------
 -- Sem UPDATE/DELETE concedido a ninguém além do dono do banco (nem sequer
 -- às funções SECURITY DEFINER desta migration, que só fazem INSERT) — ver
--- GRANTS (seção 8). "Não permitir edição retroativa dos eventos" (seção 5)
--- é impositivo, não só uma convenção de código.
+-- GRANTS. A imutabilidade é garantida pelo banco, não só por convenção.
 create table public.documentos_sei_eventos (
   id uuid primary key default gen_random_uuid(),
   documento_id uuid not null references public.documentos_sei (id) on delete restrict,
@@ -189,12 +177,11 @@ create table public.documentos_sei_eventos (
   dados_depois jsonb,
   autor_id uuid not null references public.profiles (id) on delete restrict,
   criado_em timestamptz not null default now(),
-  -- PROMPT 11.3.2, seção 3 — 'TENTATIVA_BLOQUEADA' permanece um tipo
-  -- válido (reservado para uma eventual estratégia futura fora desta
-  -- transação de negócio), mas NENHUMA função desta migration o produz
-  -- hoje: gravá-lo dentro da mesma transação que está prestes a ser
-  -- desfeita por `raise exception` era uma promessa de auditoria que nunca
-  -- se cumpria (ver `editar_documento_sei_pendente`).
+  -- 'TENTATIVA_BLOQUEADA' permanece um tipo válido (reservado para uma
+  -- eventual estratégia futura fora da transação de negócio corrente), mas
+  -- nenhuma função o produz: gravar dentro da mesma transação que o
+  -- `raise exception` desfaz nunca persistiria (ver
+  -- `editar_documento_sei_pendente`).
   constraint documentos_sei_eventos_tipo_valido check (
     tipo in (
       'CRIACAO', 'EDICAO', 'DECISAO_ALTERADA', 'ITEM_CONCLUIDO',
@@ -207,8 +194,8 @@ create table public.documentos_sei_eventos (
 -- 3. ÍNDICES
 -- =============================================================================
 
--- Busca por documento (nunca única — seção 5) e por processo, para a
--- listagem de pendências e para `buscarPossivelDuplicata`.
+-- Busca por documento (nunca única) e por processo, para a listagem de
+-- pendências e para `buscarPossivelDuplicata`.
 create index documentos_sei_numero_documento_idx on public.documentos_sei (numero_documento_sei);
 create index documentos_sei_numero_processo_idx on public.documentos_sei (numero_processo);
 create index documentos_sei_tipo_idx on public.documentos_sei (tipo_operacao_pretendida);
@@ -218,8 +205,8 @@ create index documentos_sei_itens_documento_idx on public.documentos_sei_itens (
 create index documentos_sei_itens_patrimonio_idx on public.documentos_sei_itens (patrimonio_id) where patrimonio_id is not null;
 create index documentos_sei_itens_status_idx on public.documentos_sei_itens (status);
 
--- Seção 15: garantia estrutural (não depende de uma futura RPC) — uma
--- movimentação efetiva nunca pode ser reclamada por dois itens diferentes.
+-- Garantia estrutural (não depende de uma futura RPC) — uma movimentação
+-- efetiva nunca pode ser reclamada por dois itens diferentes.
 create unique index documentos_sei_itens_movimentacao_unica
   on public.documentos_sei_itens (movimentacao_id)
   where movimentacao_id is not null;
@@ -249,14 +236,10 @@ create trigger trg_documentos_sei_normalize
   before insert or update on public.documentos_sei
   for each row execute function public.normalize_documento_sei();
 
--- PROMPT 11.3.1, seção 2 — auditoria encontrou: `documentos_sei_itens` era
--- a ÚNICA tabela de todo o schema sem nenhuma normalização de texto (toda
--- outra tabela — setores, tipos_patrimonio, patrimonios, localizacoes,
--- documentos_sei acima — tem uma trigger equivalente). Sem isto, "" e
--- espaços em branco não viravam NULL, e as novas constraints de coerência
--- de decisão (abaixo) poderiam ser burladas mandando `responsavel_destino
--- = '   '` como se fosse um valor "definido". O nome da trigger
--- (`..._normalize`) precisa ficar alfabeticamente ANTES de
+-- Sem normalização, "" e espaços em branco não viram NULL, e as constraints
+-- de coerência de decisão (abaixo) poderiam ser burladas mandando
+-- `responsavel_destino = '   '` como se fosse um valor "definido". O nome
+-- da trigger (`..._normalize`) precisa ficar alfabeticamente ANTES de
 -- `..._protect_columns`/`..._set_updated_at`/`..._validate_*` — Postgres
 -- dispara triggers BEFORE da mesma tabela/evento em ordem alfabética de
 -- nome — para que as constraints de coerência avaliem o valor já
@@ -287,10 +270,10 @@ create trigger trg_documentos_sei_itens_normalize
   before insert or update on public.documentos_sei_itens
   for each row execute function public.normalize_documento_sei_item();
 
--- Seção 4 (localizacoes): a localização de destino de um item, quando
--- informada, precisa pertencer ao MESMO setor resolvido como destino do
--- item — nunca uma localização "solta" de outra gerência. Mesma filosofia
--- de `private.validate_localizacao_pertence_ao_setor` (patrimonios).
+-- A localização de destino de um item, quando informada, precisa pertencer
+-- ao MESMO setor resolvido como destino do item — nunca uma localização
+-- "solta" de outra gerência. Mesma filosofia de
+-- `private.validate_localizacao_pertence_ao_setor` (patrimonios).
 create or replace function private.validate_pendencia_localizacao_pertence_ao_setor()
 returns trigger
 language plpgsql
@@ -328,29 +311,14 @@ create trigger trg_documentos_sei_itens_validate_localizacao
   before insert or update of localizacao_destino_id, destino_setor_id on public.documentos_sei_itens
   for each row execute function private.validate_pendencia_localizacao_pertence_ao_setor();
 
--- PROMPT 11.3.1, seção 5 — auditoria encontrou: a FK
--- `documentos_sei_itens.movimentacao_id → movimentacoes.id` só garante que
--- a linha referenciada EXISTE, nunca que ela pertence ao MESMO patrimônio
--- do item. Sem esta trigger, essa correspondência dependeria inteiramente
--- da futura RPC de conclusão nunca ter um bug — uma garantia de disciplina
--- de código, não uma garantia de banco. Com a trigger, mesmo uma chamada
--- direta (fora da futura RPC) que tentasse vincular a movimentação errada
--- é rejeitada pelo próprio banco.
+-- A FK `documentos_sei_itens.movimentacao_id → movimentacoes.id` só garante
+-- que a linha referenciada EXISTE, nunca que ela pertence ao MESMO
+-- patrimônio do item — por isso esta trigger.
 --
--- PROMPT 11.3.2, seção 5 — auditoria encontrou: `before insert or update of
--- movimentacao_id` faz o `of movimentacao_id` restringir SÓ o disparo em
--- UPDATE — em INSERT a trigger dispara sempre, e ali `old` não existe
--- (nenhum registro anterior). A condição original (`new.movimentacao_id is
--- not null and new.movimentacao_id is distinct from old.movimentacao_id`)
--- só não quebrava hoje porque toda linha nasce com `movimentacao_id` nulo
--- (nenhuma das 4 funções de escrita o define na criação) — o AND
--- curto-circuita em `new.movimentacao_id is not null = false` e nunca
--- chega a avaliar `old`. Mas isso dependia de disciplina externa, não de
--- garantia da própria trigger: um INSERT hipotético que já viesse com
+-- Checa `tg_op` explicitamente antes de tocar `old`: em INSERT a trigger
+-- dispara sempre e `old` não existe, então um INSERT que já viesse com
 -- `movimentacao_id` preenchido acessaria `old.movimentacao_id` sem "old"
--- estar atribuído, e o Postgres lançaria o erro genérico "record \"old\" is
--- not assigned yet" em vez da mensagem de validação de negócio pretendida.
--- Corrigido checando `tg_op` explicitamente ANTES de tocar `old`.
+-- estar atribuído.
 create or replace function private.validate_pendencia_movimentacao_patrimonio()
 returns trigger
 language plpgsql
@@ -398,21 +366,17 @@ create trigger trg_documentos_sei_itens_set_updated_at
   for each row execute function public.set_updated_at_documento_sei_item();
 
 -- =============================================================================
--- 5. VIEW: situação geral derivada (seção 7)
+-- 5. VIEW: situação geral derivada
 -- =============================================================================
 -- Nunca uma coluna gravável em `documentos_sei` (evitaria estado
 -- contraditório entre a situação exibida e os itens reais) — sempre
 -- calculada a partir de `documentos_sei_itens`, com a MESMA lógica de
 -- `calcularSituacaoDocumento` no Flutter.
--- PROMPT 11.3.2, seção 2 — auditoria encontrou um caso real classificado
--- errado: 0 concluídos + 10 pendentes + 23 cancelados caía no `else`
--- (PARCIALMENTE_CONCLUIDO) porque nenhum dos ramos anteriores cobria
--- "ainda há pendente, mas nada foi concluído" separadamente de "ainda há
--- pendente E algo foi concluído" — mas PARCIALMENTE_CONCLUIDO precisa,
--- pelo nome, de ao menos UMA conclusão real; sem nenhuma movimentação
--- efetiva, o documento continua simplesmente PENDENTE, não importa quantos
--- itens já foram cancelados. Regra corrigida, verificada nas 8 combinações
--- possíveis (nenhuma fica sem classificação):
+--
+-- PARCIALMENTE_CONCLUIDO/ENCERRADO_PARCIALMENTE exigem, pelo nome, ao menos
+-- UMA conclusão real — sem nenhuma movimentação efetiva, o documento
+-- continua PENDENTE, não importa quantos itens já foram cancelados. Tabela
+-- de classificação (cobre as 8 combinações possíveis):
 --   0 itens                                   → PENDENTE
 --   0 concluídos + ao menos 1 pendente         → PENDENTE (mesmo com cancelados)
 --   todos concluídos                           → CONCLUIDO
@@ -449,10 +413,9 @@ alter view public.documentos_sei_com_situacao set (security_invoker = true);
 -- 6. FUNÇÕES DE ESCRITA (SECURITY DEFINER — únicos caminhos de mutação)
 -- =============================================================================
 -- Mesmo padrão de `cadastrar_patrimonio`/`registrar_movimentacao`: o
--- cliente não recebe INSERT/UPDATE direto nestas três tabelas (seção 8:
--- "a proibição deve ser aplicada no banco/serviço transacional, não
--- apenas na UI") — toda escrita passa por uma destas funções, que também
--- é onde a trilha de auditoria é gravada.
+-- cliente não recebe INSERT/UPDATE direto nestas três tabelas — toda
+-- escrita passa por uma destas funções, que também é onde a trilha de
+-- auditoria é gravada.
 
 -- ---------------------------------------------------------------------------
 -- criar_documento_sei_pendente: cria a solicitação PENDENTE + seus itens.
@@ -464,38 +427,21 @@ alter view public.documentos_sei_com_situacao set (security_invoker = true);
 -- destino_setor_id, numero_chamado_original, equipamento_texto_original,
 -- localizacao_destino_id, decisao_localizacao ('PENDENTE'/'DEFINIDO'/
 -- 'CONFIRMADO_SEM_INFORMACAO'), responsavel_destino, decisao_responsavel.
--- PROMPT 11.3.1, seção 8 — auditoria encontrou: a checagem de duplicidade
--- (`buscarPossivelDuplicata`) era 100% responsabilidade do cliente
--- Flutter — uma chamada direta a esta RPC (curl/Postman/outro cliente),
--- por um usuário autenticado com perfil válido, criava uma pendência
--- duplicada sem nenhuma resistência do banco. `p_confirmar_duplicata`
--- fecha essa lacuna: por padrão (`false`), a função REJEITA criar um novo
--- documento quando já existe outro, ATIVO (nenhum item cancelado sozinho
--- não conta — só quando TODOS os itens do existente já estão cancelados é
--- que ele deixa de contar como "ativo"), com o MESMO número de documento
--- SEI (e, se informado, o mesmo processo). Nunca usa o hash como critério
--- (o mesmo despacho pode ser reexportado com bytes diferentes — seção 2 da
--- tabela). Um reimport legítimo (nova versão, correção) continua possível
--- enviando `p_confirmar_duplicata = true` — mesma decisão que hoje só o
--- Flutter tomava, agora também exigida de qualquer chamador direto.
+-- `p_confirmar_duplicata` (default false) rejeita criar um novo documento
+-- quando já existe outro ATIVO (só quando TODOS os itens do existente já
+-- estão cancelados ele deixa de contar como "ativo") com o MESMO número de
+-- documento SEI (e, se informado, o mesmo processo). Nunca usa o hash como
+-- critério: o mesmo despacho pode ser reexportado com bytes diferentes. Um
+-- reimport legítimo continua possível enviando `p_confirmar_duplicata = true`.
 --
--- PROMPT 11.3.2, seção 1 — auditoria encontrou: a versão acima (`exists (
--- select ...)` seguido de `insert`) NÃO impedia duas transações
--- concorrentes de ambas lerem "não existe" antes de qualquer uma inserir —
--- um `EXISTS` não é uma trava; só delimita o que a transação enxerga NO
--- MOMENTO da leitura. Corrigido com `pg_advisory_xact_lock`: antes de
--- checar/decidir qualquer coisa sobre duplicidade, a transação adquire uma
--- trava consultiva de escopo de TRANSAÇÃO (liberada automaticamente no
--- commit ou rollback — nunca precisa de `unlock` explícito) chaveada pela
--- CHAVE DE NEGÓCIO NORMALIZADA (número do documento SEI + número do
--- processo, quando informado) — nunca pelo hash (seção 2 da tabela). Uma
--- segunda transação tentando criar/verificar para a MESMA chave BLOQUEIA
--- nesta linha até a primeira commitar ou abortar; ao ser liberada, ela
--- reavalia o `exists` já vendo o documento da primeira transação
--- (commitado) e é corretamente rejeitada (ou aceita, se
--- `p_confirmar_duplicata = true`). Isso fecha a corrida real: não é mais
--- possível duas criações simultâneas do mesmo documento passarem
--- silenciosamente.
+-- Um `EXISTS` sozinho não é uma trava — duas transações concorrentes
+-- poderiam ambas ler "não existe" antes de qualquer uma inserir. Por isso
+-- `pg_advisory_xact_lock` (trava de escopo de TRANSAÇÃO, liberada
+-- automaticamente no commit/rollback) chaveada pela CHAVE DE NEGÓCIO
+-- NORMALIZADA (número do documento SEI + processo, quando informado) ANTES
+-- de checar duplicidade: uma segunda transação para a MESMA chave bloqueia
+-- até a primeira terminar, e então reavalia o `exists` já vendo o resultado
+-- da primeira.
 --
 -- Documentos SEM número de documento SEI (`v_numero_normalizado is null`):
 -- POLÍTICA EXPLÍCITA — não há chave de negócio para travar nem comparar,
@@ -546,36 +492,14 @@ begin
     raise exception 'Um documento SEI pendente precisa de ao menos um item' using errcode = 'P0001';
   end if;
 
-  -- PROMPT 11.3.3, seção 3 — auditoria encontrou DUAS falhas ligadas,
-  -- reproduzindo o cenário do prompt (SEI=95955192 com processo NULO numa
-  -- sessão, e o MESMO SEI com processo informado noutra):
-  --
-  --   (a) CHAVE DE TRAVA assimétrica: a versão anterior incluía o processo
-  --   na chave (`numero_documento_sei || ':' || coalesce(processo, '')`).
-  --   Sessão A (processo nulo) e sessão B (processo informado) geravam
-  --   strings DIFERENTES → hashes DIFERENTES → `pg_advisory_xact_lock`
-  --   NUNCA as serializava entre si — a "trava" simplesmente não cobria
-  --   esse par, e a corrida que o PROMPT 11.3.2 achava ter fechado
-  --   continuava aberta exatamente neste caso.
-  --
-  --   (b) O PRÓPRIO PREDICADO do `exists` já era assimétrico, independente
-  --   de concorrência: se A criasse primeiro (processo nulo) e B
-  --   verificasse depois (processo informado), a condição exigia
-  --   `d.numero_processo is not distinct from v_processo_normalizado` — com
-  --   `d.numero_processo` NULO (de A) e `v_processo_normalizado` não-nulo
-  --   (de B), o teste falha, e o documento de A nunca é encontrado como
-  --   duplicata por B. Mesmo em uso puramente SEQUENCIAL (sem nenhuma
-  --   concorrência), essa dupla não seria pega.
-  --
-  -- Corrigido travando por `numero_documento_sei` SOZINHO — nunca incluindo
-  -- o processo na CHAVE DE TRAVA (que precisa ser mais ABRANGENTE que a
-  -- chave de negócio: cobre TODA combinação que o predicado abaixo possa
-  -- vir a considerar correspondente, mesmo com processos diferentes ou
-  -- ausentes de cada lado) — e tornando o predicado SIMÉTRICO: dois
-  -- registros com o mesmo número SEI são considerados o MESMO documento
-  -- quando pelo menos um dos dois lados não tem processo informado (não há
-  -- informação suficiente para diferenciar) OU quando os processos batem
-  -- exatamente. A decisão não depende mais de qual lado "pergunta" primeiro.
+  -- A trava usa `numero_documento_sei` SOZINHO — nunca incluindo o
+  -- processo: a CHAVE DE TRAVA precisa ser mais ABRANGENTE que a chave de
+  -- negócio, cobrindo toda combinação que o predicado abaixo possa vir a
+  -- considerar correspondente, mesmo com processos diferentes ou ausentes
+  -- de cada lado. O predicado é SIMÉTRICO: dois registros com o mesmo
+  -- número SEI são o MESMO documento quando pelo menos um dos dois lados
+  -- não tem processo informado (não há informação suficiente para
+  -- diferenciar) OU quando os processos batem exatamente.
   if v_numero_normalizado is not null then
     v_lock_key := hashtextextended('documentos_sei:' || v_numero_normalizado, 0);
     -- Trava de transação (não de sessão): serializa qualquer outra chamada
@@ -638,11 +562,9 @@ begin
     );
   end loop;
 
-  -- Seção 1: quando a criação prossegue apesar de uma duplicata ativa
-  -- existir (`v_duplicata_existente and p_confirmar_duplicata`), isso fica
-  -- registrado no próprio evento de criação — nunca só implícito no fato de
-  -- `p_confirmar_duplicata` ter sido `true` numa chamada que o cliente não
-  -- guarda.
+  -- Quando a criação prossegue apesar de uma duplicata ativa existir, isso
+  -- fica registrado no próprio evento de criação — nunca só implícito no
+  -- fato de `p_confirmar_duplicata` ter sido `true`.
   insert into public.documentos_sei_eventos (documento_id, tipo, descricao, dados_depois, autor_id)
   values (
     v_documento.id, 'CRIACAO',
@@ -670,15 +592,11 @@ $$;
 -- p_itens_alterados: array jsonb, cada elemento com "item_id" (obrigatório)
 -- e as chaves de correção que devem mudar: numero_patrimonio_corrigido,
 -- destino_texto_corrigido, numero_chamado_corrigido, equipamento_texto_corrigido
--- (textos extraídos do PDF, sempre preservando o "_original" — seção 13),
--- e — PROMPT 11.3.1, seção 3: auditoria encontrou que a versão original
--- não deixava editar destino/localização/responsável, só texto — MESMO o
--- documento estando desbloqueado, contrariando a seção 8 do PROMPT 11.3
--- ("Isso inclui editar: ... destino; ... localização prevista; responsável
--- previsto") — destino_setor_id, localizacao_destino_id,
--- decisao_localizacao, responsavel_destino, decisao_responsavel (estes
--- cinco são valores RESOLVIDOS/decisões, não têm "_original": a correção
--- simplesmente substitui o valor atual, com histórico completo em
+-- (textos extraídos do PDF, sempre preservando o "_original"), e
+-- destino_setor_id, localizacao_destino_id, decisao_localizacao,
+-- responsavel_destino, decisao_responsavel (estes cinco são valores
+-- RESOLVIDOS/decisões, não têm "_original": a correção simplesmente
+-- substitui o valor atual, com histórico completo em
 -- `documentos_sei_eventos.dados_antes/dados_depois.itens`, nunca em pares
 -- de coluna).
 create or replace function public.editar_documento_sei_pendente(
@@ -715,8 +633,8 @@ begin
   end if;
 
   -- trava o documento: edições concorrentes sobre o mesmo documento são
-  -- serializadas (seção 14) — a segunda espera a primeira terminar e então
-  -- vê a versão já incrementada, falhando na checagem abaixo.
+  -- serializadas — a segunda espera a primeira terminar e então vê a
+  -- versão já incrementada, falhando na checagem abaixo.
   select * into v_documento
   from public.documentos_sei
   where id = p_documento_id
@@ -733,24 +651,16 @@ begin
       using errcode = 'P0010';
   end if;
 
-  -- Seção 8: REGRA DEFINITIVA — bloqueado para sempre após a primeira
-  -- conclusão, independentemente da versão informada estar correta.
+  -- REGRA DEFINITIVA: bloqueado para sempre após a primeira conclusão,
+  -- independentemente da versão informada estar correta.
   --
-  -- PROMPT 11.3.2, seção 3 — auditoria encontrou: a versão anterior gravava
-  -- um evento 'TENTATIVA_BLOQUEADA' IMEDIATAMENTE ANTES do `raise
-  -- exception` abaixo. Uma exceção desfaz TODA a transação corrente,
-  -- inclusive esse INSERT — o evento nunca era commitado, então a função
-  -- prometia uma trilha de auditoria que na prática nunca existia. Não é
-  -- resolvido "engolindo" a exceção e retornando sucesso (inverteria a
-  -- regra da seção 8) nem criando um serviço externo de auditoria (fora do
-  -- escopo desta etapa) — a correção é simplesmente NÃO fingir que este
-  -- evento persiste: a tentativa bloqueada é reportada ao cliente só pelo
-  -- próprio erro (que o Flutter já traduz em
-  -- `SeiDocumentoBloqueadoParaEdicaoException`), sem gravação alguma.
-  -- 'TENTATIVA_BLOQUEADA' permanece um tipo válido em
-  -- `documentos_sei_eventos_tipo_valido` para uma eventual estratégia
-  -- futura (ex.: log em tabela própria fora da transação de negócio), mas
-  -- NENHUMA função desta migration o produz hoje.
+  -- Não grava um evento 'TENTATIVA_BLOQUEADA' aqui: `raise exception`
+  -- desfaz TODA a transação corrente, então um INSERT de auditoria antes
+  -- dele nunca seria commitado. A tentativa bloqueada é reportada ao
+  -- cliente só pelo próprio erro (que o Flutter traduz em
+  -- `SeiDocumentoBloqueadoParaEdicaoException`). 'TENTATIVA_BLOQUEADA'
+  -- permanece um tipo válido em `documentos_sei_eventos_tipo_valido` para
+  -- uma eventual estratégia futura fora desta transação.
   select count(*) into v_qtd_concluidos
   from public.documentos_sei_itens
   where documento_id = p_documento_id and status = 'CONCLUIDO';
@@ -767,21 +677,13 @@ begin
     raise exception 'p_itens_alterados precisa ser um array jsonb' using errcode = 'P0001';
   end if;
 
-  -- PROMPT 11.3.2, seção 4 — auditoria encontrou: o loop de UPDATE mais
-  -- abaixo filtrava por `id = ... and documento_id = ... and status =
-  -- 'PENDENTE'` sem NUNCA conferir se o UPDATE realmente afetou alguma
-  -- linha — um item_id inexistente, de outro documento, ou que já não
-  -- estava mais PENDENTE simplesmente não batia com o WHERE, e a função
-  -- retornava sucesso do mesmo jeito, gravando um evento 'EDICAO' como se
-  -- toda correção solicitada tivesse sido aplicada (falha silenciosa).
-  -- Corrigido com uma validação PRÉVIA, ANTES de qualquer escrita: cada
-  -- item_id precisa existir, pertencer a ESTE documento, estar PENDENTE, e
-  -- não pode se repetir no payload (tratado explicitamente como erro, não
-  -- como "a última correção do mesmo id vence" — ambíguo demais para
-  -- aceitar silenciosamente). Qualquer violação rejeita a operação
-  -- INTEIRA: a exceção desfaz também a atualização dos campos do documento
-  -- feita mais abaixo, já que tudo roda na mesma transação — nada fica
-  -- parcialmente aplicado. `for update` aqui trava cada item validado (na
+  -- Validação PRÉVIA, ANTES de qualquer escrita: cada item_id precisa
+  -- existir, pertencer a ESTE documento, estar PENDENTE, e não pode se
+  -- repetir no payload — senão um UPDATE filtrado por WHERE simplesmente
+  -- não bateria em nenhuma linha e a função gravaria um evento 'EDICAO'
+  -- como se a correção tivesse sido aplicada (falha silenciosa). Qualquer
+  -- violação rejeita a operação INTEIRA (mesma transação, nada fica
+  -- parcialmente aplicado). `for update` trava cada item validado (na
   -- mesma ordem documento→item já estabelecida) até o fim da função.
   v_ids_itens_alterados := array[]::uuid[];
   for v_item_edicao in select * from jsonb_array_elements(p_itens_alterados)
@@ -816,9 +718,9 @@ begin
     'assunto', v_documento.assunto
   );
 
-  -- PROMPT 11.3.1, seção 7: retrato "antes" dos itens que serão tocados —
-  -- capturado ANTES do loop de correção, para o evento de auditoria
-  -- registrar o antes/depois real (não só dos campos do documento).
+  -- Retrato "antes" dos itens que serão tocados — capturado ANTES do loop
+  -- de correção, para o evento de auditoria registrar o antes/depois real
+  -- (não só dos campos do documento).
   select coalesce(jsonb_agg(to_jsonb(i.*)), '[]'::jsonb) into v_itens_antes
   from public.documentos_sei_itens i
   where i.documento_id = p_documento_id and i.id = any (coalesce(v_ids_itens_alterados, array[]::uuid[]));
@@ -847,10 +749,9 @@ begin
         then v_item_edicao ->> 'numero_chamado_corrigido' else numero_chamado_corrigido end,
       equipamento_texto_corrigido = case when v_item_edicao ? 'equipamento_texto_corrigido'
         then v_item_edicao ->> 'equipamento_texto_corrigido' else equipamento_texto_corrigido end,
-      -- Seção 3 desta auditoria: agora também editáveis enquanto o
-      -- documento não tiver item concluído — destino resolvido,
-      -- localização e responsável de destino (decisão + valor sempre
-      -- juntos, para nunca violar as constraints de coerência da seção 2).
+      -- Também editáveis enquanto o documento não tiver item concluído:
+      -- destino resolvido, localização e responsável de destino (decisão +
+      -- valor sempre juntos, para nunca violar as constraints de coerência).
       destino_setor_id = case when v_item_edicao ? 'destino_setor_id'
         then nullif(v_item_edicao ->> 'destino_setor_id', '')::uuid else destino_setor_id end,
       localizacao_destino_id = case when v_item_edicao ? 'localizacao_destino_id'
@@ -896,17 +797,11 @@ $$;
 -- ---------------------------------------------------------------------------
 -- cancelar_item_sei_pendente: cancela UM item PENDENTE.
 -- ---------------------------------------------------------------------------
--- PROMPT 11.3.1, seção 3 — auditoria encontrou um DEADLOCK real: a versão
--- original travava o ITEM primeiro (`for update`) e só depois tentava
--- travar o DOCUMENTO (no `update documentos_sei set versao = ...`),
--- enquanto `editar_documento_sei_pendente` trava o DOCUMENTO primeiro e só
--- depois os itens. Duas transações concorrentes — uma editando o
--- documento, outra cancelando um item dele — podiam travar em ordem
--- cruzada e o PostgreSQL abortaria uma delas com `deadlock_detected`
--- (40P01). Corrigido travando SEMPRE o documento primeiro, depois o item —
--- mesma ordem em TODAS as funções de escrita desta migration (ver também
--- `cancelar_pendentes_documento_sei` e a proposta da seção 11 para a
--- futura função de conclusão, que precisa seguir a mesma ordem).
+-- Trava SEMPRE o documento primeiro, depois o item — mesma ordem em TODAS
+-- as funções de escrita desta migration (ver também
+-- `cancelar_pendentes_documento_sei`). Ordem invertida entre funções que
+-- travam as duas linhas causaria `deadlock_detected` (40P01) sob
+-- concorrência.
 create or replace function public.cancelar_item_sei_pendente(
   p_item_id uuid,
   p_motivo text
@@ -960,15 +855,11 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- cancelar_pendentes_documento_sei: cancela TODOS os itens ainda PENDENTES
--- do documento — "Cancelar documento" (seção 10). NUNCA toca itens já
--- concluídos ou já cancelados: um cancelamento parcial nunca desfaz uma
--- entrega anterior.
+-- do documento — "Cancelar documento". NUNCA toca itens já concluídos ou já
+-- cancelados: um cancelamento parcial nunca desfaz uma entrega anterior.
 -- ---------------------------------------------------------------------------
--- PROMPT 11.3.1, seção 3 — mesma correção de ordem de lock de
--- `cancelar_item_sei_pendente`: trava o DOCUMENTO (`for update`) ANTES do
--- `update` em lote nos itens, nunca depois — evita o mesmo deadlock
--- potencial contra `editar_documento_sei_pendente`/
--- `cancelar_item_sei_pendente` concorrentes sobre o mesmo documento.
+-- Mesma ordem de lock de `cancelar_item_sei_pendente`: trava o DOCUMENTO
+-- (`for update`) ANTES do `update` em lote nos itens, nunca depois.
 create or replace function public.cancelar_pendentes_documento_sei(
   p_documento_id uuid,
   p_motivo text
@@ -1142,26 +1033,22 @@ create policy documentos_sei_eventos_select on public.documentos_sei_eventos
 -- 10. DEFAULT PRIVILEGES
 -- =============================================================================
 -- Já coberto pela migration inicial (`alter default privileges for role
--- postgres in schema public/private revoke ...`, seção 11 de
--- 20260910120000_initial_schema.sql) — aplica-se automaticamente a
--- qualquer objeto novo criado pelo role `postgres` em `public`/`private`,
--- inclusive os desta migration. Nenhuma repetição necessária.
+-- postgres in schema public/private revoke ...`) — aplica-se
+-- automaticamente a qualquer objeto novo criado pelo role `postgres` em
+-- `public`/`private`, inclusive os desta migration.
 
 -- =============================================================================
 -- 11. PROPOSTA FUTURA (NÃO CRIADA NESTA MIGRATION): conclusão atômica
 -- =============================================================================
--- PROMPT 11.3, seção 15: a conclusão de um item precisa, numa etapa
--- FUTURA e com aprovação própria, de uma função SECURITY DEFINER dedicada
--- que faça TUDO isto dentro de uma única transação (nunca duas escritas
--- independentes do cliente):
+-- A conclusão de um item precisa, numa etapa futura e com aprovação
+-- própria, de uma função SECURITY DEFINER dedicada que faça TUDO isto
+-- dentro de uma única transação (nunca duas escritas independentes do
+-- cliente):
 --
 --   1. travar o DOCUMENTO (`for update`) — PRIMEIRO, na MESMA ordem usada
 --      por `editar_documento_sei_pendente`/`cancelar_item_sei_pendente`/
---      `cancelar_pendentes_documento_sei` (PROMPT 11.3.1, seção 3: as três
---      foram corrigidas para travar sempre o documento antes do item,
---      depois que a auditoria encontrou um deadlock real entre duas delas
---      com ordens cruzadas — esta futura função PRECISA seguir a mesma
---      ordem, ou reintroduz o mesmo risco);
+--      `cancelar_pendentes_documento_sei` (travar o documento antes do
+--      item evita deadlock entre funções concorrentes);
 --   2. travar o item (`for update`) e verificar que continua PENDENTE;
 --   3. reconferir o estado atual do documento (ex.: ninguém cancelou o
 --      item entretanto);
@@ -1187,8 +1074,8 @@ create policy documentos_sei_eventos_select on public.documentos_sei_eventos
 --     índice de qualquer forma;
 --   * a garantia de não-duplicação real que faz sentido aqui é por
 --     IDENTIDADE DO ITEM DA SOLICITAÇÃO, não por uma tupla de campos de
---     negócio: `documentos_sei_itens_movimentacao_unica` (seção 3, já
---     criado nesta migration) já impede que uma movimentação seja
+--     negócio: `documentos_sei_itens_movimentacao_unica` (já criado nesta
+--     migration) já impede que uma movimentação seja
 --     reclamada por dois itens; falta simetricamente impedir que o MESMO
 --     item seja concluído duas vezes — o que um `update ...
 --     where id = :item_id and status = 'PENDENTE'` dentro da transação
@@ -1201,12 +1088,9 @@ create policy documentos_sei_eventos_select on public.documentos_sei_eventos
 -- =============================================================================
 -- 12. DECISÃO DE PRODUTO PENDENTE: PDF original
 -- =============================================================================
--- Seção 17: esta primeira versão persiste APENAS metadados + itens
--- extraídos — o arquivo PDF em si NÃO é armazenado (nem em Storage, nem
--- como base64 no banco, que é proibido pela especificação de qualquer
--- forma). Guardar o PDF original em um bucket privado do Supabase Storage
--- é uma decisão de produto que precisa de alinhamento da GETEC (retenção,
--- limites de tamanho, política de acesso por perfil, tratamento de falha
--- entre upload e criação do documento) — registrada aqui como PENDÊNCIA,
--- não presumida. Nenhuma tabela ou coluna desta migration referencia
--- Storage.
+-- Esta primeira versão persiste APENAS metadados + itens extraídos — o
+-- arquivo PDF em si NÃO é armazenado (nem em Storage, nem como base64 no
+-- banco). Guardar o PDF original em um bucket privado do Supabase Storage é
+-- uma decisão de produto que precisa de alinhamento da GETEC (retenção,
+-- limites de tamanho, política de acesso por perfil) — registrada aqui como
+-- PENDÊNCIA, não presumida.

@@ -17,8 +17,8 @@ Future<bool?> showSetorFormDialog(BuildContext context, {Setor? setor}) {
 }
 
 /// Formulário único reutilizado para criar e editar — evita duplicar a
-/// lógica entre desktop e mobile (section 18 do pedido): sempre um Dialog,
-/// com largura máxima limitada, que se ajusta sozinho a telas estreitas.
+/// lógica entre desktop e mobile: sempre um Dialog, com largura máxima
+/// limitada, que se ajusta sozinho a telas estreitas.
 class SetorFormDialog extends ConsumerStatefulWidget {
   const SetorFormDialog({super.key, this.setor});
 

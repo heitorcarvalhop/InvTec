@@ -1,10 +1,10 @@
 import 'sei_documento_extraido.dart';
 import 'sei_validacao_item.dart';
 
-/// Resultado final da análise (PROMPT 11.1) — documento extraído + cada
-/// linha já validada contra o InvTec. É o único objeto que a tela de
-/// revisão precisa; termina o fluxo da V1 ("Concluir análise" — seção 34),
-/// nunca alimenta `registrarMovimentacao`.
+/// Resultado final da análise — documento extraído + cada linha já
+/// validada contra o InvTec. É o único objeto que a tela de revisão
+/// precisa; termina o fluxo ("Concluir análise"), nunca alimenta
+/// `registrarMovimentacao`.
 class SeiAnaliseResultado {
   const SeiAnaliseResultado({required this.documento, required this.itens});
 

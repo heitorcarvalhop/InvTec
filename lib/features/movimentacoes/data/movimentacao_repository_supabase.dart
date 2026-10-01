@@ -11,10 +11,10 @@ import '../domain/movimentacao_repository.dart';
 import '../domain/movimentacoes_resultado.dart';
 import 'movimentacao_error_mapper.dart';
 
-/// Colunas + relacionamentos exibidos pela listagem geral (PROMPT 10.1) —
-/// uma única consulta via embed do Postgrest, nunca uma por linha.
-/// `setores`/`localizacoes` têm duas FKs cada (origem/destino), então cada
-/// embed precisa do alias `tabela!coluna(...)` para desambiguar.
+/// Colunas + relacionamentos exibidos pela listagem geral — uma única
+/// consulta via embed do Postgrest, nunca uma por linha. `setores`/
+/// `localizacoes` têm duas FKs cada (origem/destino), então cada embed
+/// precisa do alias `tabela!coluna(...)` para desambiguar.
 const _colunasListagem =
     'id, tipo, data_movimentacao, responsavel_origem, responsavel_destino, motivo, observacao, '
     'numero_documento, numero_chamado, patrimonio_id, origem_id, destino_id, '
@@ -25,7 +25,7 @@ const _colunasListagem =
     'localizacao_destino:localizacoes!localizacao_destino_id(nome), '
     'autor:profiles!realizado_por(nome)';
 
-/// PROMPT 11.2.1, seção 2: tamanho de página usado para PAGINAR
+/// Tamanho de página usado para PAGINAR
 /// [MovimentacaoRepositorySupabase.listarPorNumeroDocumento] até o total
 /// real — nunca um teto arbitrário que descarte linhas.
 const _tamanhoPaginaDuplicidade = 500;
@@ -80,7 +80,7 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
       }
 
       // "Setor" sem distinguir lado: casa se o setor foi origem OU destino
-      // da movimentação (PROMPT 10.1).
+      // da movimentação.
       if (setorId != null) {
         query = query.or('origem_id.eq.$setorId,destino_id.eq.$setorId');
       }
@@ -139,18 +139,15 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
       final itens = <MovimentacaoListagemItem>[];
       var offset = 0;
 
-      // Pagina até esgotar o total real (PROMPT 11.2.1, seção 2) — nunca
-      // um limite fixo que possa omitir linha relevante em silêncio.
+      // Pagina até esgotar o total real — nunca um limite fixo que possa
+      // omitir linha relevante em silêncio.
       while (true) {
         var query = _client.from('movimentacoes').select(_colunasListagem).eq('numero_documento', numeroDocumento);
 
         // AND, nunca OR: estreita o volume lido sem arriscar perder
         // ocorrência alguma do documento (patrimonioIds é só um filtro
         // adicional, o `eq` de numero_documento continua sendo a
-        // autoridade). Um único `inFilter` — documentos SEI têm dezenas de
-        // itens, não milhares, então não há necessidade do particionamento
-        // em lotes usado em `PatrimonioRepositorySupabase` para listas
-        // muito maiores.
+        // autoridade).
         if (patrimonioIds != null && patrimonioIds.isNotEmpty) {
           query = query.inFilter('patrimonio_id', patrimonioIds);
         }
@@ -240,18 +237,14 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
 
 /// Monta o mapa de parâmetros enviado a `registrar_movimentacao` — função
 /// pura (sem `SupabaseClient`, sem I/O), para poder testar a normalização
-/// isolada de produção. PROMPT 10.2.3: os cinco campos textuais opcionais
-/// nunca são enviados como `""` — um `TextEditingController` vazio sempre
-/// produz string vazia, nunca `null`, então sem isso o banco gravava `""`
-/// em vez de `NULL` (confirmado no primeiro registro real:
-/// numero_documento/numero_chamado ficaram `""`). A RPC só normaliza
-/// `p_responsavel_destino` sozinha (`normalize_text` no corpo da função);
-/// motivo/observacao/numero_documento/numero_chamado vão direto para o
-/// INSERT sem tratamento — por isso normalizamos os cinco aqui, no único
-/// lugar por onde toda chamada real passa. `destinoId`/`localizacaoDestinoId`
-/// nunca passam por aqui: já são ids resolvidos pela UI (nunca texto livre
-/// digitado), e `null` já é a representação correta de "não informado" para
-/// os dois.
+/// isolada de produção. Os cinco campos textuais opcionais nunca são
+/// enviados como `""` — um `TextEditingController` vazio sempre produz
+/// string vazia, nunca `null`, e a RPC só normaliza `p_responsavel_destino`
+/// sozinha; os demais vão direto para o INSERT sem tratamento. Por isso
+/// normalizamos os cinco aqui, no único lugar por onde toda chamada real
+/// passa. `destinoId`/`localizacaoDestinoId` nunca passam por aqui: já são
+/// ids resolvidos pela UI (nunca texto livre digitado), e `null` já é a
+/// representação correta de "não informado" para os dois.
 Map<String, Object?> buildRegistrarMovimentacaoParams({
   required String patrimonioId,
   required MovimentacaoTipo tipo,

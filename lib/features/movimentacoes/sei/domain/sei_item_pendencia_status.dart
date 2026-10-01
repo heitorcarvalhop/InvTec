@@ -1,12 +1,11 @@
-/// Status individual de um item de uma solicitação pendente (PROMPT 11.3,
-/// seção 6) — SEMPRE persistido, nunca inferido só pela UI.
+/// Status individual de um item de uma solicitação pendente — SEMPRE
+/// persistido, nunca inferido só pela UI.
 ///
 /// [concluido] só pode significar "existe movimentação efetiva
-/// correspondente registrada com sucesso" (seção 6): nenhuma checkbox ou
-/// confirmação visual, isolada, pode atribuir este status — a
-/// transição para [concluido] exige, na base, um `movimentacao_id`
-/// preenchido (ver constraint `documentos_sei_itens_status_coerente` na
-/// migration). Nenhuma etapa desta versão do app executa essa transição.
+/// correspondente registrada com sucesso": nenhuma checkbox ou confirmação
+/// visual, isolada, pode atribuir este status — a transição para
+/// [concluido] exige, na base, um `movimentacao_id` preenchido (ver
+/// constraint `documentos_sei_itens_status_coerente`).
 enum SeiItemPendenciaStatus {
   pendente,
   concluido,

@@ -28,7 +28,7 @@ import '../fake_tipo_patrimonio_repository.dart';
 
 /// Catálogo de tipos usado só nestes testes — inclui um tipo INATIVO
 /// (`tipo-obsoleto`) especificamente para provar que a tela de pendências
-/// nunca o oferece como opção (PROMPT 8.13, seção 2/9).
+/// nunca o oferece como opção.
 final _tipos = [
   TipoPatrimonio(id: 'tipo-rede', nome: 'Equipamento de Rede', ativo: true, criadoEm: DateTime(2026, 1, 1)),
   TipoPatrimonio(id: 'tipo-mobiliario', nome: 'Mobiliário', ativo: true, criadoEm: DateTime(2026, 1, 1)),
@@ -59,7 +59,7 @@ Uint8List _csv(String conteudo) => Uint8List.fromList(utf8.encode(conteudo));
 /// Planilha genérica (perfil não-GETEC) SEM coluna de tipo mapeada — todas
 /// as linhas ficam bloqueadas por "Tipo é obrigatório e está vazio"
 /// (a mesma condição que, na planilha real da GETEC, afeta os 37
-/// registros — PROMPT 8.13). Duas linhas com a mesma descrição (grupo
+/// registros). Duas linhas com a mesma descrição (grupo
 /// "semelhantes" de 2) e uma linha com descrição diferente (grupo de 1).
 const _csvSemTipo =
     'Patrimônio;Descricao;Marca;Serial;Setor\n'
@@ -84,7 +84,7 @@ Future<void> _avancarAteTiposPendentes(
 }
 
 void main() {
-  group('PatrimonioImportController — tela de pendências de tipo (PROMPT 8.13)', () {
+  group('PatrimonioImportController — tela de pendências de tipo', () {
     test('linha sem tipo começa bloqueada e a análise para no passo de tipos pendentes', () async {
       final repo = FakePatrimonioRepository();
       final container = _criarContainer(repo);
@@ -229,7 +229,7 @@ void main() {
 
       // depois da decisão em lote desta sessão: o classificador GLOBAL
       // continua exatamente igual — nunca aprendeu "rack" -> Equipamento de
-      // Rede (seção 3/8 do PROMPT 8.13).
+      // Rede.
       expect(
         inferirTipoPorDescricao('RACK PADRAO PISO').confianca,
         InferenciaTipoConfianca.naoIdentificada,
@@ -301,7 +301,7 @@ void main() {
 
     test(
       'avancarDeTiposPendentesParaRevisao é rejeitado enquanto restantes > 0, e só permitido em 0 '
-      '(proteção no controller, não só desabilitar o botão na UI — PROMPT 8.13.1)',
+      '(proteção no controller, não só desabilitar o botão na UI)',
       () async {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);
@@ -336,7 +336,7 @@ void main() {
 
     test(
       'numeroLinha é estável: uma decisão continua associada ao patrimônio correto depois de uma '
-      'reanálise completa, mesmo tomada fora de ordem (PROMPT 8.13.1, seção 5)',
+      'reanálise completa, mesmo tomada fora de ordem',
       () async {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);

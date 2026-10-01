@@ -22,12 +22,12 @@ enum LocalizacaoEscolha {
   limpar,
 }
 
-/// Estado mutável do wizard de Nova Movimentação (PROMPT 10.2), compartilhado
-/// entre os passos do formulário. Um objeto mutável (em vez do padrão
-/// imutável + copyWith usado nos filtros de listagem) porque vários widgets
-/// de passo diferentes editam pedaços dele — o dono (`NovaMovimentacaoDialog`)
-/// chama `setState` depois de cada mudança; os `TextEditingController` são
-/// dele mesmo, então o texto nunca é perdido ao trocar de passo.
+/// Estado mutável do wizard de Nova Movimentação, compartilhado entre os
+/// passos do formulário. Um objeto mutável (em vez do padrão imutável +
+/// copyWith usado nos filtros de listagem) porque vários widgets de passo
+/// diferentes editam pedaços dele — o dono (`NovaMovimentacaoDialog`) chama
+/// `setState` depois de cada mudança; os `TextEditingController` são dele
+/// mesmo, então o texto nunca é perdido ao trocar de passo.
 class NovaMovimentacaoRascunho {
   MovimentacaoTipo? tipo;
   String? destinoSetorId;
@@ -39,8 +39,8 @@ class NovaMovimentacaoRascunho {
   final documentoController = TextEditingController();
   final chamadoController = TextEditingController();
 
-  /// Só usado quando [tipo] é BAIXA — reforço de confirmação (seção 9 do
-  /// prompt), nunca enviado à RPC.
+  /// Só usado quando [tipo] é BAIXA — reforço de confirmação, nunca
+  /// enviado à RPC.
   bool confirmacaoBaixa = false;
 
   void dispose() {
@@ -52,21 +52,20 @@ class NovaMovimentacaoRascunho {
   }
 }
 
-/// Gate do botão "Avançar" do passo Detalhes (PROMPT 10.2, seção 15: nunca
-/// tratar `null`/vazio/`false` como equivalentes) — só verificação de UX; a
-/// RPC valida tudo de novo e é a autoridade final mesmo se algo escapar
-/// daqui.
+/// Gate do botão "Avançar" do passo Detalhes (nunca trata `null`/vazio/
+/// `false` como equivalentes) — só verificação de UX; a RPC valida tudo de
+/// novo e é a autoridade final mesmo se algo escapar daqui.
 bool detalhesValidos(NovaMovimentacaoRascunho r, Patrimonio patrimonio) {
   final tipo = r.tipo;
   if (tipo == null) return false;
 
   if (tipoExigeDestino(tipo) && r.destinoSetorId == null) return false;
 
-  // RPC real (PROMPT 10.2.2, seção 3): "Destino igual ao setor atual do
-  // patrimônio não é permitido para %" — para estes seis tipos a UI já
-  // filtra o setor atual do seletor (ver `_SetorDestinoField`), mas esta
-  // checagem é a garantia real, igual ao double-submit: nunca confia só na
-  // opção não ter sido oferecida.
+  // RPC real: "Destino igual ao setor atual do patrimônio não é permitido
+  // para %" — para estes seis tipos a UI já filtra o setor atual do
+  // seletor (ver `_SetorDestinoField`), mas esta checagem é a garantia
+  // real, igual ao double-submit: nunca confia só na opção não ter sido
+  // oferecida.
   if (tipoExigeDestinoDiferente(tipo) && r.destinoSetorId == patrimonio.setorAtualId) {
     return false;
   }
@@ -86,11 +85,11 @@ bool detalhesValidos(NovaMovimentacaoRascunho r, Patrimonio patrimonio) {
     if (r.localizacaoDestinoId == patrimonio.localizacaoAtualId) return false;
   }
 
-  // AJUSTE_INVENTARIO em patrimônio BAIXADO (PROMPT 10.2.2, seção 6): a RPC
-  // proíbe mudar setor/localização mesmo que o campo tenha sido montado
-  // antes do status virar BAIXADO (ex.: concorrência) — a UI já esconde
-  // esses campos nesse caso, mas o gate abaixo garante que um rascunho
-  // "herdado" de outro status nunca passa disfarçado.
+  // AJUSTE_INVENTARIO em patrimônio BAIXADO: a RPC proíbe mudar
+  // setor/localização mesmo que o campo tenha sido montado antes do status
+  // virar BAIXADO (ex.: concorrência) — a UI já esconde esses campos nesse
+  // caso, mas o gate abaixo garante que um rascunho "herdado" de outro
+  // status nunca passa disfarçado.
   if (tipo == MovimentacaoTipo.ajusteInventario && patrimonio.status == PatrimonioStatus.baixado) {
     if (r.destinoSetorId != null && r.destinoSetorId != patrimonio.setorAtualId) return false;
     if (r.localizacaoEscolha != LocalizacaoEscolha.manter) return false;

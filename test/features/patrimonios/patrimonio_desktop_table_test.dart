@@ -6,7 +6,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/presentation/widgets/patrimonio_desktop_table.dart';
 
-/// PROMPT 11.3.10 — a listagem de Patrimônios ficou só com identificação e
+/// A listagem de Patrimônios ficou só com identificação e
 /// consulta rápida (Patrimônio, Equipamento, Setor, Status, Ações). O clique
 /// na linha usa `onTap` — o MESMO callback do botão "Ver detalhes", que a
 /// página liga à ficha completa; "Editar" é um botão à parte.

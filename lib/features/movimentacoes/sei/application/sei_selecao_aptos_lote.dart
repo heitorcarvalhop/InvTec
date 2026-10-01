@@ -4,9 +4,8 @@ import '../domain/sei_item_pendente.dart';
 import 'sei_conclusao_lote_plano.dart';
 import 'sei_pendencia_regras.dart';
 
-/// Um item PENDENTE que "Concluir todos os aptos" NÃO incluiu na seleção —
-/// sempre acompanhado do(s) motivo(s), NUNCA some silenciosamente da tela
-/// (PROMPT 11.5.6).
+/// Um item PENDENTE que "Concluir todos os aptos" não incluiu na seleção —
+/// sempre acompanhado do(s) motivo(s), nunca some silenciosamente da tela.
 class SeiItemNaoIncluidoLote {
   const SeiItemNaoIncluidoLote({required this.item, required this.motivos});
 
@@ -14,8 +13,8 @@ class SeiItemNaoIncluidoLote {
   final List<String> motivos;
 }
 
-/// Resultado de "Concluir todos os aptos" (PROMPT 11.5.6) — PURO, sem I/O.
-/// Separa a seleção em duas listas DISTINTAS: só [aptos] pode virar
+/// Resultado de "Concluir todos os aptos" — puro, sem I/O.
+/// Separa a seleção em duas listas distintas: só [aptos] pode virar
 /// `itemIds` de uma chamada a `concluirItensLote`; [naoIncluidos] é
 /// exclusivamente informativo (nunca enviado à RPC).
 class SeiSelecaoAptosLote {
@@ -56,25 +55,20 @@ SeiSelecaoAptosLote selecionarAptosParaLote(List<SeiItemPendente> itens) {
   return SeiSelecaoAptosLote(aptos: aptos, naoIncluidos: naoIncluidos, excedeLimite: aptos.length > limiteItensLote);
 }
 
-/// PROMPT 11.5.10/11.5.10.1 — refina [selecionarAptosParaLote] (a triagem
-/// PRELIMINAR, só por item) contra a situação ATUAL de cada patrimônio —
-/// PURA, sem I/O: [patrimoniosPorItemId] já vem pronto (buscar os
-/// patrimônios é responsabilidade de quem chama, ex.:
-/// `_SeiPendenciaDetalheDialogState._buscarPatrimoniosAtuais`). Reaproveita
-/// [planejarConclusaoLote] (nenhuma regra de elegibilidade nova/duplicada
-/// — a mesma função que a revisão final usa) para decidir, ITEM A ITEM
-/// dentre os candidatos preliminares, quem de fato permanece apto; quem
-/// não permanece entra em [SeiSelecaoAptosLote.naoIncluidos] com o motivo
-/// REAL (ex.: "Origem divergente: ..."), ao lado dos já excluídos pela
-/// triagem preliminar (decisão pendente, status terminal etc.).
+/// Refina [selecionarAptosParaLote] (a triagem preliminar, só por item)
+/// contra a situação atual de cada patrimônio — pura, sem I/O:
+/// [patrimoniosPorItemId] já vem pronto (buscar os patrimônios é
+/// responsabilidade de quem chama). Reaproveita [planejarConclusaoLote]
+/// (nenhuma regra de elegibilidade nova/duplicada — a mesma função que a
+/// revisão final usa) para decidir, item a item, quem de fato permanece
+/// apto; quem não permanece entra em [SeiSelecaoAptosLote.naoIncluidos] com
+/// o motivo real (ex.: "Origem divergente: ..."), ao lado dos já excluídos
+/// pela triagem preliminar (decisão pendente, status terminal etc.).
 ///
-/// PROMPT 11.5.10.1 — [SeiSelecaoAptosLote.excedeLimite] é calculado sobre
-/// a contagem FINAL (depois desta reavaliação), nunca sobre a triagem
-/// preliminar: um documento com, por exemplo, 201 candidatos preliminares
-/// dos quais 2 são bloqueados aqui (199 efetivos) precisa ser PERMITIDO —
-/// rejeitar com base na contagem preliminar seria um falso positivo que a
-/// própria consulta já desmentiu. O inverso (a reavaliação AUMENTAR a
-/// contagem) nunca acontece: ela só pode remover itens dos aptos
+/// [SeiSelecaoAptosLote.excedeLimite] é calculado sobre a contagem final
+/// (depois desta reavaliação), nunca sobre a triagem preliminar: rejeitar
+/// com base na contagem preliminar seria um falso positivo que a própria
+/// consulta já desmentiu. A reavaliação só pode remover itens dos aptos
 /// preliminares, nunca adicionar um que a triagem já tinha descartado.
 SeiSelecaoAptosLote selecionarAptosParaLoteComPatrimonios({
   required SeiDocumentoPendente documento,

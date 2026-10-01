@@ -5,8 +5,8 @@ import '../../domain/movimentacao.dart';
 
 /// Ícone + categoria semântica por tipo de movimentação — usado tanto na
 /// lista "Movimentações recentes" do Dashboard quanto na listagem geral de
-/// Movimentações (PROMPT 10.1), para as duas telas usarem exatamente a
-/// mesma linguagem visual em vez de duas versões parecidas.
+/// Movimentações, para as duas telas usarem exatamente a mesma linguagem
+/// visual em vez de duas versões parecidas.
 (IconData, AppStatusKind) visualDoTipoMovimentacao(MovimentacaoTipo tipo) {
   return switch (tipo) {
     MovimentacaoTipo.entrada => (Icons.login_outlined, AppStatusKind.success),

@@ -38,15 +38,12 @@ class SeiConclusaoEntregaDesfecho {
   final bool incerto;
 }
 
-/// PROMPT 11.4.3 — confirmação de "Concluir entrega" de UM item.
+/// Confirmação de "Concluir entrega" de UM item.
 ///
-/// NADA é executado ao abrir: o diálogo mostra o resumo (patrimônio, origem,
-/// destino, documento), as consequências de uma limpeza de localização/
-/// responsável, e exige (1) a confirmação de que a entrega física aconteceu e
-/// (2) — só quando a conclusão apagaria valores atuais — uma segunda
-/// confirmação explícita. Só então o botão final habilita e chama
-/// `DocumentosSeiRepository.concluirItem` UMA vez (o botão fica desabilitado
-/// durante a chamada). O diálogo permanece aberto com progresso até a resposta.
+/// Exige (1) confirmação de que a entrega física aconteceu e (2) — só
+/// quando a conclusão apagaria valores atuais — uma segunda confirmação
+/// explícita. Só então chama `DocumentosSeiRepository.concluirItem` UMA vez
+/// (botão desabilitado durante a chamada).
 Future<SeiConclusaoEntregaDesfecho?> showSeiConcluirEntregaDialog(
   BuildContext context, {
   required SeiDocumentoPendente documento,

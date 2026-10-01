@@ -9,10 +9,10 @@ class PreflightIssue {
   final String mensagem;
 }
 
-/// Resultado de uma checagem de preflight (PROMPT 8.10): puro e sem
-/// nenhuma dependência de rede — recebe dados já carregados (do Supabase
-/// real ou de um fake em teste) e só decide se o estado encontrado é
-/// suficiente para seguir com a análise/importação.
+/// Resultado de uma checagem de preflight: puro e sem nenhuma dependência
+/// de rede — recebe dados já carregados (do Supabase real ou de um fake em
+/// teste) e só decide se o estado encontrado é suficiente para seguir com
+/// a análise/importação.
 class PreflightCheckResult {
   const PreflightCheckResult({required this.ok, required this.issues});
 
@@ -20,10 +20,10 @@ class PreflightCheckResult {
   final List<PreflightIssue> issues;
 }
 
-/// Checagens de pré-condição antes de qualquer análise/importação real
-/// (seção 1/3 do PROMPT 8.10) — nunca decide sozinho continuar quando o
-/// catálogo real está incompleto ou ambíguo: só relata "ok" quando o estado
-/// bate exatamente com o esperado.
+/// Checagens de pré-condição antes de qualquer análise/importação real —
+/// nunca decide sozinho continuar quando o catálogo real está incompleto
+/// ou ambíguo: só relata "ok" quando o estado bate exatamente com o
+/// esperado.
 class ImportPreflight {
   const ImportPreflight._();
 

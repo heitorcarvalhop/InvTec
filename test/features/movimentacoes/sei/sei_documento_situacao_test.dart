@@ -7,7 +7,7 @@ const _c = SeiItemPendenciaStatus.concluido;
 const _x = SeiItemPendenciaStatus.cancelado;
 
 void main() {
-  group('PROMPT 11.3, seção 7 — calcularSituacaoDocumento (derivada, sem estado contraditório)', () {
+  group('calcularSituacaoDocumento (derivada, sem estado contraditório)', () {
     test('lista vazia é tratada como PENDENTE', () {
       expect(calcularSituacaoDocumento(const []), SeiDocumentoSituacao.pendente);
     });
@@ -20,11 +20,10 @@ void main() {
       expect(calcularSituacaoDocumento([_c, _p, _p]), SeiDocumentoSituacao.parcialmenteConcluido);
     });
 
-    // PROMPT 11.3.2, seção 2/6 — auditoria encontrou: esta combinação
-    // (0 concluídos, itens pendentes, itens cancelados) caía no `else`
-    // (PARCIALMENTE_CONCLUIDO) antes da correção — mas nenhuma movimentação
-    // foi concluída, então o documento é simplesmente PENDENTE, mesmo com
-    // itens já cancelados.
+    // Esta combinação (0 concluídos, itens pendentes, itens cancelados)
+    // continua PENDENTE: nenhuma movimentação foi concluída, então o
+    // documento não vira PARCIALMENTE_CONCLUIDO só por ter itens já
+    // cancelados.
     test('0 concluídos + pendentes + cancelados, sem nenhuma conclusão → PENDENTE', () {
       expect(calcularSituacaoDocumento([_x, _p, _p]), SeiDocumentoSituacao.pendente);
       expect(calcularSituacaoDocumento([_x, _x, _p]), SeiDocumentoSituacao.pendente);
@@ -47,7 +46,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.3, seção 9 — paridade Dart/SQL com as combinações EXATAS do prompt', () {
+  group('paridade Dart/SQL com as combinações exatas da view', () {
     // Sem PostgreSQL disponível neste ambiente (ver relatório), a
     // "paridade" é verificada comparando `calcularSituacaoDocumento`
     // (Dart) contra uma tradução literal, linha a linha, do `case` da view

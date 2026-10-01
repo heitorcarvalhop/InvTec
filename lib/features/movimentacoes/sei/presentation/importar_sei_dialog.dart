@@ -14,15 +14,15 @@ import 'sei_pendencia_salvar_controller.dart';
 import 'steps/sei_arquivo_step.dart';
 import 'steps/sei_revisao_step.dart';
 
-/// Assistente de leitura de documentos SEI (PROMPT 11.1/11.3) — o fluxo
-/// inteiro é: selecionar PDF → ler documento → extrair metadados/itens →
-/// cruzar com o InvTec (leitura) → revisão → "Salvar como pendência".
-/// Salvar cria uma SOLICITAÇÃO PENDENTE (`DocumentosSeiRepository.
-/// salvarRascunho`) — nunca altera um patrimônio, nunca registra uma
-/// movimentação (esta versão nem tem acesso a `MovimentacaoRepository` a
-/// partir daqui — ver `SeiImportController`/`SeiPendenciaSalvarController`).
-/// Retorna `true` quando uma pendência foi efetivamente salva, para a tela
-/// que abriu o diálogo poder atualizar a lista de pendências.
+/// Assistente de leitura de documentos SEI — o fluxo inteiro é: selecionar
+/// PDF → ler documento → extrair metadados/itens → cruzar com o InvTec
+/// (leitura) → revisão → "Salvar como pendência". Salvar cria uma
+/// SOLICITAÇÃO PENDENTE (`DocumentosSeiRepository.salvarRascunho`) — nunca
+/// altera um patrimônio, nunca registra uma movimentação (esta versão nem
+/// tem acesso a `MovimentacaoRepository` a partir daqui — ver
+/// `SeiImportController`/`SeiPendenciaSalvarController`). Retorna `true`
+/// quando uma pendência foi efetivamente salva, para a tela que abriu o
+/// diálogo poder atualizar a lista de pendências.
 Future<bool?> showImportarSeiDialog(BuildContext context) {
   return showDialog<bool>(context: context, builder: (context) => const _ImportarSeiDialog());
 }
@@ -91,14 +91,10 @@ class _ImportarSeiDialog extends ConsumerWidget {
               ),
               if (state.step == SeiImportStep.revisao) ...[
                 const SizedBox(height: AppSpacing.lg),
-                // PROMPT 11.3.5.1: `OverflowBar` (não `Row`) porque o rodapé
-                // tem 5 botões em 2 grupos — com o diálogo estreito ou
-                // escala de texto maior, a largura intrínseca dos grupos
-                // pode superar a largura disponível. `OverflowBar` cai para
-                // uma coluna (grupo secundário em cima, grupo principal
-                // embaixo) em vez de estourar; cada grupo também é um
-                // `Wrap`, para poder quebrar linha mesmo dentro de si
-                // (texto bem maior) sem nunca cortar ou esconder um botão.
+                // `OverflowBar` (não `Row`): o rodapé tem 5 botões em 2
+                // grupos e pode superar a largura disponível. Cai para uma
+                // coluna em vez de estourar; cada grupo também é um `Wrap`,
+                // para quebrar linha internamente sem esconder um botão.
                 OverflowBar(
                   alignment: MainAxisAlignment.spaceBetween,
                   overflowAlignment: OverflowBarAlignment.end,
@@ -114,10 +110,9 @@ class _ImportarSeiDialog extends ConsumerWidget {
                           onPressed: () => ref.read(seiImportControllerProvider.notifier).reiniciar(),
                           child: const Text('Analisar outro documento'),
                         ),
-                        // Seção 10 (PROMPT 11.1.1): só diagnóstico — copia um
-                        // resumo textual (JSON) da análise para facilitar
-                        // auditoria sem depender de screenshots. Nunca
-                        // dispara nenhuma escrita.
+                        // Só diagnóstico — copia um resumo textual (JSON) da
+                        // análise para facilitar auditoria sem depender de
+                        // screenshots. Nunca dispara nenhuma escrita.
                         TextButton.icon(
                           onPressed: state.resultado == null
                               ? null
@@ -125,9 +120,9 @@ class _ImportarSeiDialog extends ConsumerWidget {
                           icon: const Icon(Icons.copy_all_outlined),
                           label: const Text('Copiar resumo da análise'),
                         ),
-                        // PROMPT 11.2, seção 9: prévia somente leitura do
-                        // que uma futura confirmação enviaria à RPC — nunca
-                        // chama `registrarMovimentacao`.
+                        // Prévia somente leitura do que uma futura
+                        // confirmação enviaria à RPC — nunca chama
+                        // `registrarMovimentacao`.
                         TextButton.icon(
                           onPressed: state.resultado == null ? null : () => _copiarPlano(context, state.plano),
                           icon: const Icon(Icons.checklist_outlined),
@@ -144,11 +139,10 @@ class _ImportarSeiDialog extends ConsumerWidget {
                           onPressed: () => Navigator.of(context).pop(),
                           child: const Text('Fechar sem salvar'),
                         ),
-                        // Seção 1 (PROMPT 11.3): "Importar e salvar um
-                        // despacho deve criar uma solicitação pendente."
-                        // Nunca altera um patrimônio, nunca chama
-                        // `registrarMovimentacao` — ver
-                        // `SeiPendenciaSalvarController`.
+                        // Importar e salvar um despacho cria uma solicitação
+                        // pendente — nunca altera um patrimônio, nunca chama
+                        // `registrarMovimentacao` (ver
+                        // `SeiPendenciaSalvarController`).
                         FilledButton.icon(
                           onPressed: state.resultado == null || _salvando(salvarState.status)
                               ? null
@@ -194,9 +188,9 @@ class _ImportarSeiDialog extends ConsumerWidget {
       status == SeiSalvarPendenciaStatus.verificandoDuplicidade || status == SeiSalvarPendenciaStatus.salvando;
 }
 
-/// Seção 5 (PROMPT 11.3): mostra as possíveis duplicatas encontradas pelo
-/// número do documento SEI (nunca pelo hash) e exige confirmação explícita
-/// antes de salvar mesmo assim — nunca bloqueia nem prossegue sozinho.
+/// Mostra as possíveis duplicatas encontradas pelo número do documento SEI
+/// (nunca pelo hash) e exige confirmação explícita antes de salvar mesmo
+/// assim — nunca bloqueia nem prossegue sozinho.
 class _DuplicidadeDocumentoBanner extends ConsumerWidget {
   const _DuplicidadeDocumentoBanner({required this.duplicatas});
 

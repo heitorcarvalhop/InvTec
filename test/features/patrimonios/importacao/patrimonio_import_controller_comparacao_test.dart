@@ -30,7 +30,7 @@ import '../../setores/fake_setor_repository.dart';
 import '../fake_patrimonio_repository.dart';
 import '../fake_tipo_patrimonio_repository.dart';
 
-/// PROMPT 11.6.2 — testes do modo ADMIN "Comparar e Atualizar"
+/// Testes do modo ADMIN "Comparar e Atualizar"
 /// (`PatrimonioImportController.compararParaAdmin`). Reaproveita
 /// DELIBERADAMENTE o mesmo formato de fixtures/helpers de
 /// `patrimonio_import_controller_test.dart` (tipos/setores/localizações),
@@ -155,7 +155,7 @@ void main() {
     });
   });
 
-  group('compararParaAdmin — exemplo do PROMPT 11.6.2 (seção 4)', () {
+  group('compararParaAdmin — exemplo de comparação ADMIN', () {
     test(
       'Patrimônio 123456: Localização diverge (GETEC-PPLT vs GETEC - Universitário), Marca idêntica (DELL)',
       () async {
@@ -167,8 +167,8 @@ void main() {
         await container.read(authControllerProvider.future);
 
         // Planilha: Localização = GETEC-PPLT · Marca = DELL (idêntica) ·
-        // mesma série (só a localização deve divergir, como no exemplo do
-        // PROMPT 11.6.2). "GETEC-PPLT" é um dos 15 nomes oficiais
+        // mesma série (só a localização deve divergir). "GETEC-PPLT" é um
+        // dos 15 nomes oficiais
         // conhecidos da GETEC — resolve sozinho contra a `Localizacao`
         // cadastrada, sem precisar de mapeamento manual.
         const csv = '$_cabecalhoGetec\n123456;Notebook Dell;GETEC-PPLT;DELL;SN1\n';

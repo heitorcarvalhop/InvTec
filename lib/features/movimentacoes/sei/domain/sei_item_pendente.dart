@@ -2,8 +2,8 @@ import 'sei_decisao_campo.dart';
 import 'sei_item_pendencia_status.dart';
 import 'sei_valor_corrigivel.dart';
 
-/// O que uma linha da análise do PDF vira ao ser salva como pendência
-/// (PROMPT 11.3, seção 5) — construído pela camada `application`
+/// O que uma linha da análise do PDF vira ao ser salva como pendência —
+/// construído pela camada `application`
 /// (`construirDocumentoPendenteRascunho`), nunca montado à mão pela UI.
 /// Ainda sem id: é o que o repositório envia para persistir.
 class SeiItemPendenteRascunho {
@@ -27,10 +27,9 @@ class SeiItemPendenteRascunho {
   final int linha;
 
   /// `null` quando o número do patrimônio do documento não foi encontrado
-  /// no InvTec — a linha ainda assim vira um item da pendência (seção 5:
-  /// "não duplicar entidades"; a pendência é o registro da SOLICITAÇÃO, que
-  /// existe mesmo que um item precise de correção manual antes de poder ser
-  /// concluído).
+  /// no InvTec — a linha ainda assim vira um item da pendência (a
+  /// pendência é o registro da SOLICITAÇÃO, que existe mesmo que um item
+  /// precise de correção manual antes de poder ser concluído).
   final String? patrimonioId;
 
   final String? numeroPatrimonioOriginal;
@@ -49,10 +48,9 @@ class SeiItemPendenteRascunho {
   final SeiDecisaoCampo decisaoResponsavel;
 }
 
-/// Item PERSISTIDO de um documento SEI pendente (PROMPT 11.3, seção 5) —
-/// nunca alimenta `registrarMovimentacao` diretamente; [movimentacaoId] só
-/// é preenchido por uma etapa FUTURA de conclusão (não implementada nesta
-/// versão).
+/// Item PERSISTIDO de um documento SEI pendente — nunca alimenta
+/// `registrarMovimentacao` diretamente; [movimentacaoId] só é preenchido
+/// quando o item é concluído via `concluir_item_documento_sei`.
 class SeiItemPendente {
   factory SeiItemPendente.fromJson(Map<String, dynamic> json) {
     final patrimonio = json['patrimonio'] as Map<String, dynamic>?;
@@ -172,8 +170,7 @@ class SeiItemPendente {
 
   /// Obrigatório (na base, por CHECK) quando [status] é
   /// [SeiItemPendenciaStatus.concluido] — o vínculo inequívoco com a
-  /// movimentação efetiva (seção 15). Nunca preenchido por esta versão do
-  /// app.
+  /// movimentação efetiva.
   final String? movimentacaoId;
 
   final DateTime criadoEm;
@@ -197,14 +194,6 @@ class SeiItemPendente {
     String? Function()? movimentacaoId,
     DateTime? atualizadoEm,
   }) {
-    // PROMPT 11.3.1, seção 3 — auditoria encontrou: antes desta correção,
-    // `destinoSetorId`/`localizacaoDestinoId`/`decisaoLocalizacao`/
-    // `responsavelDestino`/`decisaoResponsavel` não eram parâmetros deste
-    // método — as linhas abaixo referiam `this.<campo>` silenciosamente
-    // (nenhum aviso do analyzer), então NENHUM chamador de `copyWith`
-    // conseguia de fato alterá-los, mesmo passando um valor. Corrigido com
-    // o mesmo padrão `Function()?` já usado para os demais campos
-    // opcionais desta classe.
     return SeiItemPendente(
       id: id,
       documentoId: documentoId,

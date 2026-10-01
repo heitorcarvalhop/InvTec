@@ -49,7 +49,7 @@ SeiDocumentoPendente _documento(List<SeiItemPendente> itens) {
 }
 
 void main() {
-  group('PROMPT 11.3, seção 9 — itemPodeSerCancelado', () {
+  group('itemPodeSerCancelado', () {
     test('item PENDENTE pode ser cancelado', () {
       expect(itemPodeSerCancelado(_item(status: SeiItemPendenciaStatus.pendente)), isTrue);
     });
@@ -61,7 +61,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3, seção 11 — itemElegivelParaConclusaoFutura', () {
+  group('itemElegivelParaConclusaoFutura', () {
     test('PENDENTE + patrimônio resolvido + destino resolvido + decisões tomadas → elegível', () {
       expect(itemElegivelParaConclusaoFutura(_item()), isTrue);
     });
@@ -103,7 +103,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3, seção 8 — documentoPodeSerEditado', () {
+  group('documentoPodeSerEditado', () {
     test('nenhum item concluído → editável', () {
       final doc = _documento([_item(status: SeiItemPendenciaStatus.pendente)]);
       expect(documentoPodeSerEditado(doc), isTrue);

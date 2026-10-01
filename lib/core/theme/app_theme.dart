@@ -4,7 +4,7 @@ import 'app_colors.dart';
 import 'app_radius.dart';
 import 'app_spacing.dart';
 
-/// Temas claro e escuro do InvTec (PROMPT 9.3 — design system).
+/// Temas claro e escuro do InvTec.
 ///
 /// Identidade visual corporativa moderna: azul como accent principal
 /// (nunca a cor de tudo), cards com bordas discretas, sem gradientes ou
@@ -41,9 +41,8 @@ class AppTheme {
       textTheme: textTheme,
       // Fundo levemente afastado das superfícies "acima" dele (cards,
       // sidebar, appbar) — sem preto/branco absoluto em nenhum dos dois
-      // temas (seção "TEMA ESCURO"/"TEMA CLARO" do prompt), e sem o viés
-      // lilás da família `surfaceContainer*` gerada por `fromSeed` no tema
-      // claro (PROMPT 9.3.3) — ver [AppSurfaceColors].
+      // temas, e sem o viés lilás da família `surfaceContainer*` gerada
+      // por `fromSeed` no tema claro — ver [AppSurfaceColors].
       scaffoldBackgroundColor: surfaceColors.pageBackground,
       extensions: [statusColors, surfaceColors],
       cardTheme: CardThemeData(
@@ -57,7 +56,7 @@ class AppTheme {
       ),
       appBarTheme: AppBarTheme(
         // Mesma cor do fundo da página: a topbar não deve parecer uma
-        // segunda barra empilhada sobre a sidebar (PROMPT 9.3.3, seção 3).
+        // segunda barra empilhada sobre a sidebar.
         backgroundColor: surfaceColors.pageBackground,
         foregroundColor: colorScheme.onSurface,
         elevation: 0,

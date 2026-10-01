@@ -8,7 +8,7 @@ import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_concl
 import '../features/movimentacoes/sei/fake_documentos_sei_repository.dart';
 import 'sei_lote_preview_app.dart';
 
-/// PROMPT 11.5.13 — regressão para o bug relatado ao validar a prévia
+/// Regressão para um bug relatado ao validar a prévia
 /// Windows: "Preparar conflito de integridade" deixava corretamente o
 /// controller em `resultadoDesconhecido`, mas "Abrir documento" recusava
 /// abrir ("Já há uma tentativa em andamento"), impedindo demonstrar
@@ -21,7 +21,7 @@ import 'sei_lote_preview_app.dart';
 /// nada novo). A correção distingue as duas coisas: só PREPARAR um
 /// cenário novo (`modoFalha` não-nulo) continua exigindo ocioso; abrir o
 /// documento existente nunca é bloqueado — mesmo comportamento do app
-/// real, onde quem bloqueia escritas é o próprio diálogo (PROMPT 11.5.12),
+/// real, onde quem bloqueia escritas é o próprio diálogo,
 /// não a abertura da tela.
 ///
 /// Este teste NUNCA fala com o Supabase, usa o Despacho 577 ou toca a
@@ -56,7 +56,7 @@ void main() {
       expect(
         estadoAposPreparar.status,
         SeiConclusaoLoteStatus.resultadoDesconhecido,
-        reason: 'pré-condição do cenário — mesma exigida pelo PROMPT 11.5.13',
+        reason: 'pré-condição do cenário',
       );
       final loteIdOriginal = estadoAposPreparar.decisao!.loteId;
       final itemIdsOriginais = estadoAposPreparar.decisao!.itemIds;
@@ -73,13 +73,13 @@ void main() {
       await tester.tap(botaoAbrir);
       await tester.pumpAndSettle();
 
-      expect(find.text('Já há uma tentativa em andamento'), findsNothing, reason: 'bug do PROMPT 11.5.13');
-      // O documento abriu de verdade — e o bloqueio operacional do PROMPT
-      // 11.5.12 continua ativo (mesmo documento, mesma tentativa).
+      expect(find.text('Já há uma tentativa em andamento'), findsNothing, reason: 'bug relatado na prévia');
+      // O documento abriu de verdade — e o bloqueio operacional
+      // continua ativo (mesmo documento, mesma tentativa).
       expect(find.textContaining('resultado ainda desconhecido'), findsOneWidget);
 
-      // 3. "Concluir todos os aptos" — com o documento bloqueado (PROMPT
-      // 11.5.12), redireciona DIRETO para o painel da tentativa pendente,
+      // 3. "Concluir todos os aptos" — com o documento bloqueado,
+      // redireciona DIRETO para o painel da tentativa pendente,
       // nunca cria uma seleção/decisão nova.
       await tester.tap(find.byKey(const Key('sei-botao-concluir-todos-aptos')));
       await tester.pumpAndSettle();
@@ -148,7 +148,7 @@ void main() {
   });
 
   testWidgets(
-    'PROMPT 11.5.15 — a prévia mostra o aviso FICTÍCIO/em memória, nunca o aviso de movimentação REAL do app operacional',
+    'a prévia mostra o aviso FICTÍCIO/em memória, nunca o aviso de movimentação REAL do app operacional',
     (tester) async {
       tester.view.physicalSize = const Size(1200, 1000);
       tester.view.devicePixelRatio = 1;
@@ -176,7 +176,7 @@ void main() {
   );
 
   testWidgets(
-    'PROMPT 11.5.15.1 — na prévia, DEMO-0018 aparece ANTES de DEMO-0019 em "Itens NÃO incluídos"',
+    'na prévia, DEMO-0018 aparece ANTES de DEMO-0019 em "Itens NÃO incluídos"',
     (tester) async {
       tester.view.physicalSize = const Size(1200, 1000);
       tester.view.devicePixelRatio = 1;

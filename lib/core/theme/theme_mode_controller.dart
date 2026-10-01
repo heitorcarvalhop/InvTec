@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Chave usada no armazenamento local do dispositivo (nunca no Supabase —
-/// PROMPT 9.3, "não salvar preferência de tema no Supabase nesta etapa").
+/// Chave usada no armazenamento local do dispositivo (nunca no Supabase).
 const _themeModeKey = 'invtec.theme_mode';
 
 /// Preferência de tema (claro/escuro) do usuário — persistida localmente
@@ -22,9 +21,9 @@ class ThemeModeController extends AsyncNotifier<ThemeMode> {
     await definir(atual == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark);
   }
 
-  /// Aplica [modo] imediatamente (antes mesmo de terminar de persistir) —
-  /// seção "TEMA CLARO E ESCURO" do PROMPT 9.3: a troca precisa ser
-  /// instantânea, a escrita local em disco acontece em segundo plano.
+  /// Aplica [modo] imediatamente (antes mesmo de terminar de persistir): a
+  /// troca precisa ser instantânea, a escrita local em disco acontece em
+  /// segundo plano.
   Future<void> definir(ThemeMode modo) async {
     state = AsyncData(modo);
     final prefs = await SharedPreferences.getInstance();

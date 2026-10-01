@@ -1,10 +1,7 @@
 -- =============================================================================
--- PROMPT 11.3.13 — editar_documento_sei_pendente: bloquear edição de documento
+-- editar_documento_sei_pendente: bloquear edição de documento
 -- ENCERRADO (nenhum item PENDENTE)
 -- =============================================================================
--- STATUS: PREPARADA PARA REVISÃO — NÃO APLICADA. Nada foi executado no
--- Supabase. Revise antes de aplicar.
---
 -- REGRA: um Documento SEI só pode ser editado enquanto (a) tiver ao menos um
 -- item PENDENTE e (b) não tiver item CONCLUIDO. (b) já existia; (a) é nova:
 -- todos os itens CANCELADOS, todos CONCLUIDOS ou qualquer combinação sem
@@ -12,30 +9,8 @@
 -- botão "Editar documento" nesse caso; esta migration coloca a mesma proteção
 -- no banco (a UI sozinha nunca é garantia).
 --
--- O QUE MUDA: SOMENTE o bloco `if not exists (...) then raise exception ...`
--- inserido logo após o bloqueio por item concluído. Todo o resto do corpo é
--- idêntico ao da migration 20260921170000_add_documentos_sei.sql (que NÃO é
--- editada). Mesmo nome, mesmos parâmetros, mesmo retorno
--- (`public.documentos_sei`), `language plpgsql`, `security definer`,
--- `set search_path = ''`.
---
--- PERMISSÕES: o comando CREATE OR REPLACE FUNCTION mantém dono e ACL. Os
--- revoke/grant da migration anterior (execute só para `authenticated`)
--- continuam valendo — por isso nenhum GRANT/REVOKE é repetido aqui.
---
--- NÃO TOCA: cancelar_pendentes_documento_sei, cancelar_item_sei_pendente,
--- criar_documento_sei_pendente, nenhum dado existente, nenhuma tabela.
---
--- ANTES DE APLICAR (só leitura): compare com a função implantada —
---   select pg_get_functiondef('public.editar_documento_sei_pendente(uuid,integer,text,jsonb,jsonb)'::regprocedure);
--- O corpo abaixo parte da definição do repositório; se a implantada divergir,
--- avise antes de aplicar.
---
--- DEPOIS DE APLICAR (só leitura):
---   select p.prosecdef, p.proconfig, pg_get_function_identity_arguments(p.oid),
---          p.prosrc like '%encerrado (nenhum item pendente)%' as tem_protecao
---   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
---   where n.nspname = 'public' and p.proname = 'editar_documento_sei_pendente';
+-- Reaplica a função inteira (CREATE OR REPLACE mantém dono e ACL — revoke/
+-- grant da migration anterior continuam valendo).
 -- =============================================================================
 
 create or replace function public.editar_documento_sei_pendente(
@@ -72,8 +47,8 @@ begin
   end if;
 
   -- trava o documento: edições concorrentes sobre o mesmo documento são
-  -- serializadas (seção 14) — a segunda espera a primeira terminar e então
-  -- vê a versão já incrementada, falhando na checagem abaixo.
+  -- serializadas — a segunda espera a primeira terminar e então vê a
+  -- versão já incrementada, falhando na checagem abaixo.
   select * into v_documento
   from public.documentos_sei
   where id = p_documento_id
@@ -90,24 +65,16 @@ begin
       using errcode = 'P0010';
   end if;
 
-  -- Seção 8: REGRA DEFINITIVA — bloqueado para sempre após a primeira
-  -- conclusão, independentemente da versão informada estar correta.
+  -- REGRA DEFINITIVA: bloqueado para sempre após a primeira conclusão,
+  -- independentemente da versão informada estar correta.
   --
-  -- PROMPT 11.3.2, seção 3 — auditoria encontrou: a versão anterior gravava
-  -- um evento 'TENTATIVA_BLOQUEADA' IMEDIATAMENTE ANTES do `raise
-  -- exception` abaixo. Uma exceção desfaz TODA a transação corrente,
-  -- inclusive esse INSERT — o evento nunca era commitado, então a função
-  -- prometia uma trilha de auditoria que na prática nunca existia. Não é
-  -- resolvido "engolindo" a exceção e retornando sucesso (inverteria a
-  -- regra da seção 8) nem criando um serviço externo de auditoria (fora do
-  -- escopo desta etapa) — a correção é simplesmente NÃO fingir que este
-  -- evento persiste: a tentativa bloqueada é reportada ao cliente só pelo
-  -- próprio erro (que o Flutter já traduz em
-  -- `SeiDocumentoBloqueadoParaEdicaoException`), sem gravação alguma.
-  -- 'TENTATIVA_BLOQUEADA' permanece um tipo válido em
-  -- `documentos_sei_eventos_tipo_valido` para uma eventual estratégia
-  -- futura (ex.: log em tabela própria fora da transação de negócio), mas
-  -- NENHUMA função desta migration o produz hoje.
+  -- Não grava um evento 'TENTATIVA_BLOQUEADA' aqui: `raise exception`
+  -- desfaz TODA a transação corrente, então um INSERT de auditoria antes
+  -- dele nunca seria commitado. A tentativa bloqueada é reportada ao
+  -- cliente só pelo próprio erro (que o Flutter traduz em
+  -- `SeiDocumentoBloqueadoParaEdicaoException`). 'TENTATIVA_BLOQUEADA'
+  -- permanece um tipo válido em `documentos_sei_eventos_tipo_valido` para
+  -- uma eventual estratégia futura fora desta transação.
   select count(*) into v_qtd_concluidos
   from public.documentos_sei_itens
   where documento_id = p_documento_id and status = 'CONCLUIDO';
@@ -117,19 +84,11 @@ begin
       using errcode = '42501';
   end if;
 
-  -- PROMPT 11.3.13 — documento ENCERRADO (nenhum item PENDENTE: todos
-  -- cancelados e/ou concluídos) também não pode mais ser editado. Antes, só a
-  -- presença de item CONCLUÍDO bloqueava: num documento 100% cancelado ainda
-  -- era possível alterar assunto, número do documento e processo.
-  --
-  -- Posição: DEPOIS do lock do documento (`for update`, acima) e da checagem
-  -- de versão, e logo DEPOIS do bloqueio por item concluído (que continua com
-  -- precedência e mensagem própria); ANTES de qualquer validação do payload,
-  -- lock de item ou escrita. Como o documento já está travado e todas as
-  -- funções de escrita SEI travam o documento ANTES dos itens, nenhum
-  -- cancelamento/conclusão concorrente muda o conjunto de itens PENDENTES
-  -- entre esta leitura e o fim da função. Só lê: não adiciona nenhum lock
-  -- novo, então a ordem documento -> itens permanece a mesma.
+  -- Documento ENCERRADO (nenhum item PENDENTE: todos cancelados e/ou
+  -- concluídos) também não pode mais ser editado. Roda DEPOIS do lock do
+  -- documento acima — como todas as funções de escrita SEI travam o
+  -- documento ANTES dos itens, nenhum cancelamento/conclusão concorrente
+  -- muda o conjunto de itens PENDENTES entre esta leitura e o fim da função.
   --
   -- A mensagem contém "bloqueado" e o errcode é 42501: o Flutter já traduz
   -- essa combinação em `SeiDocumentoBloqueadoParaEdicaoException`.
@@ -150,21 +109,13 @@ begin
     raise exception 'p_itens_alterados precisa ser um array jsonb' using errcode = 'P0001';
   end if;
 
-  -- PROMPT 11.3.2, seção 4 — auditoria encontrou: o loop de UPDATE mais
-  -- abaixo filtrava por `id = ... and documento_id = ... and status =
-  -- 'PENDENTE'` sem NUNCA conferir se o UPDATE realmente afetou alguma
-  -- linha — um item_id inexistente, de outro documento, ou que já não
-  -- estava mais PENDENTE simplesmente não batia com o WHERE, e a função
-  -- retornava sucesso do mesmo jeito, gravando um evento 'EDICAO' como se
-  -- toda correção solicitada tivesse sido aplicada (falha silenciosa).
-  -- Corrigido com uma validação PRÉVIA, ANTES de qualquer escrita: cada
-  -- item_id precisa existir, pertencer a ESTE documento, estar PENDENTE, e
-  -- não pode se repetir no payload (tratado explicitamente como erro, não
-  -- como "a última correção do mesmo id vence" — ambíguo demais para
-  -- aceitar silenciosamente). Qualquer violação rejeita a operação
-  -- INTEIRA: a exceção desfaz também a atualização dos campos do documento
-  -- feita mais abaixo, já que tudo roda na mesma transação — nada fica
-  -- parcialmente aplicado. `for update` aqui trava cada item validado (na
+  -- Validação PRÉVIA, ANTES de qualquer escrita: cada item_id precisa
+  -- existir, pertencer a ESTE documento, estar PENDENTE, e não pode se
+  -- repetir no payload — senão um UPDATE filtrado por WHERE simplesmente
+  -- não bateria em nenhuma linha e a função gravaria um evento 'EDICAO'
+  -- como se a correção tivesse sido aplicada (falha silenciosa). Qualquer
+  -- violação rejeita a operação INTEIRA (mesma transação, nada fica
+  -- parcialmente aplicado). `for update` trava cada item validado (na
   -- mesma ordem documento→item já estabelecida) até o fim da função.
   v_ids_itens_alterados := array[]::uuid[];
   for v_item_edicao in select * from jsonb_array_elements(p_itens_alterados)
@@ -199,9 +150,9 @@ begin
     'assunto', v_documento.assunto
   );
 
-  -- PROMPT 11.3.1, seção 7: retrato "antes" dos itens que serão tocados —
-  -- capturado ANTES do loop de correção, para o evento de auditoria
-  -- registrar o antes/depois real (não só dos campos do documento).
+  -- Retrato "antes" dos itens que serão tocados — capturado ANTES do loop
+  -- de correção, para o evento de auditoria registrar o antes/depois real
+  -- (não só dos campos do documento).
   select coalesce(jsonb_agg(to_jsonb(i.*)), '[]'::jsonb) into v_itens_antes
   from public.documentos_sei_itens i
   where i.documento_id = p_documento_id and i.id = any (coalesce(v_ids_itens_alterados, array[]::uuid[]));
@@ -230,10 +181,9 @@ begin
         then v_item_edicao ->> 'numero_chamado_corrigido' else numero_chamado_corrigido end,
       equipamento_texto_corrigido = case when v_item_edicao ? 'equipamento_texto_corrigido'
         then v_item_edicao ->> 'equipamento_texto_corrigido' else equipamento_texto_corrigido end,
-      -- Seção 3 desta auditoria: agora também editáveis enquanto o
-      -- documento não tiver item concluído — destino resolvido,
-      -- localização e responsável de destino (decisão + valor sempre
-      -- juntos, para nunca violar as constraints de coerência da seção 2).
+      -- Também editáveis enquanto o documento não tiver item concluído:
+      -- destino resolvido, localização e responsável de destino (decisão +
+      -- valor sempre juntos, para nunca violar as constraints de coerência).
       destino_setor_id = case when v_item_edicao ? 'destino_setor_id'
         then nullif(v_item_edicao ->> 'destino_setor_id', '')::uuid else destino_setor_id end,
       localizacao_destino_id = case when v_item_edicao ? 'localizacao_destino_id'

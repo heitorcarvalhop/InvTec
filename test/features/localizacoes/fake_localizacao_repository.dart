@@ -13,7 +13,7 @@ class FakeLocalizacaoRepository implements LocalizacaoRepository {
 
   /// Quantas vezes `listarPorSetor` foi chamado — usado para provar que a
   /// resolução de localizações da importação GETEC carrega a lista em lote
-  /// UMA vez (nunca por linha/patrimônio, ver PROMPT 8.9 "proibido N+1").
+  /// UMA vez (nunca por linha/patrimônio — proibido N+1).
   int listarPorSetorCallCount = 0;
 
   @override

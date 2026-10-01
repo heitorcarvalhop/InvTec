@@ -4,9 +4,9 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
 /// Cabeçalho padrão de página: título + subtítulo + ações à direita (que
-/// quebram para baixo do título em telas estreitas) — PROMPT 9.3. Usado em
-/// toda página de listagem/gestão para nunca haver dois estilos de
-/// cabeçalho diferentes na aplicação.
+/// quebram para baixo do título em telas estreitas). Usado em toda página
+/// de listagem/gestão para nunca haver dois estilos de cabeçalho
+/// diferentes na aplicação.
 class InvTecPageHeader extends StatelessWidget {
   const InvTecPageHeader({
     super.key,
@@ -48,22 +48,13 @@ class InvTecPageHeader extends StatelessWidget {
       );
     }
 
-    // PROMPT 11.3.9.1 — nunca mais um `Row` aqui: `botoes` (um `Wrap`) não é
-    // flexível, então um `Row` dava a ele sua largura NATURAL irrestrita
-    // (soma dos dois botões) já na primeira passada de layout — em telas
-    // de tablet (600–1024px, onde `compact` continua `false`), essa largura
-    // fixa sobrava pouco ou nenhum espaço para o `Expanded(child: titulo)`,
-    // que ficava espremido a zero/largura negativa: o título quebrava
-    // letra por letra e o próprio `Row` estourava ("RenderFlex overflowed
-    // ... on the right" — exatamente os erros do vídeo). Um `Wrap` nunca
-    // esmaga um item abaixo do tamanho natural dele — quando título e
-    // botões não cabem lado a lado, os botões simplesmente descem para uma
-    // nova linha inteira, nunca uma letra por linha. `SizedBox(width:
-    // double.infinity)` é necessário: um `Wrap` sem largura própria imposta
-    // encolhe para o conteúdo (confirmado empiricamente) — sem isso,
-    // `WrapAlignment.spaceBetween` não teria espaço sobrando para distribuir
-    // e os botões ficariam colados ao título, nunca no canto direito como
-    // hoje.
+    // Nunca um `Row` aqui: `botoes` (um `Wrap`) não é flexível, então um
+    // `Row` lhe daria largura natural irrestrita e espremeria o
+    // `Expanded(child: titulo)` em telas estreitas. Um `Wrap` nunca esmaga
+    // um item abaixo do tamanho natural: quando não cabem lado a lado, os
+    // botões descem para uma nova linha inteira. `SizedBox(width:
+    // double.infinity)` é necessário porque um `Wrap` sem largura própria
+    // encolhe para o conteúdo, o que quebraria `WrapAlignment.spaceBetween`.
     return SizedBox(
       width: double.infinity,
       child: Wrap(

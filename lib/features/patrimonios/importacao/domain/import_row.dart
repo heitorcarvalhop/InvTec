@@ -10,10 +10,10 @@ class ImportIssue {
   final String message;
 }
 
-/// Classificação final da linha (seção 20) — exatamente estes 6 valores,
-/// sem um status extra para "duplicado dentro do arquivo": duplicidade é um
-/// caso particular de ERRO até o usuário decidir qual ocorrência manter
-/// (ver [ImportRow.duplicadoNoArquivo]).
+/// Classificação final da linha — exatamente estes 6 valores, sem um
+/// status extra para "duplicado dentro do arquivo": duplicidade é um caso
+/// particular de ERRO até o usuário decidir qual ocorrência manter (ver
+/// [ImportRow.duplicadoNoArquivo]).
 enum ImportRowStatus { pronto, aviso, erro, ignorado, existente, atualizar }
 
 extension ImportRowStatusLabel on ImportRowStatus {
@@ -35,12 +35,12 @@ extension ImportRowStatusLabel on ImportRowStatus {
   }
 }
 
-/// Decisão do usuário para um patrimônio cujo número já existe no InvTec
-/// (seção 16) — nunca há opção de criar um duplicado.
+/// Decisão do usuário para um patrimônio cujo número já existe no InvTec —
+/// nunca há opção de criar um duplicado.
 enum ImportExistingAction { manterExistente, atualizarMetadados }
 
-/// Resultado da tentativa de gravação de uma linha (seção 28: falha
-/// parcial nunca derruba a importação inteira).
+/// Resultado da tentativa de gravação de uma linha — falha parcial nunca
+/// derruba a importação inteira.
 class ImportRowResult {
   const ImportRowResult({required this.sucesso, this.mensagemErro, this.patrimonioId});
 
@@ -119,9 +119,9 @@ class ImportRow {
   /// Sinal genérico interpretado por [ImportAnalyzer.classificar] como
   /// aviso de possível baixa — infraestrutura neutra, disponível para
   /// qualquer perfil futuro que queira usá-la; nenhum perfil ativo hoje a
-  /// preenche (o perfil GETEC deixou de fazê-lo no PROMPT 8.12: "BAIXAS
-  /// LOCALIZADAS" é uma decisão de negócio conhecida de bem
-  /// recuperado/relocalizado, nunca indício de baixa atual).
+  /// preenche ("BAIXAS LOCALIZADAS" na GETEC é uma decisão de negócio
+  /// conhecida de bem recuperado/relocalizado, nunca indício de baixa
+  /// atual).
   bool possivelBaixa = false;
 
   /// `true` quando o tipo não veio de uma coluna mapeada e sim foi deduzido
@@ -130,7 +130,7 @@ class ImportRow {
   bool tipoInferidoAutomaticamente = false;
 
   /// `true` quando o tipo foi escolhido explicitamente pelo usuário na tela
-  /// de pendências de tipo (PROMPT 8.13, individualmente ou via "Aplicar aos
+  /// de pendências de tipo (individualmente ou via "Aplicar aos
   /// semelhantes") — decisão local desta sessão de importação, nunca vira
   /// regra do classificador (`tipo_inference.dart` continua intocado).
   bool tipoResolvidoManualmente = false;
@@ -148,11 +148,11 @@ class ImportRow {
 
   /// `true` quando havia texto de localização na planilha mas ele ainda
   /// não foi resolvido nem teve uma decisão explícita do usuário ("importar
-  /// sem localização") — gera ERRO e BLOQUEIA o envio (PROMPT 8.9.1: um
-  /// texto de localização genuinamente desconhecido nunca pode ser
-  /// importado silenciosamente sem decisão). Não é um bloqueio permanente:
-  /// assim que o usuário mapear manualmente para uma localização existente
-  /// ou confirmar "importar sem localização", a linha é reclassificada e
+  /// sem localização") — gera ERRO e BLOQUEIA o envio: um texto de
+  /// localização genuinamente desconhecido nunca pode ser importado
+  /// silenciosamente sem decisão. Não é um bloqueio permanente: assim que o
+  /// usuário mapear manualmente para uma localização existente ou
+  /// confirmar "importar sem localização", a linha é reclassificada e
   /// deixa de estar pendente.
   bool localizacaoPendente = false;
 

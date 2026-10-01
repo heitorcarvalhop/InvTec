@@ -20,19 +20,17 @@ import '../../auth/fake_auth_repository.dart';
 import '../../patrimonios/fake_patrimonio_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.5.12 — AUDITORIA DE OPERAÇÕES DURANTE LOTE PENDENTE.
+/// Auditoria de operações durante um LOTE PENDENTE: os handlers de escrita
+/// (conclusão individual, cancelamento individual, cancelamento em massa,
+/// edição do documento) precisam CONSULTAR o estado de uma decisão de lote
+/// pendente/em conflito para o documento aberto
+/// (`estadoLote.temTentativaPendente`) antes de permitir a escrita — nunca
+/// basta desabilitar o botão na tela, pois nada impediria um callback
+/// antigo de disparar a escrita de qualquer jeito. O aviso textual também
+/// precisa comparar `documentoId`: uma tentativa pendente do Documento A
+/// nunca pode "vazar" para a tela do Documento B.
 ///
-/// Antes deste prompt, `_SeiPendenciaDetalheDialog` só EXIBIA um aviso
-/// textual quando havia uma decisão de LOTE pendente/em conflito para o
-/// documento aberto (`estadoLote.temTentativaPendente`) — os handlers de
-/// escrita (conclusão individual, cancelamento individual, cancelamento em
-/// massa, edição do documento) nunca CONSULTAVAM esse estado: os botões
-/// continuavam habilitados e, mesmo que desabilitados na tela, nada
-/// impedia um callback antigo de disparar a escrita de qualquer jeito. O
-/// próprio aviso, além disso, não comparava `documentoId`: uma tentativa
-/// pendente do Documento A "vazava" para a tela do Documento B.
-///
-/// Este arquivo testa exclusivamente essas duas lacunas — NENHUM teste
+/// Este arquivo testa exclusivamente essas duas garantias — NENHUM teste
 /// aqui fala com o Supabase, usa o Despacho 577 ou toca a conclusão em
 /// lote/individual "de verdade" (tudo via `FakeDocumentosSeiRepository`/
 /// `FakePatrimonioRepository`).
@@ -129,7 +127,7 @@ Future<_Cenario> _abrirCenario(
     itens: patrimonios ?? [for (final d in documentos) for (final i in d.itens) _patrimonio(i.linha)],
   );
 
-  // PROMPT 11.5.12 — mesmo padrão de `sei_editar_documento_dialog_test.dart`:
+  // Mesmo padrão de `sei_editar_documento_dialog_test.dart`:
   // no viewport padrão de teste (800x600) o diálogo de detalhe some por
   // trás de overflow/scroll ao empilhar o cabeçalho + a lista de itens,
   // fazendo `ensureVisible`/`tap` falharem por hit-test — Windows/desktop
@@ -204,7 +202,7 @@ const _textoAvisoDesconhecido = 'conclusão em lote com resultado ainda desconhe
 const _textoAvisoConflito = 'CONFLITO DE INTEGRIDADE';
 
 void main() {
-  group('PROMPT 11.5.12 — timeout inicial (resultadoDesconhecido): todas as escritas do MESMO documento bloqueadas', () {
+  group('timeout inicial (resultadoDesconhecido): todas as escritas do MESMO documento bloqueadas', () {
     testWidgets('conclusão individual bloqueada — nenhum diálogo de confirmação chega a abrir', (tester) async {
       final documento = _documento([_item(linha: 1), _item(linha: 2)]);
       final c = await _abrirCenario(tester, documentos: [documento]);
@@ -271,7 +269,7 @@ void main() {
     );
   });
 
-  group('PROMPT 11.5.12 — conflito de integridade: todas as escritas bloqueadas', () {
+  group('conflito de integridade: todas as escritas bloqueadas', () {
     /// Leva o documento a `conflitoDeIntegridade`: semeia um registro
     /// DIVERGENTE sob o mesmo `loteId` que o controller vai gerar, tenta
     /// concluir item-1 (timeout simulado), e reconcilia — a reconciliação
@@ -378,7 +376,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.12 — o aviso persistente não pode ser "fechado", e o bloqueio sobrevive a fechar/reabrir', () {
+  group('o aviso persistente não pode ser "fechado", e o bloqueio sobrevive a fechar/reabrir', () {
     testWidgets('fechar o AVISO dispensável (da tentativa incerta) não remove o bloqueio persistente', (tester) async {
       final documento = _documento([_item(linha: 1), _item(linha: 2)]);
       final c = await _abrirCenario(tester, documentos: [documento]);
@@ -418,7 +416,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.12 — callback antigo disparado durante a pendência: nenhuma chamada de escrita', () {
+  group('callback antigo disparado durante a pendência: nenhuma chamada de escrita', () {
     testWidgets('um callback de "Cancelar" capturado ANTES do bloqueio, chamado DEPOIS, não escreve nada', (tester) async {
       final documento = _documento([_item(linha: 1)]);
       final c = await _abrirCenario(tester, documentos: [documento]);
@@ -443,7 +441,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.12 — o bloqueio é CONTEXTUAL: nunca vaza para outro documento', () {
+  group('o bloqueio é CONTEXTUAL: nunca vaza para outro documento', () {
     testWidgets('tentativa pendente do Documento A não bloqueia o Documento B', (tester) async {
       final documentoA = _documento([_item(linha: 1, documentoId: _docId)]);
       final documentoB = _documento([_item(linha: 1, documentoId: _docId2)], id: _docId2);
@@ -467,7 +465,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.12 — sucesso confirmado: recarga coerente e bloqueio liberado', () {
+  group('sucesso confirmado: recarga coerente e bloqueio liberado', () {
     testWidgets('reconciliação encontra o registro aplicado: painel de sucesso, documento recarregado, escritas liberadas', (
       tester,
     ) async {
@@ -507,7 +505,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.12 — sem tentativa pendente, as regras individuais existentes continuam intactas', () {
+  group('sem tentativa pendente, as regras individuais existentes continuam intactas', () {
     testWidgets('cancelar item individual continua funcionando normalmente (sem lote envolvido)', (tester) async {
       final documento = _documento([_item(linha: 1), _item(linha: 2)]);
       final c = await _abrirCenario(tester, documentos: [documento]);

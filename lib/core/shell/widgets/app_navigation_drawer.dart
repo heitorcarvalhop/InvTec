@@ -9,8 +9,8 @@ import 'user_profile_header.dart';
 
 /// Drawer usado no mobile (largura de janela < 600) — a sidebar fixa do
 /// desktop não cabe numa tela pequena. Mesma identidade visual da sidebar
-/// (fundo azul-marinho fixo — PROMPT 9.3), para o menu não parecer um
-/// componente diferente ao trocar de tamanho de janela.
+/// (fundo azul-marinho fixo), para o menu não parecer um componente
+/// diferente ao trocar de tamanho de janela.
 class AppNavigationDrawer extends StatelessWidget {
   const AppNavigationDrawer({
     super.key,
@@ -42,11 +42,9 @@ class AppNavigationDrawer extends StatelessWidget {
               ),
             ),
             Divider(height: 1, color: AppColors.sidebarBorder),
-            // PROMPT 11.3.9.1 — mesma correção de `NavigationSidebar`: a
-            // lista de navegação e o bloco fixo de "Configurações"/"Sair"
-            // agora dividem o MESMO `SingleChildScrollView`, para uma
-            // janela baixa nunca cortar essas duas ações permanentemente
-            // (e nunca estourar o `Column` por baixo).
+            // A lista de navegação e o bloco fixo de "Configurações"/"Sair"
+            // dividem o mesmo `SingleChildScrollView`, para uma janela
+            // baixa nunca cortar essas ações permanentemente.
             Expanded(
               child: Scrollbar(
                 child: SingleChildScrollView(

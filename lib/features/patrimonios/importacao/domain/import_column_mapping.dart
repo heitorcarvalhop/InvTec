@@ -1,8 +1,7 @@
 import 'import_column_field.dart';
 
 /// Mapeamento de colunas escolhido pelo usuário para a importação atual —
-/// vale só para esta importação (seção 43: persistência de modelos fica
-/// para uma etapa futura).
+/// vale só para esta importação; persistência de modelos é uma etapa futura.
 class ImportColumnMapping {
   const ImportColumnMapping(this.colunaPorCampo);
 

@@ -6,7 +6,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart'
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
 
-/// PROMPT 11.6.4 — exceção genérica (nunca [AppException]/
+/// Exceção genérica (nunca [AppException]/
 /// [ComparacaoExecucaoFalhouException]) usada por [FakePatrimonioRepository]
 /// para simular uma falha de REDE (resultado desconhecido) em
 /// [FakePatrimonioRepository.aplicarDecisaoComparacao] — o mesmo papel que
@@ -20,14 +20,14 @@ class FalhaDeRedeSimulada implements Exception {
 }
 
 /// `true` quando [texto] é composto só por dígitos (após `trim`) — mesma
-/// regra usada em [PatrimonioRepositorySupabase] (PROMPT 9.1) para decidir,
-/// no modo "Tudo", entre identificador exato e texto livre.
+/// regra usada em [PatrimonioRepositorySupabase] para decidir, no modo
+/// "Tudo", entre identificador exato e texto livre.
 bool _somenteDigitos(String texto) => RegExp(r'^\d+$').hasMatch(texto);
 
 bool _contemIgnorandoCaixa(String? valor, String termo) =>
     valor != null && valor.toLowerCase().contains(termo.toLowerCase());
 
-/// Mesmo teto usado em PatrimonioRepositorySupabase (PROMPT 9.1.1).
+/// Mesmo teto usado em PatrimonioRepositorySupabase.
 const _limiteCorrespondenciaSerie = 10;
 
 /// Fake em memória de [PatrimonioRepository], sem nenhuma chamada de rede —
@@ -49,7 +49,7 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   final List<PatrimonioDetalhe> _itens;
   final Object? erro;
 
-  /// PROMPT 11.6.5 — quem "executou" cada [aplicarDecisaoComparacao] (grava
+  /// Quem "executou" cada [aplicarDecisaoComparacao] (grava
   /// como `criado_por`). Mesmo papel de `autorId` em
   /// `FakeDocumentosSeiRepository`.
   final String autorId;
@@ -59,11 +59,11 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   /// sessão ATUAL (no momento da reconciliação/consulta) ser diferente de
   /// quem criou o registro originalmente — mesmo efeito que
   /// `_client.auth.currentUser` mudar entre duas chamadas na implementação
-  /// real (PROMPT 11.6.5, seção 1: "verificar se um usuário consegue
-  /// consultar indevidamente operações pertencentes a outro usuário").
+  /// real (verificar se um usuário consegue consultar indevidamente
+  /// operações pertencentes a outro usuário).
   String? usuarioAtualParaTeste;
 
-  /// PROMPT 11.6.4 — patrimonioId → exceção lançada ANTES de qualquer
+  /// patrimonioId → exceção lançada ANTES de qualquer
   /// escrita em [aplicarDecisaoComparacao] (mesma garantia de
   /// `ComparacaoExecucaoFalhouException`: recusa síncrona, nada gravado).
   final Map<String, Object> errosExecucaoPorPatrimonioId;
@@ -87,14 +87,14 @@ class FakePatrimonioRepository implements PatrimonioRepository {
 
   /// Chamado logo APÓS uma escrita bem-sucedida (antes de devolver o
   /// resultado) — só para o teste de "troca de usuário durante
-  /// processamento" (PROMPT 11.6.4, seção 9) provocar deterministicamente a
-  /// troca no meio de um lote, sem depender de timing de `Future.wait`.
+  /// processamento" provocar deterministicamente a troca no meio de um
+  /// lote, sem depender de timing de `Future.wait`.
   final void Function(DecisaoItemParaExecutar decisao)? aposEscritaDeExecucao;
 
   int cadastrarCallCount = 0;
   int atualizarCallCount = 0;
 
-  /// PROMPT 11.6.4 — quantas vezes [aplicarDecisaoComparacao] foi chamada
+  /// Quantas vezes [aplicarDecisaoComparacao] foi chamada
   /// (idempotência incluída: uma chamada repetida com o mesmo operacaoId
   /// AINDA conta aqui, mas não soma a [decisoesAplicadas] nem gera uma
   /// segunda escrita — ver o corpo do método).
@@ -110,19 +110,19 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   final Map<String, DecisaoItemParaExecutar> _decisaoOriginalPorOperacaoId = {};
 
   /// Quantas vezes cada consulta em lote foi chamada — usado para provar
-  /// que a comparação de tombamentos da planilha com o banco (PROMPT 8.10)
-  /// faz UMA chamada por lista, nunca uma consulta por linha/número.
+  /// que a comparação de tombamentos da planilha com o banco faz UMA
+  /// chamada por lista, nunca uma consulta por linha/número.
   int buscarPorNumerosPatrimonioCallCount = 0;
   int buscarNumerosSerieExistentesCallCount = 0;
 
   /// Parâmetros da última chamada a [cadastrar] — usado para verificar o
-  /// que foi enviado à "RPC" (ver seção 12 do relatório: nunca status).
+  /// que foi enviado à "RPC" (nunca status).
   Map<String, Object?>? ultimoCadastro;
 
   /// Reproduz, em memória, a MESMA semântica de
-  /// [PatrimonioRepositorySupabase] para cada [PatrimonioSearchField]
-  /// (PROMPT 9.1) — em especial, [PatrimonioSearchField.patrimonio] é
-  /// sempre correspondência EXATA, nunca `contains`.
+  /// [PatrimonioRepositorySupabase] para cada [PatrimonioSearchField] — em
+  /// especial, [PatrimonioSearchField.patrimonio] é sempre correspondência
+  /// EXATA, nunca `contains`.
   bool _casaComBusca(PatrimonioDetalhe item, PatrimonioSearchField campo, String termo) {
     final p = item.patrimonio;
     switch (campo) {
@@ -140,9 +140,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
         return _contemIgnorandoCaixa(item.localizacaoNome, termo);
       case PatrimonioSearchField.tudo:
         // consulta só de dígitos nunca chega aqui — interceptada antes, em
-        // [listar] (PROMPT 9.1.1: lógica de duas etapas, nunca mistura
-        // patrimônio com série no mesmo resultado). Só sobra o ramo
-        // textual.
+        // [listar] (lógica de duas etapas, nunca mistura patrimônio com
+        // série no mesmo resultado). Só sobra o ramo textual.
         return p.numeroPatrimonio == normalizarNumeroPatrimonio(termo) ||
             _contemIgnorandoCaixa(p.numeroSerie, termo) ||
             _contemIgnorandoCaixa(p.marca, termo) ||
@@ -171,8 +170,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
 
   /// Substitui (ou adiciona) o item de um id — só para simular, em teste,
   /// outra sessão alterando o patrimônio entre a leitura inicial e uma
-  /// releitura posterior (PROMPT 10.2.1, seção 4: concorrência). Nunca usado
-  /// pelo app real, só pelos testes.
+  /// releitura posterior (concorrência). Nunca usado pelo app real, só
+  /// pelos testes.
   void substituirDetalhe(PatrimonioDetalhe detalhe) {
     final index = _itens.indexWhere((item) => item.patrimonio.id == detalhe.patrimonio.id);
     if (index >= 0) {
@@ -295,7 +294,7 @@ class FakePatrimonioRepository implements PatrimonioRepository {
 
     final termo = busca?.trim();
 
-    // PROMPT 9.1.1: mesma lógica em duas etapas do repositório real — ver
+    // Mesma lógica em duas etapas do repositório real — ver
     // PatrimonioRepositorySupabase._listarTudoNumerico.
     if (termo != null && termo.isNotEmpty && campoBusca == PatrimonioSearchField.tudo && _somenteDigitos(termo)) {
       final numero = normalizarNumeroPatrimonio(termo);
@@ -513,7 +512,7 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) async {
     aplicarDecisaoComparacaoCallCount++;
 
-    // Idempotência (mesma disciplina da RPC real, PROMPT 11.6.5 seção 2C):
+    // Idempotência (mesma disciplina da RPC real):
     // um operacaoId já processado nunca gera uma nova escrita QUANDO os
     // parâmetros batem com os da primeira vez — quando algum parâmetro
     // relevante (patrimônio, campos, justificativa, versão) diverge, é
@@ -638,9 +637,9 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     }
     final resultado = _execucoesPorOperacaoId[operacaoId];
     if (resultado == null) return null;
-    // PROMPT 11.6.5, seção 1 — mesma defesa da implementação real: uma
-    // leitura NUNCA é aceita como "a resposta da minha tentativa" quando o
-    // `criado_por` gravado não bate com a sessão atual.
+    // Mesma defesa da implementação real: uma leitura NUNCA é aceita como
+    // "a resposta da minha tentativa" quando o `criado_por` gravado não
+    // bate com a sessão atual.
     final usuarioAtual = usuarioAtualParaTeste ?? autorId;
     if (_criadoPorPorOperacaoId[operacaoId] != usuarioAtual) {
       throw const AppException('A operação não pertence à sessão atual.');

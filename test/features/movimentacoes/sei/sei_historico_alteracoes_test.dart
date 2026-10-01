@@ -20,11 +20,11 @@ import '../../localizacoes/fake_localizacao_repository.dart';
 import '../../setores/fake_setor_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.3.8 — "Histórico de alterações" do detalhe de um documento SEI
+/// "Histórico de alterações" do detalhe de um documento SEI
 /// pendente: reaproveita inteiramente `documentos_sei_eventos` via
 /// `DocumentosSeiRepository.listarEventos` (nenhuma tabela nova, nenhuma
 /// escrita própria). Reproduz, contra o fake, o MESMO caso real registrado
-/// no Supabase pelo PROMPT 11.3.7 no documento fictício
+/// no Supabase no documento fictício
 /// `999999/2026/TESTE-PROMPT1137`: chamado do patrimônio 900000001 corrigido
 /// de 9999 para 9998, motivo "Teste funcional de edição de pendência".
 
@@ -134,7 +134,7 @@ Future<void> _expandirHistorico(WidgetTester tester) async {
 }
 
 void main() {
-  group('PROMPT 11.3.8 — histórico de alterações do documento SEI', () {
+  group('histórico de alterações do documento SEI', () {
     testWidgets('sem nenhum evento, mostra a mensagem de ausência (nunca uma lista vazia silenciosa)', (tester) async {
       final repo = FakeDocumentosSeiRepository(documentosIniciais: [_documentoFicticio()]);
       await _pumpDetalhe(tester, repo);
@@ -145,7 +145,7 @@ void main() {
     });
 
     testWidgets(
-      'edição: mostra o caso real do PROMPT 11.3.7 (chamado do patrimônio 900000001 de 9999 para 9998, com motivo)',
+      'edição: mostra um caso real (chamado do patrimônio 900000001 de 9999 para 9998, com motivo)',
       (tester) async {
         final repo = FakeDocumentosSeiRepository(documentosIniciais: [_documentoFicticio()]);
         await repo.editarDocumento(
@@ -163,7 +163,7 @@ void main() {
         expect(find.text('Número do chamado'), findsOneWidget);
         expect(find.text('9999'), findsOneWidget);
         // Uma vez no histórico (valor novo) e outra na coluna Chamado da
-        // ficha (valor efetivo atual do item — PROMPT 11.3.10).
+        // ficha (valor efetivo atual do item).
         expect(find.text('9998'), findsNWidgets(2));
         expect(find.text('Motivo'), findsOneWidget);
         expect(find.text('Teste funcional de edição de pendência'), findsOneWidget);
@@ -188,7 +188,7 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 11.3.10.2 — valores longos: anterior, seta e novo ficam empilhados, na largura toda e claramente associados',
+      'valores longos: anterior, seta e novo ficam empilhados, na largura toda e claramente associados',
       (tester) async {
         const antes = 'TESTE AUTOMATIZADO (PROMPT 11.3.7) - Transferencia de patrimonio ficticio';
         const depois =

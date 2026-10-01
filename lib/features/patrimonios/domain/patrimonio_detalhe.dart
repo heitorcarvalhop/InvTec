@@ -46,7 +46,7 @@ class PatrimonioDetalhe {
   final String? localizacaoNome;
   final String? criadoPorNome;
 
-  /// PROMPT 11.3.5.4 — texto COMPACTO do setor atual (sigla cadastrada,
+  /// texto COMPACTO do setor atual (sigla cadastrada,
   /// nunca inventada; cai para [setorNome] quando não há sigla). O nome
   /// completo continua em [setorNome] para tooltip/detalhamento.
   String get setorExibidoCompacto => siglaOuNomeSetor(sigla: setorSigla, nome: setorNome) ?? setorNome;

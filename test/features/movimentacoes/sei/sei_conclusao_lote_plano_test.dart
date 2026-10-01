@@ -10,7 +10,7 @@ import 'package:invtec/features/movimentacoes/sei/domain/sei_valor_corrigivel.da
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 
-/// PROMPT 11.5.6 — planejamento PURO da conclusão em lote
+/// Planejamento PURO da conclusão em lote
 /// (`planejarConclusaoLote`) e da ação "Concluir todos os aptos"
 /// (`selecionarAptosParaLote`). Nenhum I/O, nenhum Supabase, nenhum
 /// patrimônio do Despacho 577.

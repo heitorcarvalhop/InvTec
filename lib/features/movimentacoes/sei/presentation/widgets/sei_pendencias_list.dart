@@ -16,10 +16,7 @@ import '../sei_situacao_visual.dart';
 const double _larguraMinimaTabela = 900;
 
 /// Larguras FIXAS das colunas cujo texto nunca pode ser espremido (só o
-/// Assunto cede espaço, com reticências e tooltip) — PROMPT 11.3.10.2. Antes,
-/// as três primeiras colunas eram `Expanded` sem folga entre si: um texto
-/// que enchia a sua célula encostava no da vizinha, e "999999/2026/TESTE-
-/// PROMPT1137" + assunto + "2 pendentes..." liam-se como uma frase só.
+/// Assunto cede espaço, com reticências e tooltip).
 /// Medido com Segoe UI (Windows): "999999/2026/TESTE-PROMPT1137" ≈ 213–228px
 /// em negrito 14px; mais os 16px de folga.
 const double _larguraColunaDocumento = 268;
@@ -41,26 +38,18 @@ const double _larguraColunaAcao = 56;
 /// Altura mínima confortável de uma linha da lista.
 const double _alturaMinimaLinha = 56;
 
-/// Lista de Documentos SEI pendentes (PROMPT 11.3, seção 4).
+/// Lista de Documentos SEI pendentes.
 ///
-/// PROMPT 11.3.10 — LISTAGEM = identificação e consulta rápida; DETALHE =
-/// informações completas. Colunas: Documento SEI, Assunto (resumido),
-/// Progresso ("N pendentes · N concluídos", com cancelados só quando
-/// houver), Situação e o botão de abrir. Tipo da operação, processo, data de
-/// cadastro, autor, todos os itens (patrimônios, chamados), histórico de
-/// alterações, edição e cancelamento estão no detalhe
-/// (`showSeiPendenciaDetalheDialog`), aberto por `onAbrir` — tanto pelo
-/// botão quanto pelo clique na linha. Somente leitura: nenhuma ação de
-/// escrita acontece aqui.
+/// LISTAGEM = identificação e consulta rápida; DETALHE
+/// (`showSeiPendenciaDetalheDialog`, aberto por `onAbrir`) tem as
+/// informações completas e é a única tela com ações de escrita.
 ///
 /// Os contadores vêm SEMPRE dos totais do próprio [SeiDocumentoPendente]
 /// (view `documentos_sei_com_situacao`), nunca de `itens` — numa linha de
-/// listagem `itens` é `[]` (PROMPT 11.3.5.3).
+/// listagem `itens` é `[]`.
 ///
-/// PROMPT 11.3.9.1 — quando a largura não comporta as colunas, o
-/// `SingleChildScrollView` horizontal usa um `ScrollController` próprio
-/// (criado e descartado pelo `State`) e um `Scrollbar` sempre visível: sem
-/// barra arrastável, ninguém "adivinha" que a lista rola para o lado.
+/// Quando a largura não comporta as colunas, a lista ganha rolagem
+/// horizontal com `Scrollbar` sempre visível.
 class SeiPendenciasList extends StatefulWidget {
   const SeiPendenciasList({super.key, required this.itens, required this.onAbrir});
 

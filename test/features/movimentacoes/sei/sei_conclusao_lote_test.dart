@@ -16,16 +16,16 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import '../../patrimonios/fake_patrimonio_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
-/// PROMPT 11.5.5 — contrato/domínio/repositório da conclusão em LOTE de
-/// documentos SEI. NENHUM teste aqui fala com o Supabase real ou chama a
-/// RPC `concluir_itens_documento_sei_lote` de verdade: a desserialização é
+/// Contrato/domínio/repositório da conclusão em LOTE de documentos SEI.
+/// NENHUM teste aqui fala com o Supabase real ou chama a RPC
+/// `concluir_itens_documento_sei_lote` de verdade: a desserialização é
 /// testada contra JSON MONTADO À MÃO no formato exato devolvido pela RPC
-/// (ver `supabase/migrations/20260928100000_add_concluir_itens_documento_sei_lote.sql`,
-/// já homologada — PROMPT 11.5.3), o envio de parâmetros é testado contra a
-/// função PURA `paramsConclusaoLoteSei` (sem `SupabaseClient`), e o
-/// comportamento de negócio (retry/P0036/P0037/contrato individual) usa
+/// (ver `supabase/migrations/20260928100000_add_concluir_itens_documento_sei_lote.sql`),
+/// o envio de parâmetros é testado contra a função PURA
+/// `paramsConclusaoLoteSei` (sem `SupabaseClient`), e o comportamento de
+/// negócio (retry/P0036/P0037/contrato individual) usa
 /// `FakeDocumentosSeiRepository`. Nenhum destes testes substitui a
-/// homologação transacional real (11.5.3) contra o PostgreSQL de verdade.
+/// homologação transacional real contra o PostgreSQL de verdade.
 void main() {
   group('SeiConclusaoLoteResultado.fromJson — envelope real da RPC', () {
     Map<String, dynamic> jsonItem({required String itemId, required int versao, bool jaConcluido = false}) => {
@@ -199,7 +199,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.14 — textoTecnicoConflitoDeIntegridade nunca orienta iniciar outra conclusão', () {
+  group('textoTecnicoConflitoDeIntegridade nunca orienta iniciar outra conclusão', () {
     test('nunca contém a orientação de "comece uma nova conclusão" (presente em textoTecnico/P0037)', () {
       final falha = falhaDeConclusaoSei(
         codigo: 'P0037',
@@ -453,7 +453,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.5.9.2 — sincronização do cadastro patrimonial (FakePatrimonioRepository) após conclusão em lote', () {
+  group('sincronização do cadastro patrimonial (FakePatrimonioRepository) após conclusão em lote', () {
     test(
       'lote com confirmarLimpezaDestino=true: setor atualizado para o destino, localização/responsável '
       'REALMENTE limpos, sem duplicar movimentação',
@@ -654,7 +654,7 @@ Map<String, dynamic> _movimentacaoJson({required String id}) => {
   'criado_em': '2026-01-01T00:00:00Z',
 };
 
-/// PROMPT 11.5.9.2 — patrimônio fictício com responsável/localização
+/// Patrimônio fictício com responsável/localização
 /// ATUAIS já preenchidos (setor de ORIGEM, igual ao de [_item]) — o mesmo
 /// cenário de DEMO-0023/DEMO-0024 na prévia local: concluir com
 /// `confirmarLimpezaDestino: true` deve LIMPAR os dois de verdade no

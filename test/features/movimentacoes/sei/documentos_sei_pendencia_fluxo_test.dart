@@ -43,7 +43,7 @@ SeiDocumentoPendenteRascunho _rascunho({
 }
 
 void main() {
-  group('PROMPT 11.3, seção 19 — fluxo de Documentos SEI pendentes (fake, mesmas regras da migration proposta)', () {
+  group('fluxo de Documentos SEI pendentes (fake, mesmas regras da migration proposta)', () {
     test('salvar rascunho cria uma solicitação PENDENTE — nunca altera um patrimônio', () async {
       final repo = FakeDocumentosSeiRepository();
       final documento = await repo.salvarRascunho(_rascunho());
@@ -164,8 +164,8 @@ void main() {
     });
 
     test(
-      'PROMPT 11.3.1, seção 3 — editarDocumento agora também corrige destino resolvido, localização e '
-      'responsável (a versão original só corrigia texto, contrariando a seção 8 do PROMPT 11.3)',
+      'editarDocumento também corrige destino resolvido, localização e responsável '
+      '(não só o texto)',
       () async {
         final repo = FakeDocumentosSeiRepository();
         final documento = await repo.salvarRascunho(_rascunho());
@@ -264,7 +264,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.3.1, seção 8 — salvarRascunho REJEITA um segundo documento ativo com o mesmo número '
+      'salvarRascunho REJEITA um segundo documento ativo com o mesmo número '
       'sem confirmarDuplicata (fecha a corrida "duas sessões salvando ao mesmo tempo")',
       () async {
         final repo = FakeDocumentosSeiRepository();
@@ -301,16 +301,15 @@ void main() {
       expect(segundo.situacao, SeiDocumentoSituacao.pendente);
     });
 
-    // PROMPT 11.3.2 — testes adicionados pela nova auditoria (seção 6).
     // IMPORTANTE: `FakeDocumentosSeiRepository` é single-threaded (chamadas
     // Dart sequenciais, nunca duas transações reais concorrentes) — os
     // testes abaixo comprovam o CONTRATO exposto ao chamador (o que a UI/o
     // controller veem), nunca a garantia de concorrência real no
     // PostgreSQL (trava consultiva, `for update`), que só um banco real
-    // pode validar (seção 7/10 do relatório).
+    // pode validar.
 
     test(
-      'PROMPT 11.3.2, seção 1 — "duas sessões" salvando o mesmo documento: a segunda chamada (mesmo sem ver '
+      '"duas sessões" salvando o mesmo documento: a segunda chamada (mesmo sem ver '
       'a primeira antes) é rejeitada pelo repositório, nunca cria um segundo documento silenciosamente',
       () async {
         final repo = FakeDocumentosSeiRepository();
@@ -325,7 +324,7 @@ void main() {
     );
 
     test(
-      'PROMPT 11.3.2, seção 2 — cancelamento parcial sem nenhuma conclusão mantém a situação PENDENTE, '
+      'cancelamento parcial sem nenhuma conclusão mantém a situação PENDENTE, '
       'mesmo com itens já cancelados (a view SQL corrigida segue a mesma regra)',
       () async {
         final repo = FakeDocumentosSeiRepository();
@@ -341,7 +340,7 @@ void main() {
     );
 
     test(
-      'PROMPT 11.3.2, seção 3 — tentativa bloqueada de editar não deixa NENHUM evento persistido '
+      'tentativa bloqueada de editar não deixa NENHUM evento persistido '
       '(a versão anterior prometia um evento TENTATIVA_BLOQUEADA que a exceção desfazia)',
       () async {
         final repo = FakeDocumentosSeiRepository();
@@ -367,7 +366,7 @@ void main() {
     );
 
     test(
-      'PROMPT 11.3.2, seção 4 — editar com item_id inexistente rejeita a operação INTEIRA, '
+      'editar com item_id inexistente rejeita a operação INTEIRA, '
       'nenhum campo do documento nem dos itens válidos muda',
       () async {
         final repo = FakeDocumentosSeiRepository();
@@ -395,7 +394,7 @@ void main() {
       },
     );
 
-    test('PROMPT 11.3.2, seção 4 — editar referenciando um item de OUTRO documento é rejeitado', () async {
+    test('editar referenciando um item de OUTRO documento é rejeitado', () async {
       final repo = FakeDocumentosSeiRepository();
       final documentoA = await repo.salvarRascunho(_rascunho(numeroDocumentoSei: '11111111'));
       final documentoB = await repo.salvarRascunho(_rascunho(numeroDocumentoSei: '22222222'));
@@ -413,7 +412,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.3.3, seção 3 — mesmo SEI, uma sessão sem processo e outra COM processo, ainda são '
+      'mesmo SEI, uma sessão sem processo e outra COM processo, ainda são '
       'detectadas como duplicata (nos dois sentidos — a checagem não depende de qual roda primeiro)',
       () async {
         // Sentido 1: cria SEM processo primeiro, depois tenta COM processo.
@@ -434,7 +433,7 @@ void main() {
       },
     );
 
-    test('PROMPT 11.3.2, seção 4 — editar um item já CANCELADO é rejeitado (não pode mais ser corrigido)', () async {
+    test('editar um item já CANCELADO é rejeitado (não pode mais ser corrigido)', () async {
       final repo = FakeDocumentosSeiRepository();
       final documento = await repo.salvarRascunho(_rascunho(qtdItens: 2));
       final itemCancelado = documento.itens[0];

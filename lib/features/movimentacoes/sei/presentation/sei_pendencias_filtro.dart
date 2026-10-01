@@ -1,10 +1,9 @@
 import '../../domain/movimentacao.dart';
 import '../domain/sei_item_pendencia_status.dart';
 
-/// Filtros da lista de Documentos SEI pendentes (PROMPT 11.3, seção 4) —
-/// mesmo padrão de `MovimentacoesFiltro`: objeto imutável, só usado pela
-/// camada de apresentação (o repositório recebe parâmetros nomeados, não
-/// este objeto).
+/// Filtros da lista de Documentos SEI pendentes — mesmo padrão de
+/// `MovimentacoesFiltro`: objeto imutável, só usado pela camada de
+/// apresentação (o repositório recebe parâmetros nomeados, não este objeto).
 class SeiPendenciasFiltro {
   const SeiPendenciasFiltro({
     this.tipo,

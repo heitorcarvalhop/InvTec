@@ -1,17 +1,49 @@
-# invtec
+# InvTec
 
-A new Flutter project.
+Sistema de gestão patrimonial da GETEC.
 
-## Getting Started
+## Stack
 
-This project is a starting point for a Flutter application.
+- Flutter / Dart
+- Supabase
+- PostgreSQL
+- Riverpod
+- GoRouter
 
-A few resources to get you started if this is your first Flutter project:
+## Requisitos
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Flutter SDK compatível com `environment.sdk` do `pubspec.yaml` (Dart ^3.12.2)
+- Um projeto Supabase configurado com as migrations em `supabase/migrations/`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Configuração
+
+1. Copie `.env.example` para `.env`.
+2. Preencha `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` com os dados do seu projeto Supabase.
+3. **Nunca versione o `.env`** — ele contém credenciais e já está no `.gitignore`.
+
+## Instalação
+
+```
+flutter pub get
+```
+
+## Executar
+
+```
+flutter run -d windows
+```
+
+## Build (Windows)
+
+```
+flutter build windows --release
+```
+
+O executável é gerado em `build/windows/x64/runner/Release/`.
+
+## Perfis de usuário
+
+- `ADMIN`
+- `GESTOR`
+- `OPERADOR`
+- `CONSULTA`

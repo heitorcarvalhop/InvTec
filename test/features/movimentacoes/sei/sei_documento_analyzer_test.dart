@@ -74,7 +74,7 @@ SeiDocumentoExtraido _documento({
 }
 
 void main() {
-  group('PROMPT 11.1 — SeiDocumentoAnalyzer (cruzamento READ-ONLY)', () {
+  group('SeiDocumentoAnalyzer (cruzamento READ-ONLY)', () {
     test('patrimônio existente + origem confere + destino identificado + tipo compatível: PRONTO', () {
       final resultado = const SeiDocumentoAnalyzer().analisar(
         documento: _documento(),
@@ -181,7 +181,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.1.1 — candidato de patrimônio (confiança baixa) ENCONTRADO no InvTec: AVISO, nunca bloqueado '
+      'candidato de patrimônio (confiança baixa) ENCONTRADO no InvTec: AVISO, nunca bloqueado '
       'só pelo comprimento atípico',
       () {
         final resultado = const SeiDocumentoAnalyzer().analisar(
@@ -198,7 +198,7 @@ void main() {
     );
 
     test(
-      'PROMPT 11.1.1 — candidato de patrimônio (confiança baixa) NÃO encontrado no InvTec: BLOQUEADO',
+      'candidato de patrimônio (confiança baixa) NÃO encontrado no InvTec: BLOQUEADO',
       () {
         final resultado = const SeiDocumentoAnalyzer().analisar(
           documento: _documento(itens: [_item(numeroPatrimonio: '12345', confiancaPatrimonio: SeiConfianca.baixa)]),

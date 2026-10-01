@@ -5,9 +5,9 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../patrimonio_import_controller.dart';
 import '../patrimonio_import_state.dart';
 
-/// Passo "Importando" (seção 26/27): progresso em lotes controlados, sem
-/// travar a interface, com opção de cancelar antes que todas as linhas
-/// tenham sido enviadas.
+/// Passo "Importando": progresso em lotes controlados, sem travar a
+/// interface, com opção de cancelar antes que todas as linhas tenham sido
+/// enviadas.
 class ImportProgressStep extends ConsumerWidget {
   const ImportProgressStep({super.key, required this.state});
 

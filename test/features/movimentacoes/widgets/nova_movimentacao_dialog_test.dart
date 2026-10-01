@@ -251,7 +251,7 @@ Future<void> _marcarConfirmacaoBaixa(WidgetTester tester) async {
 }
 
 void main() {
-  group('PROMPT 10.2 — wizard de Nova Movimentação', () {
+  group('wizard de Nova Movimentação', () {
     testWidgets('busca e seleciona o patrimônio, mostra o resumo e avança para Tipo', (tester) async {
       await _pumpEAbrirWizard(
         tester,
@@ -306,7 +306,7 @@ void main() {
       expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar')).onPressed, isNull);
 
       // Preencher só o responsável não basta: EMPRESTIMO também exige
-      // destino (seção 6 do prompt — os dois são checados juntos).
+      // destino — os dois são checados juntos.
       await tester.enterText(find.widgetWithText(TextFormField, 'Responsável *'), 'Maria Souza');
       await tester.pumpAndSettle();
       expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar')).onPressed, isNull);
@@ -333,8 +333,7 @@ void main() {
       expect(find.text('Sala 2'), findsOneWidget);
 
       // Trocar para outro setor de destino (MANUTENCAO nunca oferece o setor
-      // atual — PROMPT 10.2.2, seção 3) invalida a localização do setor
-      // anterior.
+      // atual) invalida a localização do setor anterior.
       await _selecionarSetorDestino(tester, 'GESIS');
 
       expect(find.text('Sala 2'), findsNothing);
@@ -543,7 +542,7 @@ void main() {
 
         // O rascunho/wizard precisa refletir o estado NOVO, não o que estava
         // na tela quando o formulário abriu — nunca basta consultar e
-        // descartar o retorno (PROMPT 10.2.1, seção 4).
+        // descartar o retorno.
         await _voltar(tester);
         await _voltar(tester);
         expect(find.text('Status atual do patrimônio: Em uso.'), findsOneWidget);
@@ -667,7 +666,7 @@ void main() {
     });
 
     testWidgets(
-      'PROMPT 11.3.5.4 — dropdown de setor e revisão mostram a sigla real, com o nome completo no tooltip',
+      'dropdown de setor e revisão mostram a sigla real, com o nome completo no tooltip',
       (tester) async {
         final setorOrigem = Setor(
           id: 'setor-a',

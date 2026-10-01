@@ -127,7 +127,7 @@ _overridesPadrao({
 }
 
 void main() {
-  group('PROMPT 11.1/11.2 — SeiImportController (nunca registra, só lê em lote)', () {
+  group('SeiImportController (nunca registra, só lê em lote)', () {
     test('fluxo completo: lê, extrai, cruza em lote, checa duplicidade e termina em revisão', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       final movimentacaoRepo = FakeMovimentacaoRepository();
@@ -153,9 +153,9 @@ void main() {
       expect(state.resultado!.totalProntos, 1);
       expect(state.resultado!.totalBloqueados, 1);
 
-      // seção 16 (PROMPT 11.1): uma única consulta em lote a patrimônios.
+      // Uma única consulta em lote a patrimônios.
       expect(patrimonioRepo.buscarPorNumerosPatrimonioCallCount, 1);
-      // seção 2 (PROMPT 11.2.1): uma única LEITURA em lote, via filtro
+      // Uma única LEITURA em lote, via filtro
       // exato no banco (nunca `.listar` com busca OR genérica) — nunca uma
       // por item.
       expect(movimentacaoRepo.listarPorNumeroDocumentoCallCount, 1);
@@ -165,7 +165,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.2, seção 2: documento com todos os itens PRONTO continua em estágio "patrimoniosConferidos"/'
+      'documento com todos os itens PRONTO continua em estágio "patrimoniosConferidos"/'
       '"aptoParaExecucao" — NUNCA "autorizado" sem confirmação explícita do usuário',
       () async {
         final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090'), _patrimonio('9999999')]);
@@ -188,7 +188,7 @@ void main() {
       },
     );
 
-    test('PROMPT 11.2, seção 4: histórico com movimentação idêntica é classificado como possível duplicidade/já registrada', () async {
+    test('histórico com movimentação idêntica é classificado como possível duplicidade/já registrada', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       final movimentacaoRepo = FakeMovimentacaoRepository(
         itens: [
@@ -298,7 +298,7 @@ void main() {
       expect(state.resultado, same(resultadoAntes));
     });
 
-    test('PROMPT 11.2, seção 8: alternarSelecao nunca liga uma linha BLOQUEADA', () async {
+    test('alternarSelecao nunca liga uma linha BLOQUEADA', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]); // 9999999 não existe -> bloqueado
       final container = ProviderContainer(
         overrides: _overridesPadrao(patrimonioRepo: patrimonioRepo, documento: _documentoComDoisItens()),
@@ -310,7 +310,7 @@ void main() {
           .selecionarArquivo(nomeArquivo: 'despacho.pdf', bytes: Uint8List.fromList([1]));
 
       final notifier = container.read(seiImportControllerProvider.notifier);
-      // PROMPT 11.2.1, seção 4: localização/responsável de destino
+      // Localização/responsável de destino
       // continuam PENDENTES até decisão explícita — precisa resolver as
       // duas antes de a linha 1 (PRONTO) virar selecionável.
       notifier.confirmarSemLocalizacao(1);
@@ -323,7 +323,7 @@ void main() {
       expect(state.execucao[2]?.selecionado ?? false, isFalse);
     });
 
-    test('PROMPT 11.2, seção 7: linha de confiança MÉDIA só pode ser selecionada depois de confirmarAviso', () async {
+    test('linha de confiança MÉDIA só pode ser selecionada depois de confirmarAviso', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090'), _patrimonio('9999999')]);
       final container = ProviderContainer(
         overrides: _overridesPadrao(
@@ -353,7 +353,7 @@ void main() {
       expect(container.read(seiImportControllerProvider).execucao[2]?.selecionado, isFalse);
     });
 
-    test('PROMPT 11.2, seção 9: plano gerado a partir da seleção nunca chama registrarMovimentacao', () async {
+    test('plano gerado a partir da seleção nunca chama registrarMovimentacao', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       final movimentacaoRepo = FakeMovimentacaoRepository();
       final container = ProviderContainer(
@@ -396,7 +396,7 @@ void main() {
       expect(movimentacaoRepo.registrarCallCount, 0);
     });
 
-    test('PROMPT 11.2, seção 5: revalidar() detecta mudança de status/setor e marca a linha desatualizada, sem selecioná-la', () async {
+    test('revalidar() detecta mudança de status/setor e marca a linha desatualizada, sem selecioná-la', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       final container = ProviderContainer(
         overrides: _overridesPadrao(
@@ -442,7 +442,7 @@ void main() {
       expect(state.execucao[1]?.selecionado, isFalse);
     });
 
-    test('PROMPT 11.2, seção 11: ausência de dependência executável de escrita — nenhuma chamada a registrarMovimentacao em todo o fluxo', () async {
+    test('ausência de dependência executável de escrita — nenhuma chamada a registrarMovimentacao em todo o fluxo', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       final movimentacaoRepo = FakeMovimentacaoRepository();
       final container = ProviderContainer(
@@ -463,7 +463,7 @@ void main() {
       expect(movimentacaoRepo.registrarCallCount, 0);
     });
 
-    test('PROMPT 11.2.1, seção 2: busca exata por número SEI — não confunde com substring de outro documento', () async {
+    test('busca exata por número SEI — não confunde com substring de outro documento', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       final movimentacaoRepo = FakeMovimentacaoRepository(
         itens: [
@@ -514,7 +514,7 @@ void main() {
       expect(state.execucao[1]?.duplicidade?.status, SeiDuplicidadeStatus.semCorrespondencia);
     });
 
-    test('PROMPT 11.2.1, seção 2: mais de 200 movimentações vinculadas ao documento — todas consideradas, sem limite arbitrário', () async {
+    test('mais de 200 movimentações vinculadas ao documento — todas consideradas, sem limite arbitrário', () async {
       final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
       // 250 movimentações "de ruído" (outro documento) + 1 movimentação
       // relevante posicionada DEPOIS delas (seção 8: "duplicidade fora da
@@ -579,7 +579,7 @@ void main() {
     });
 
     test(
-      'PROMPT 11.2.1, seção 5: autorização geral do documento NÃO elimina pendências individuais (decisão de localização pendente)',
+      'autorização geral do documento NÃO elimina pendências individuais (decisão de localização pendente)',
       () async {
         final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
         final container = ProviderContainer(
@@ -604,7 +604,7 @@ void main() {
     );
 
     test(
-      'PROMPT 11.2.1, seção 7: revalidação identifica uma nova movimentação registrada por outro usuário entretanto',
+      'revalidação identifica uma nova movimentação registrada por outro usuário entretanto',
       () async {
         final patrimonioRepo = FakePatrimonioRepository(itens: [_patrimonio('4157090')]);
         final movimentacaoRepo = FakeMovimentacaoRepository();

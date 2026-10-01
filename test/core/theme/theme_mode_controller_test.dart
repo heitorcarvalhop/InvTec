@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   setUp(() {
-    // Store local em memória, isolado entre testes (PROMPT 9.3).
+    // Store local em memória, isolado entre testes.
     SharedPreferences.setMockInitialValues({});
   });
 

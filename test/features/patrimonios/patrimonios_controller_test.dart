@@ -13,7 +13,7 @@ import 'package:invtec/features/patrimonios/presentation/patrimonios_controller.
 
 import 'fake_patrimonio_repository.dart';
 
-/// Reproduz exatamente o cenário real do PROMPT 9.1: um patrimônio cujo
+/// Reproduz exatamente um cenário real: um patrimônio cujo
 /// `numero_serie` coincide com o `numero_patrimonio` de outro (dado real de
 /// produção) — a busca "Tudo"/"Patrimônio" nunca pode confundir os dois.
 PatrimonioDetalhe _patrimonio({
@@ -57,7 +57,7 @@ PatrimonioDetalhe _patrimonio({
 
 /// Repositório que só libera cada `listar()` quando o teste mandar — usado
 /// para provar que uma resposta antiga chegando depois de uma nova nunca
-/// sobrescreve o estado (PROMPT 9.1, seção 8/11).
+/// sobrescreve o estado.
 class _RepositorioComPortoesListar implements PatrimonioRepository {
   _RepositorioComPortoesListar(this._delegado);
   final FakePatrimonioRepository _delegado;
@@ -173,9 +173,9 @@ ProviderContainer _criarContainer(PatrimonioRepository repo) {
 }
 
 void main() {
-  group('PROMPT 9.1 — busca precisa e segura', () {
-    // O cenário real que motivou o prompt: patrimônio 2703532 tem
-    // numero_serie = "2703522" (dado real de produção).
+  group('busca precisa e segura', () {
+    // Cenário real: patrimônio 2703532 tem numero_serie = "2703522" (dado
+    // real de produção).
     final itensReais = [
       _patrimonio(
         id: '1',
@@ -256,7 +256,7 @@ void main() {
       },
     );
 
-    group('PROMPT 9.1.1 — Tudo nunca mistura patrimônio com número de série', () {
+    group('Tudo nunca mistura patrimônio com número de série', () {
       test('Tudo + "2703532" (existe como patrimônio): resultado principal = 2703532', () async {
         final container = _criarContainer(FakePatrimonioRepository(itens: itensReais));
         addTearDown(container.dispose);
@@ -517,7 +517,7 @@ void main() {
     );
   });
 
-  group('PROMPT 9.2 — filtros avançados e paginação server-side', () {
+  group('filtros avançados e paginação server-side', () {
     test('Localização específica retorna só os patrimônios daquela localização', () async {
       final container = _criarContainer(
         FakePatrimonioRepository(

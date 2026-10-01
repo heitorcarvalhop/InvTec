@@ -18,7 +18,7 @@ const textoPendenteDeDefinicao = 'Pendente de definição';
 const textoSituacaoIndeterminada = 'Ainda não pode ser determinada';
 
 /// O que a conclusão de UM item vai fazer, calculado só com dados que a tela
-/// já tem (PROMPT 11.4.3) — PURO, sem I/O. Alimenta o diálogo de confirmação:
+/// já tem — puro, sem I/O. Alimenta o diálogo de confirmação:
 /// o resumo, as consequências que exigem confirmação explícita e os
 /// bloqueios já conhecidos. A autoridade final continua sendo a RPC
 /// `concluir_item_documento_sei`; isto só evita chamadas que ela recusaria e

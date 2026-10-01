@@ -8,11 +8,11 @@ import '../movimentacoes_controller.dart';
 import '../movimentacoes_filtro.dart';
 import '../movimentacoes_reference_data.dart';
 
-/// Filtros da listagem geral de movimentações (PROMPT 10.1): tipo, setor
-/// (origem OU destino) e período — todos imediatos (sem debounce; a busca
-/// textual vive na página, como em Patrimônios). O filtro de Setor usa
-/// `setoresParaFiltroMovimentacoesProvider` (PROMPT 10.1.1) — não o mesmo
-/// provider de Patrimônios — porque o histórico pode referenciar um setor já
+/// Filtros da listagem geral de movimentações: tipo, setor (origem OU
+/// destino) e período — todos imediatos (sem debounce; a busca textual vive
+/// na página, como em Patrimônios). O filtro de Setor usa
+/// `setoresParaFiltroMovimentacoesProvider` — não o mesmo provider de
+/// Patrimônios — porque o histórico pode referenciar um setor já
 /// desativado, e esse setor precisa continuar filtrável.
 class MovimentacoesFilters extends ConsumerWidget {
   const MovimentacoesFilters({super.key, required this.filtro, required this.onLimparFiltros});
@@ -63,10 +63,9 @@ class MovimentacoesFilters extends ConsumerWidget {
                     for (final setor in setores)
                       DropdownMenuItem(
                         value: setor.id,
-                        // PROMPT 11.3.5.3/11.3.5.4: sigla real cadastrada
-                        // (nunca inventada) — nome completo por tooltip. O
-                        // valor do item continua sendo `setor.id` — o
-                        // filtro em si não muda.
+                        // Sigla real cadastrada (nunca inventada) — nome
+                        // completo por tooltip. O valor do item continua
+                        // sendo `setor.id` — o filtro em si não muda.
                         child: Tooltip(message: setor.nomeComStatus, child: Text(setor.rotuloCompactoComStatus)),
                       ),
                   ],
@@ -121,9 +120,8 @@ class _CampoDesabilitado extends StatelessWidget {
   }
 }
 
-/// Mesmo padrão visual do intervalo De/Até de Patrimônios (PROMPT 9.2,
-/// seção 5): os limites exibidos são sempre o último valor VÁLIDO
-/// aplicado.
+/// Mesmo padrão visual do intervalo De/Até de Patrimônios: os limites
+/// exibidos são sempre o último valor VÁLIDO aplicado.
 class _PeriodoFilter extends StatelessWidget {
   const _PeriodoFilter({required this.de, required this.ate, required this.onChanged});
 

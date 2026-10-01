@@ -25,13 +25,11 @@ import 'sei_editar_documento_dialog.dart';
 import 'sei_historico_alteracoes.dart';
 import 'sei_itens_pendencia_lista.dart';
 
-/// Detalhe de um Documento SEI pendente (PROMPT 11.3) — mostra os itens e
-/// permite CANCELAR um item PENDENTE ou os pendentes restantes (seção 9/10:
-/// cancelamento parcial nunca desfaz conclusões anteriores). "Concluir"
-/// aparece desabilitado, com uma explicação: a conclusão atômica real
-/// depende de uma RPC futura (seção 15/21.6), não implementada nesta
-/// versão — nenhum botão aqui chama `registrarMovimentacao`.
-/// PROMPT 11.3.11 — mensagens das três situações distintas de uma escrita
+/// Detalhe de um Documento SEI pendente — mostra os itens e permite CANCELAR
+/// um item PENDENTE ou os pendentes restantes (cancelamento parcial nunca
+/// desfaz conclusões anteriores).
+///
+/// Mensagens das três situações distintas de uma escrita
 /// (cancelar item / cancelar pendentes). Constantes públicas para os testes.
 const mensagemSeiEscritaRecusada =
     'Não foi possível concluir a ação: o servidor recusou a operação e o documento NÃO foi alterado.';
@@ -42,18 +40,16 @@ const mensagemSeiEscritaIncerta =
     'Não foi possível confirmar o resultado da ação (falha de comunicação). '
     'Atualizamos o documento — confira o estado antes de tentar de novo.';
 
-/// PROMPT 11.4.3 — desfecho de "Concluir entrega".
+/// desfecho de "Concluir entrega".
 const mensagemSeiEntregaConcluida = 'Entrega concluída e movimentação registrada com sucesso.';
 const mensagemSeiItemJaConcluido = 'Este item já havia sido concluído.';
 
 Future<void> showSeiPendenciaDetalheDialog(
   BuildContext context,
   String documentoId, {
-  // PROMPT 11.5.15 — `null` (padrão) preserva o aviso de responsabilidade
-  // REAL do app operacional (repassado, sem alteração, a
-  // `showSeiConcluirLoteDialog`). Existe só para a prévia local poder
-  // avisar que a movimentação simulada ali é fictícia/em memória, usando o
-  // MESMO diálogo real — nunca uma tela/rota separada.
+  // `null` (padrão) preserva o aviso de responsabilidade REAL do app
+  // operacional. Existe só para a prévia local avisar que a movimentação
+  // simulada ali é fictícia, usando o MESMO diálogo real.
   String? textoAvisoConclusaoLote,
 }) {
   return showDialog<void>(
@@ -79,12 +75,12 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
   String? _erro;
   bool _executandoAcao = false;
 
-  /// PROMPT 11.5.7 — seleção em LOTE, controlada por ESTE diálogo
+  /// seleção em LOTE, controlada por ESTE diálogo
   /// (`SeiItensPendenciaLista` só reflete/alterna, nunca guarda sozinha) e
   /// identificada pelos ids dos itens.
   final Set<String> _selecionados = {};
 
-  /// PROMPT 11.3.11 — aviso do resultado da última ação, mostrado DENTRO do
+  /// aviso do resultado da última ação, mostrado DENTRO do
   /// diálogo. Um `SnackBar` do Scaffold da página aparece ATRÁS da barreira
   /// do diálogo modal: o texto até é visível, mas nenhum botão dele (como
   /// "Detalhes técnicos") recebe o clique.
@@ -118,18 +114,10 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
     }
   }
 
-  /// PROMPT 11.5.12 — `true` quando existe uma decisão de conclusão em LOTE
-  /// pendente (`SeiConclusaoLoteStatus.resultadoDesconhecido` ou
-  /// `conflitoDeIntegridade`) PARA ESTE MESMO documento — o controller é
-  /// GLOBAL (não é `.family` por documento), então a comparação por
-  /// `documentoId` é o que torna o bloqueio CONTEXTUAL: uma tentativa
-  /// pendente do Documento A nunca bloqueia escritas no Documento B. `ref
-  /// .read` (nunca `ref.watch`): é só uma checagem pontual dentro de um
-  /// handler assíncrono — quem precisa RECONSTRUIR a tela com o estado
-  /// atual é `build()`, que já usa `ref.watch` separadamente (ver
-  /// `bloqueadoPorLote` ali). Chamada no INÍCIO de cada handler de
-  /// escrita, antes de qualquer diálogo/RPC — protege mesmo um callback
-  /// antigo (capturado antes do bloqueio começar) que ainda seja disparado.
+  /// `true` quando existe uma decisão de conclusão em LOTE pendente para
+  /// ESTE MESMO documento — o controller é GLOBAL, então comparar
+  /// `documentoId` é o que torna o bloqueio contextual a este documento, sem
+  /// afetar outros. Chamada no início de cada handler de escrita.
   bool _bloqueadoPorLotePendente(SeiDocumentoPendente documento) {
     final estado = ref.read(seiConclusaoLoteControllerProvider);
     return estado.temTentativaPendente && estado.decisao?.documentoId == documento.id;
@@ -151,15 +139,10 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
     });
   }
 
-  /// PROMPT 11.4.3 — abre a confirmação de "Concluir entrega". A RPC só roda
-  /// DENTRO do diálogo, depois das confirmações; aqui só se interpreta o
-  /// desfecho e se relê o documento (o documento em memória está velho).
-  ///
-  /// PROMPT 11.5.12 — a checagem de bloqueio vem ANTES até de ler o [item]:
-  /// com uma conclusão em lote pendente para este documento, nenhum diálogo
-  /// de confirmação é aberto (evita uma confirmação inútil que só falharia
-  /// na RPC, ou pior, que operaria sobre um item já "congelado" pela
-  /// decisão de lote).
+  /// Abre a confirmação de "Concluir entrega". A RPC só roda dentro do
+  /// diálogo; aqui só se interpreta o desfecho e se relê o documento. A
+  /// checagem de bloqueio vem antes de ler o [item]: com um lote pendente
+  /// para este documento, nenhum diálogo de confirmação é aberto.
   Future<void> _concluirItem(SeiDocumentoPendente documento, String itemId) async {
     if (_bloqueadoPorLotePendente(documento)) return;
     final item = documento.itens.firstWhere((i) => i.id == itemId);
@@ -184,17 +167,11 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
     });
   }
 
-  /// PROMPT 11.5.7 — "Concluir selecionados": abre a revisão com EXATAMENTE
-  /// a seleção explícita do usuário — nenhum item inválido é removido
-  /// automaticamente (um item bloqueado aparece na revisão, bloqueando o
-  /// lote inteiro, nunca é descartado sozinho).
-  ///
-  /// PROMPT 11.5.12 — com uma tentativa de LOTE pendente para este
-  /// documento, este botão continua sendo o caminho de ACESSO À
-  /// RECUPERAÇÃO daquela tentativa (mesmo texto do aviso persistente no
-  /// cabeçalho): abre `showSeiConcluirLoteDialog` direto, que já ignora a
-  /// seleção passada e mostra o painel pendente/conflito sozinho (ver o
-  /// comentário de `_abrirRevisaoLote`) — nunca cria uma decisão nova.
+  /// "Concluir selecionados": abre a revisão com EXATAMENTE a seleção
+  /// explícita do usuário — nenhum item inválido é removido automaticamente.
+  /// Com uma tentativa de LOTE pendente para este documento, este botão vira
+  /// o caminho de acesso à recuperação daquela tentativa, sem criar uma
+  /// decisão nova.
   Future<void> _concluirSelecionados(SeiDocumentoPendente documento) async {
     if (_bloqueadoPorLotePendente(documento)) {
       await _abrirRevisaoLote(documento, const []);
@@ -205,21 +182,16 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
     await _abrirRevisaoLote(documento, itens);
   }
 
-  /// PROMPT 11.5.7/11.5.10/11.5.10.1 — "Concluir todos os aptos": busca o
-  /// patrimônio ATUAL de cada candidato da triagem preliminar e delega a
-  /// [selecionarAptosParaLoteComPatrimonios] (PURA, nenhuma regra de
-  /// elegibilidade duplicada aqui — reaproveita [planejarConclusaoLote],
-  /// a MESMA função da revisão final) a reavaliação completa, incluindo o
-  /// limite de 200 aplicado à contagem FINAL (ver o comentário daquela
-  /// função). Acima do limite, NUNCA trunca sozinho — pede seleção manual.
-  /// Não gera `loteId` nem cria nenhuma decisão no
+  /// "Concluir todos os aptos": busca o patrimônio ATUAL de cada candidato
+  /// da triagem preliminar e delega a [selecionarAptosParaLoteComPatrimonios]
+  /// a reavaliação completa, incluindo o limite de itens aplicado à
+  /// contagem FINAL. Acima do limite, NUNCA trunca sozinho — pede seleção
+  /// manual. Não gera `loteId` nem cria decisão no
   /// [SeiConclusaoLoteController] — só leitura.
   Future<void> _concluirTodosAptos(SeiDocumentoPendente documento) async {
-    // PROMPT 11.5.12 — mesmo raciocínio de `_concluirSelecionados`: com uma
-    // tentativa de LOTE pendente para este documento, pula direto para a
-    // revisão/recuperação (que já mostra o painel certo sozinha) em vez de
-    // gastar uma consulta de patrimônios inteira para uma seleção que nunca
-    // vai virar uma decisão nova.
+    // Com uma tentativa de LOTE pendente para este documento, pula direto
+    // para a revisão/recuperação em vez de gastar uma consulta de
+    // patrimônios inteira para uma seleção que nunca vira decisão nova.
     if (_bloqueadoPorLotePendente(documento)) {
       await _abrirRevisaoLote(documento, const []);
       return;
@@ -251,7 +223,7 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
       return;
     }
 
-    // PROMPT 11.5.10.1 — contra a contagem FINAL (nunca a preliminar):
+    // contra a contagem FINAL (nunca a preliminar):
     // acima do limite, bloqueia a seleção automática e pede seleção
     // manual — nunca trunca os 200 primeiros silenciosamente.
     if (selecao.excedeLimite) {
@@ -273,16 +245,10 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
     await _abrirRevisaoLote(documento, selecao.aptos, naoIncluidos: selecao.naoIncluidos);
   }
 
-  /// PROMPT 11.5.10 — busca a situação ATUAL de cada patrimônio de [itens]
-  /// (nunca reaproveita nada antigo). Uma falha na consulta de UM item
-  /// específico NUNCA presume elegibilidade: vira `null` no mapa, que
-  /// [planejarConclusaoEntrega] (via [planejarConclusaoLote]) já trata como
-  /// bloqueio ("Não foi possível carregar a situação atual do patrimônio").
-  /// Mesmo padrão de `_SeiConcluirLoteDialogState._carregarPatrimonios`
-  /// (`sei_concluir_lote_dialog.dart`) — deliberadamente igual, não
-  /// reaproveitado: aquele diálogo faz a MESMA busca de novo, de forma
-  /// independente, quando abre (nenhuma triagem prévia substitui a
-  /// validação final).
+  /// Busca a situação ATUAL de cada patrimônio de [itens] (nunca reaproveita
+  /// nada antigo). Uma falha na consulta de UM item específico NUNCA presume
+  /// elegibilidade: vira `null` no mapa, que [planejarConclusaoLote] já
+  /// trata como bloqueio.
   Future<Map<String, PatrimonioDetalhe?>> _buscarPatrimoniosAtuais(List<SeiItemPendente> itens) async {
     final repositorio = ref.read(patrimonioRepositoryProvider);
     final resultado = <String, PatrimonioDetalhe?>{};
@@ -332,10 +298,8 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
                     '${_plural(n, 'movimentação registrada', 'movimentações registradas')} com sucesso.',
         );
       });
-      // PROMPT 11.5.7 — recarga TARGETED: a conclusão já foi CONFIRMADA pelo
-      // servidor, então uma falha aqui é só de releitura — nunca deve
-      // substituir o aviso de sucesso por um erro genérico (diferente de
-      // `_carregar()`, que troca o diálogo inteiro por uma tela de erro).
+      // A conclusão já foi CONFIRMADA pelo servidor: uma falha aqui é só de
+      // releitura, nunca deve substituir o aviso de sucesso por um erro.
       try {
         final documentoAtualizado = await ref.read(documentosSeiRepositoryProvider).obterPorId(widget.documentoId);
         if (!mounted) return;
@@ -429,21 +393,13 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
     final podeGerenciar =
         perfil == ProfilePerfil.admin || perfil == ProfilePerfil.gestor || perfil == ProfilePerfil.operador;
     final documento = _documento;
-    // PROMPT 11.5.7 — só para saber se há uma decisão de LOTE pendente
-    // (`resultadoDesconhecido`/`conflitoDeIntegridade`) de uma tentativa
-    // anterior, para avisar o usuário mesmo sem reabrir o diálogo de
-    // revisão — o controller (não este widget) é a fonte de verdade.
+    // O controller é GLOBAL (não por documento), então avisar/bloquear
+    // escrita exige comparar `documentoId` — senão uma tentativa pendente
+    // de outro documento bloquearia este também.
     final estadoLote = ref.watch(seiConclusaoLoteControllerProvider);
-    // PROMPT 11.5.12 — auditoria encontrou: a condição abaixo usava só
-    // `estadoLote.temTentativaPendente`, sem comparar `documentoId` — o
-    // aviso (e, agora, o BLOQUEIO de escrita) apareciam para QUALQUER
-    // documento aberto enquanto outro tivesse uma tentativa pendente. O
-    // controller é GLOBAL (não por documento); só a comparação abaixo o
-    // torna CONTEXTUAL a ESTE documento, sem afetar nenhum outro.
     final bloqueadoPorLote = documento != null && estadoLote.temTentativaPendente && estadoLote.decisao?.documentoId == documento.id;
-    // PROMPT 11.3.10.2 — em tela estreita (Android) o título com o botão de
-    // texto e o cabeçalho empilhado não cabiam na altura do diálogo: o botão
-    // vira só ícone e o cabeçalho passa a rolar junto com o conteúdo.
+    // Em tela estreita (Android) título + cabeçalho empilhado não cabiam na
+    // altura do diálogo: o botão vira só ícone e o cabeçalho rola com o conteúdo.
     final compacto = MediaQuery.sizeOf(context).width < 600;
 
     final cabecalho = <Widget>[
@@ -451,13 +407,9 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
       if (documento != null) _CabecalhoDocumento(documento: documento),
       const SizedBox(height: AppSpacing.md),
       if (_aviso != null) _BannerDeAviso(aviso: _aviso!, onFechar: () => setState(() => _aviso = null)),
-      // PROMPT 11.5.7/11.5.12 — visível MESMO sem reabrir "Concluir
-      // selecionados": o controller é global, então uma tentativa pendente
-      // sobrevive a fechar/reabrir qualquer diálogo enquanto não for
-      // resolvida — SEM depender do usuário deixar este aviso aberto (ele
-      // some ao trocar de documento, nunca ao clicar em "fechar": não há
-      // botão de fechar aqui, de propósito, diferente do `_BannerDeAviso`
-      // de uma ação pontual).
+      // Visível mesmo sem reabrir "Concluir selecionados": o controller é
+      // global, então uma tentativa pendente sobrevive a fechar/reabrir o
+      // diálogo. Sem botão de fechar aqui, de propósito.
       if (bloqueadoPorLote)
         Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -519,9 +471,7 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
                             style: AppTypography.pageSubtitle(context),
                           ),
                         ),
-                        // PROMPT 11.3.12 — documento ENCERRADO (0 pendentes) não
-                        // oferece edição: o botão some (mesmo padrão do botão de
-                        // cancelar em massa, que só aparece com pendentes).
+                        // Documento ENCERRADO (0 pendentes) não oferece edição.
                         if (podeGerenciar && !documento.encerrado)
                           Tooltip(
                             message: bloqueadoPorLote
@@ -562,12 +512,9 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
                             if (compacto) ...cabecalho,
                             SeiItensPendenciaLista(
                               documento: documento,
-                              // PROMPT 11.5.12 — com o documento bloqueado por
-                              // uma conclusão em lote pendente, "Concluir
-                              // entrega"/"Cancelar" de QUALQUER item somem da
-                              // lista (nunca só desabilitados — mesmo padrão
-                              // já usado aqui para outras condições, ver o
-                              // comentário de `SeiItensPendenciaLista.podeGerenciar`).
+                              // Com o documento bloqueado por lote pendente,
+                              // "Concluir entrega"/"Cancelar" somem da lista
+                              // (nunca só desabilitados).
                               podeGerenciar: podeGerenciar && !_executandoAcao && !bloqueadoPorLote,
                               onCancelarItem: (itemId) => _cancelarItem(documento, itemId),
                               onConcluirItem: (itemId) => _concluirItem(documento, itemId),
@@ -575,10 +522,8 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
                               onAlternarSelecao: (podeGerenciar && !_executandoAcao) ? _alternarSelecao : null,
                             ),
                             const SizedBox(height: AppSpacing.md),
-                            // PROMPT 11.3.8 — dentro do MESMO scroll da
-                            // tabela de itens (nunca fora dele): expandir o
-                            // histórico com muitos eventos não pode estourar
-                            // a altura fixa do diálogo.
+                            // Dentro do MESMO scroll da tabela de itens: expandir
+                            // o histórico não pode estourar a altura fixa do diálogo.
                             Theme(
                               data: theme.copyWith(dividerColor: Colors.transparent),
                               child: ExpansionTile(
@@ -602,10 +547,8 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
                         spacing: AppSpacing.sm,
                         runSpacing: AppSpacing.xs,
                         children: [
-                          // PROMPT 11.5.7 — desabilitado com seleção vazia OU
-                          // acima do limite de 200 (a revisão em si também
-                          // bloqueia isto via `planejarConclusaoLote`, mas o
-                          // aviso já aqui evita um clique inútil).
+                          // Desabilitado com seleção vazia ou acima do limite
+                          // (a revisão também bloqueia via `planejarConclusaoLote`).
                           Tooltip(
                             message: _selecionados.length > limiteItensLote
                                 ? 'Seleção acima do limite de $limiteItensLote itens por lote — remova alguns.'
@@ -757,11 +700,8 @@ Future<String?> _pedirMotivo(BuildContext context, {required String titulo}) {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Voltar')),
-        // PROMPT 11.3.10.2 — o `onPressed` era decidido UMA vez, com o campo
-        // ainda vazio (o `builder` do diálogo não roda de novo ao digitar), e
-        // o "Confirmar" ficava desabilitado para sempre. Escutar o controller
-        // reabilita o botão assim que há um motivo; a regra (motivo
-        // obrigatório) é a mesma.
+        // O `builder` do diálogo não roda de novo ao digitar, então escuta o
+        // controller para reabilitar "Confirmar" assim que há um motivo.
         ListenableBuilder(
           listenable: controller,
           builder: (context, _) => FilledButton(
@@ -774,11 +714,9 @@ Future<String?> _pedirMotivo(BuildContext context, {required String titulo}) {
   );
 }
 
-/// PROMPT 11.5.15 — "1 item"/"2 itens" (nunca "item(ns)"): só a FORMA da
-/// palavra — a contagem é sempre escrita por quem chama. Mesmo helper (com
-/// o mesmo nome) de `sei_concluir_lote_dialog.dart`, duplicado aqui de
-/// propósito: é só apresentação de texto, não uma regra de negócio (mesmo
-/// padrão já usado por `_valorDoDestinoLote` naquele arquivo).
+/// "1 item"/"2 itens" (nunca "item(ns)"): só a FORMA da palavra — a contagem
+/// é sempre escrita por quem chama. Duplicado de propósito em
+/// `sei_concluir_lote_dialog.dart`: é só apresentação de texto.
 String _plural(int quantidade, String singular, String plural) => quantidade == 1 ? singular : plural;
 
 String _formatarDataHora(DateTime data) {

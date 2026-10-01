@@ -2,19 +2,17 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// PROMPT 11.4.2 — testes ESTRUTURAIS das duas migrations preparadas (NÃO
-/// aplicadas) da conclusão de entrega SEI:
+/// Testes ESTRUTURAIS das duas migrations preparadas (NÃO aplicadas) da
+/// conclusão de entrega SEI:
 ///
 ///  * `20260925130000_editar_documento_sei_resolver_patrimonio.sql` — mantém
 ///    `patrimonio_id` coerente com `numero_patrimonio_corrigido`;
 ///  * `20260925140000_add_concluir_item_documento_sei.sql` — a RPC atômica
 ///    `concluir_item_documento_sei`.
 ///
-/// Não há Postgres neste ambiente (nem local nem remoto foi tocado): os testes
-/// leem o TEXTO dos arquivos. Cada cenário pedido no prompt vira uma asserção
-/// sobre o guard, o código de erro, a ORDEM dos passos ou a ausência de
-/// escrita — o que o SQL faz de fato quando roda só pode ser provado em
-/// homologação (ver relatório).
+/// Não há Postgres neste ambiente (nem local nem remoto foi tocado): os
+/// testes leem o TEXTO dos arquivos — o que o SQL faz de fato quando roda só
+/// pode ser provado em homologação.
 const _dir = 'supabase/migrations/';
 const _bloqueio = '${_dir}20260925120000_block_edit_documento_sei_encerrado.sql';
 const _edicao = '${_dir}20260925130000_editar_documento_sei_resolver_patrimonio.sql';
@@ -31,10 +29,49 @@ String _semComentarios(String sql) => sql.replaceAll(RegExp(r'--[^\n]*'), '');
 /// semântica (ignora indentação, quebras de linha, CRLF/LF e comentários).
 String _norm(String sql) => _semComentarios(sql).replaceAll(RegExp(r'\s+'), ' ').trim();
 
-final _blocoMarcado = RegExp(
-  r'^[ \t]*-- >>> 11\.4\.2-A[ \t]*\n[\s\S]*?^[ \t]*-- <<< 11\.4\.2-A[ \t]*\n',
-  multiLine: true,
-);
+// Os 3 trechos novos de `editar_documento_sei_pendente` (re-resolução de
+// patrimonio_id), identificados pelo próprio SQL normalizado — nunca por
+// marcador de comentário (que pode ser reescrito pela limpeza do
+// repositório). Cada par é (trecho NOVO, trecho equivalente na migration
+// ANTERIOR) — substituir um pelo outro no corpo normalizado deve reproduzir
+// exatamente o corpo da migration anterior.
+const _blocoDeclaracaoNovo =
+    "v_item_check public.documentos_sei_itens; v_vinculos jsonb := '{}'::jsonb; v_corrigido_novo text; "
+    "v_numero_efetivo text; v_ids_encontrados uuid[]; v_patrimonio_resolvido uuid; begin";
+const _blocoDeclaracaoAntigo = 'v_item_check public.documentos_sei_itens; begin';
+
+const _blocoValidacaoNovo =
+    "end if; if v_item_edicao ? 'numero_patrimonio_corrigido' then v_corrigido_novo := "
+    "public.normalize_text(v_item_edicao ->> 'numero_patrimonio_corrigido'); v_numero_efetivo := "
+    "upper(public.normalize_text(coalesce(v_corrigido_novo, v_item_check.numero_patrimonio_original))); "
+    "v_ids_encontrados := null; v_patrimonio_resolvido := null; if v_numero_efetivo is not null then "
+    "select array_agg(p.id) into v_ids_encontrados from public.patrimonios p where p.numero_patrimonio = "
+    "v_numero_efetivo; if cardinality(v_ids_encontrados) > 1 then raise exception 'Mais de um patrimônio "
+    "com o número % — inconsistência de dados', v_numero_efetivo using errcode = 'P0001'; end if; "
+    "v_patrimonio_resolvido := v_ids_encontrados[1]; end if; if v_patrimonio_resolvido is null and "
+    "v_corrigido_novo is not null then raise exception 'Patrimônio % não encontrado no InvTec — a correção "
+    "do item % não foi aplicada', v_numero_efetivo, v_item_id using errcode = 'P0002'; end if; "
+    "v_vinculos := v_vinculos || jsonb_build_object(v_item_id::text, v_patrimonio_resolvido); end if; end loop;";
+const _blocoValidacaoAntigo = 'end if; end loop;';
+
+const _blocoUpdateNovo =
+    "numero_patrimonio_corrigido = case when v_item_edicao ? 'numero_patrimonio_corrigido' then "
+    "v_item_edicao ->> 'numero_patrimonio_corrigido' else numero_patrimonio_corrigido end, "
+    "patrimonio_id = case when v_vinculos ? ((v_item_edicao ->> 'item_id')::uuid)::text then "
+    "nullif(v_vinculos ->> ((v_item_edicao ->> 'item_id')::uuid)::text, '')::uuid else patrimonio_id end, "
+    "destino_texto_corrigido";
+const _blocoUpdateAntigo =
+    "numero_patrimonio_corrigido = case when v_item_edicao ? 'numero_patrimonio_corrigido' then "
+    "v_item_edicao ->> 'numero_patrimonio_corrigido' else numero_patrimonio_corrigido end, "
+    "destino_texto_corrigido";
+
+/// Corpo normalizado de `editar_documento_sei_pendente` com os 3 trechos
+/// novos substituídos pelo equivalente anterior — deve reproduzir
+/// exatamente o corpo (normalizado) da migration anterior.
+String _semBlocosNovos(String normalizado) => normalizado
+    .replaceFirst(_blocoDeclaracaoNovo, _blocoDeclaracaoAntigo)
+    .replaceFirst(_blocoValidacaoNovo, _blocoValidacaoAntigo)
+    .replaceFirst(_blocoUpdateNovo, _blocoUpdateAntigo);
 
 int _idx(String texto, String trecho, {int desde = 0}) {
   final i = texto.indexOf(trecho, desde);
@@ -101,21 +138,22 @@ void main() {
       );
     });
 
-    test('fora dos blocos marcados, o corpo é IDÊNTICO ao da migration 20260925120000 (com o guard de 11.3.13)', () {
+    test('fora dos 3 trechos novos, o corpo é IDÊNTICO ao da migration 20260925120000 (com o guard de documento encerrado)', () {
       final anterior = _norm(_ler(_bloqueio));
-      final semBlocos = _norm(bruto.replaceAll(_blocoMarcado, ''));
-      expect(semBlocos, anterior);
+      expect(_semBlocosNovos(norm), anterior);
     });
 
-    test('há exatamente 3 blocos novos (declare, validação, update) e nada além deles', () {
-      final aberturas = RegExp(r'^[ \t]*-- >>> 11\.4\.2-A[ \t]*$', multiLine: true).allMatches(bruto).length;
-      final fechamentos = RegExp(r'^[ \t]*-- <<< 11\.4\.2-A[ \t]*$', multiLine: true).allMatches(bruto).length;
-      expect(aberturas, 3);
-      expect(fechamentos, 3);
-      expect(_blocoMarcado.allMatches(bruto).length, 3);
+    test('há exatamente os 3 trechos novos esperados (declare, validação, update) e nada além deles', () {
+      expect(norm, contains(_blocoDeclaracaoNovo));
+      expect(norm, contains(_blocoValidacaoNovo));
+      expect(norm, contains(_blocoUpdateNovo));
+      // "nada além deles": removendo só esses 3 trechos, o resto bate
+      // exatamente com a migration anterior (mesma verificação do teste acima).
+      final anterior = _norm(_ler(_bloqueio));
+      expect(_semBlocosNovos(norm), anterior);
     });
 
-    test('mantém o guard de documento encerrado da 11.3.13, antes de qualquer validação de payload', () {
+    test('mantém o guard de documento encerrado, antes de qualquer validação de payload', () {
       _emOrdem(norm, [
         'if v_qtd_concluidos > 0 then',
         'encerrado (nenhum item pendente)',

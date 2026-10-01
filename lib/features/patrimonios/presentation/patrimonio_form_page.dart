@@ -387,8 +387,7 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                       for (final setor in widget.setores)
                         DropdownMenuItem(
                           value: setor.id,
-                          // PROMPT 11.3.5.4: sigla cadastrada, nome
-                          // completo por tooltip.
+                          // Sigla cadastrada, nome completo por tooltip.
                           child: Tooltip(
                             message: setor.nome,
                             child: Text(setor.rotuloCompacto, overflow: TextOverflow.ellipsis),
@@ -399,10 +398,10 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                         ? null
                         : (value) => setState(() {
                             _origemId = value;
-                            // localização é sempre da MESMA gerência — trocar
-                            // a gerência invalida a localização escolhida
-                            // (seção 26: nunca mostrar localização de outra
-                            // gerência).
+                            // localização é sempre da MESMA gerência —
+                            // trocar a gerência invalida a localização
+                            // escolhida (nunca mostrar localização de
+                            // outra gerência).
                             _localizacaoOrigemId = null;
                           }),
                   ),
@@ -546,8 +545,8 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
 }
 
 /// Localizações ATIVAS de [setorId] — nunca mostra localização de outra
-/// gerência (seção 26). Quando a gerência não tem nenhuma, mostra a
-/// mensagem explícita em vez de um seletor vazio confuso.
+/// gerência. Quando a gerência não tem nenhuma, mostra a mensagem explícita
+/// em vez de um seletor vazio confuso.
 class _LocalizacaoSelector extends ConsumerWidget {
   const _LocalizacaoSelector({
     required this.setorId,

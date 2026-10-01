@@ -5,7 +5,7 @@ import 'package:invtec/core/widgets/status_chip.dart';
 import 'package:invtec/features/movimentacoes/sei/domain/sei_documento_pendente.dart';
 import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_pendencias_list.dart';
 
-/// PROMPT 11.3.5.3 — reproduz o bug relatado NA TELA: a tabela principal da
+/// Reproduz o bug relatado NA TELA: a tabela principal da
 /// aba Pendências mostrava todos os contadores zerados para o Despacho
 /// 577/2026/SEMAD/GETEC-12014 (documento SEI 95955192), mesmo com a view
 /// `documentos_sei_com_situacao` já retornando 33/33/0/0 corretamente. Usa
@@ -98,7 +98,7 @@ Future<List<String>> _pumpColetandoOverflow(WidgetTester tester, List<SeiDocumen
 }
 
 void main() {
-  group('PROMPT 11.3.5.3 — SeiPendenciasList mostra os contadores reais da view', () {
+  group('SeiPendenciasList mostra os contadores reais da view', () {
     testWidgets('Despacho 577 — 33 itens pendentes exibe "33 pendentes · 0 concluídos" e Pendente', (tester) async {
       _definirTamanho(tester, const Size(1280, 720));
       await _pump(tester, [_doc()]);
@@ -141,7 +141,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.10 — colunas simplificadas e abertura do detalhe', () {
+  group('colunas simplificadas e abertura do detalhe', () {
     testWidgets('cabeçalho: só Documento SEI, Assunto, Progresso e Situação', (tester) async {
       _definirTamanho(tester, const Size(1280, 720));
       await _pump(tester, [_doc(assunto: 'Transferência de equipamentos')]);
@@ -226,7 +226,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.3.10.2 — colunas com respiro (nada "colado" ao vizinho)', () {
+  group('colunas com respiro (nada "colado" ao vizinho)', () {
     const numeroFicticio = '999999/2026/TESTE-PROMPT1137';
     const assuntoFicticio = 'TESTE AUTOMATIZADO — EDIÇÃO CONFIRMADA';
 

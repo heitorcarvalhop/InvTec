@@ -6,14 +6,14 @@ import 'package:invtec/features/movimentacoes/sei/domain/sei_item_extraido.dart'
 
 import 'sei_pdf_fixture_texto.dart';
 
-/// PROMPT 11.1, seções 7/8/30: valida o parser determinístico contra o
+/// Valida o parser determinístico contra o
 /// CONTEÚDO real do PDF de referência (`SEI_95955192_Despacho_577.pdf`) —
 /// o binário não é versionado (documento institucional), mas o texto
 /// reproduzido em `sei_pdf_fixture_texto.dart` é fiel ao que foi extraído
-/// dele, imperfeições incluídas (seção 9). Nenhum teste chama Supabase nem
+/// dele, imperfeições incluídas. Nenhum teste chama Supabase nem
 /// produção — é só texto → modelo, puro.
 void main() {
-  group('PROMPT 11.1 — SeiDeterministicParser com o documento SEI real de referência', () {
+  group('SeiDeterministicParser com o documento SEI real de referência', () {
     late SeiDocumentoExtraido documento;
 
     setUpAll(() async {
@@ -101,7 +101,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.1.2 — limpeza de contaminação textual (documento real)', () {
+  group('limpeza de contaminação textual (documento real)', () {
     late SeiDocumentoExtraido documento;
 
     setUpAll(() async {
@@ -139,7 +139,7 @@ void main() {
       expect(item.numeroChamado, '4556');
     });
 
-    test('spot-check completo dos 4 itens citados no PROMPT 11.1.2', () {
+    test('spot-check completo dos 4 itens citados no despacho de referência', () {
       final porNumero = {for (final i in documento.itens) i.numeroPatrimonio: i};
 
       expect(porNumero['4157090']!.equipamento, 'Monitor Positivo');
@@ -174,7 +174,7 @@ void main() {
     });
   });
 
-  group('PROMPT 11.1.1 — robustez do parser (documentos sintéticos)', () {
+  group('robustez do parser (documentos sintéticos)', () {
     test('equipamento fora do vocabulário conhecido ainda localiza a tabela e o item', () async {
       final documento = await const SeiDeterministicParser().analisar(
         nomeArquivo: 'sintetico.pdf',
@@ -246,7 +246,7 @@ void main() {
 }
 
 /// Documento sintético mínimo (cabeçalho + UM item) usado pelos testes de
-/// robustez do PROMPT 11.1.1 — reproduz só a estrutura necessária para
+/// robustez do parser — reproduz só a estrutura necessária para
 /// exercitar [SeiDeterministicParser] isoladamente, sem depender do PDF
 /// real de referência. [zonaEquipPatrimonio] é o texto bruto que caeria na
 /// zona "equipamento+patrimônio" de uma linha (antes da origem).

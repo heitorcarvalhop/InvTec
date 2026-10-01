@@ -4,9 +4,8 @@ import '../domain/sei_item_plano.dart';
 import '../domain/sei_plano_execucao.dart';
 
 /// Gera um resumo textual (JSON) do plano de execução em memória, para
-/// diagnóstico/auditoria (PROMPT 11.2, seção 9, mesmo espírito da seção 10
-/// do PROMPT 11.1.1) — função pura, nenhum efeito colateral, e o plano em
-/// si já é somente leitura (nunca chama `registrarMovimentacao`).
+/// diagnóstico/auditoria — função pura, nenhum efeito colateral, e o plano
+/// em si já é somente leitura (nunca chama `registrarMovimentacao`).
 String construirResumoPlanoExecucao(SeiPlanoExecucao plano) {
   final mapa = <String, Object?>{
     'totalItens': plano.totalItens,

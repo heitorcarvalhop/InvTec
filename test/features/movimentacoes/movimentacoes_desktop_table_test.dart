@@ -6,9 +6,9 @@ import 'package:invtec/features/movimentacoes/domain/movimentacao_listagem_item.
 import 'package:invtec/features/movimentacoes/presentation/widgets/movimentacao_detail_dialog.dart';
 import 'package:invtec/features/movimentacoes/presentation/widgets/movimentacoes_desktop_table.dart';
 
-/// PROMPT 11.3.10 — o histórico de movimentações (EXECUTADAS) mostra só
-/// Data, Patrimônio, Tipo, Origem → Destino e o botão de abrir; Responsável,
-/// Autor, motivo, documento, chamado etc. ficam no diálogo de detalhe.
+/// O histórico de movimentações (EXECUTADAS) mostra só Data, Patrimônio,
+/// Tipo, Origem → Destino e o botão de abrir; Responsável, Autor, motivo,
+/// documento, chamado etc. ficam no diálogo de detalhe.
 const _nomeLongo = 'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto';
 
 MovimentacaoListagemItem _item(String id, {String numero = '00045872', String? autor = 'Maria Autora'}) {
@@ -68,7 +68,7 @@ void main() {
     }
   });
 
-  testWidgets('PROMPT 11.3.10.2 — a última coluna tem o cabeçalho "Ações", inteiro e alinhado ao botão', (
+  testWidgets('a última coluna tem o cabeçalho "Ações", inteiro e alinhado ao botão', (
     tester,
   ) async {
     _tamanho(tester, const Size(1280, 720));

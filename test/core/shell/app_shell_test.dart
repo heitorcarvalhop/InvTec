@@ -69,7 +69,7 @@ void main() {
   ) async {
     await _pumpAuthenticated(tester, windowSize: const Size(1280, 800));
 
-    // O AppBar desktop não repete o título "InvTec" (PROMPT 9.3.3): a
+    // O AppBar desktop não repete o título "InvTec": a
     // marca aparece só uma vez, no topo da sidebar.
     expect(find.text('InvTec'), findsOneWidget);
     expect(find.text('Gestão de Patrimônio'), findsOneWidget);
@@ -131,7 +131,7 @@ void main() {
   });
 
   testWidgets(
-    'PROMPT 11.3.9.1 — Drawer mobile numa janela baixa: sem overflow, e "Sair" continua acessível',
+    'Drawer mobile numa janela baixa: sem overflow, e "Sair" continua acessível',
     (tester) async {
       // Mesma classe de defeito da sidebar fixa ("BOTTOM OVERFLOWED"),
       // aqui reproduzida no Drawer mobile (largura < 600) numa altura bem

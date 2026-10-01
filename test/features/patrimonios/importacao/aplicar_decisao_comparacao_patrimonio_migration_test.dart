@@ -2,17 +2,16 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// PROMPT 11.6.5 — testes ESTRUTURAIS da migration (NÃO aplicada) da
-/// execução segura de comparação patrimonial:
+/// Testes ESTRUTURAIS da migration (NÃO aplicada) da execução segura de
+/// comparação patrimonial:
 ///
 ///  * `20260930120000_add_aplicar_decisao_comparacao_patrimonio.sql`.
 ///
 /// Não há Postgres neste ambiente: os testes leem o TEXTO do arquivo. Cada
-/// cenário pedido no PROMPT 11.6.5 (seção 1/2/4/5) vira uma asserção sobre a
-/// presença/ausência/ORDEM de um trecho de SQL — o que o SQL faz de fato
-/// quando roda só pode ser provado em homologação com um Postgres real (ver
-/// o relatório final do prompt, seção "pendências"). Mesmo formato de
-/// `sei_conclusao_lote_migration_test.dart` (PROMPT 11.5.2).
+/// cenário vira uma asserção sobre a presença/ausência/ORDEM de um trecho de
+/// SQL — o que o SQL faz de fato quando roda só pode ser provado em
+/// homologação com um Postgres real. Mesmo formato de
+/// `sei_conclusao_lote_migration_test.dart`.
 const _arquivo = 'supabase/migrations/20260930120000_add_aplicar_decisao_comparacao_patrimonio.sql';
 
 String _ler(String caminho) => File(caminho).readAsStringSync().replaceAll('\r\n', '\n');

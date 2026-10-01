@@ -9,7 +9,7 @@ bool _contemIgnorandoCaixa(String? valor, String termo) =>
 
 /// Fake em memória de [MovimentacaoRepository] — reproduz, em memória, a
 /// MESMA semântica de ordenação/filtro/paginação de
-/// `MovimentacaoRepositorySupabase.listar` (PROMPT 10.1), para testar o
+/// `MovimentacaoRepositorySupabase.listar`, para testar o
 /// controller/tela isolados do Supabase real.
 class FakeMovimentacaoRepository implements MovimentacaoRepository {
   FakeMovimentacaoRepository({
@@ -24,7 +24,7 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
   final List<MovimentacaoHistoricoItem> historico;
   final Movimentacao? movimentacaoRegistrada;
 
-  /// Só para teste (PROMPT 11.2.1): simula outra movimentação sendo
+  /// Só para teste: simula outra movimentação sendo
   /// registrada "por fora" deste fake — ex.: por outro usuário, entre a
   /// análise original e uma revalidação.
   void adicionarMovimentacao(MovimentacaoListagemItem item) => _itens.add(item);
@@ -37,15 +37,14 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
 
   /// Erro para [registrarMovimentacao] — simula a RPC rejeitando (transição
   /// inválida, permissão, setor/localização inválidos etc.), nunca a
-  /// produção real (PROMPT 10.2, seção 17/18).
+  /// produção real.
   final Object? erroRegistrar;
 
   int registrarCallCount = 0;
 
   /// Parâmetros exatos da última chamada a [registrarMovimentacao] — prova
-  /// que a UI nunca confunde `null`/vazio/`false` (seção 15 do prompt) e
-  /// que a confirmação chama o repository exatamente uma vez com os valores
-  /// esperados.
+  /// que a UI nunca confunde `null`/vazio/`false` e que a confirmação chama
+  /// o repository exatamente uma vez com os valores esperados.
   Map<String, Object?>? ultimoRegistrar;
 
   /// Filtro/parâmetros da última chamada a [listar] — usado para provar que
@@ -54,13 +53,13 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
   Map<String, Object?>? ultimaChamadaListar;
 
   /// Quantas vezes [listar] foi chamado — usado para provar que um registro
-  /// bem sucedido recarrega a listagem geral (PROMPT 10.2, seção 12), sem
-  /// precisar inspecionar o widget da lista.
+  /// bem sucedido recarrega a listagem geral, sem precisar inspecionar o
+  /// widget da lista.
   int listarCallCount = 0;
 
   /// Quantas vezes [listarPorNumeroDocumento] foi chamado — usado para
-  /// provar que a checagem de duplicidade do importador SEI (PROMPT 11.2.1)
-  /// faz uma leitura por análise/revalidação, nunca uma por item (N+1).
+  /// provar que a checagem de duplicidade do importador SEI faz uma leitura
+  /// por análise/revalidação, nunca uma por item (N+1).
   int listarPorNumeroDocumentoCallCount = 0;
 
   /// Argumentos exatos da última chamada a [listarPorNumeroDocumento].
@@ -154,10 +153,10 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
     ultimaChamadaListarPorNumeroDocumento = {'numeroDocumento': numeroDocumento, 'patrimonioIds': patrimonioIds};
     if (erro != null) throw erro!;
 
-    // Reproduz a mesma semântica da implementação real (PROMPT 11.2.1,
-    // seção 2): `eq` exato de numero_documento, nunca substring/OR, e
-    // filtro adicional por patrimonioIds quando informado — nunca um
-    // limite fixo que descarte linha alguma.
+    // Reproduz a mesma semântica da implementação real: `eq` exato de
+    // numero_documento, nunca substring/OR, e filtro adicional por
+    // patrimonioIds quando informado — nunca um limite fixo que descarte
+    // linha alguma.
     return _itens
         .where((item) => item.numeroDocumento == numeroDocumento)
         .where((item) => patrimonioIds == null || patrimonioIds.isEmpty || patrimonioIds.contains(item.patrimonioId))

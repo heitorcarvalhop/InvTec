@@ -66,11 +66,9 @@ class AppShell extends ConsumerWidget {
     }
 
     // Sem `Scaffold.appBar`: uma AppBar no Scaffold cria uma faixa de
-    // largura total ACIMA de tudo, empurrando a sidebar para baixo dela —
-    // exatamente o que a sidebar full-height (PROMPT 9.3.4) não pode ter.
-    // Em vez disso, sidebar e conteúdo (com sua própria topbar) ficam lado
-    // a lado dentro do `body`, os dois começando no topo absoluto da
-    // janela.
+    // largura total acima de tudo, empurrando a sidebar para baixo dela —
+    // mas a sidebar precisa ser full-height. Em vez disso, sidebar e
+    // conteúdo (com sua própria topbar) ficam lado a lado dentro do `body`.
     return Scaffold(
       body: Row(
         children: [
@@ -95,9 +93,9 @@ class AppShell extends ConsumerWidget {
 }
 
 /// Topbar do desktop: só o seletor de tema e o usuário logado, alinhados à
-/// direita, sem título de produto (a marca "InvTec" vive só na sidebar —
-/// PROMPT 9.3.3/9.3.4). Mesma cor do fundo da página e sem borda/sombra
-/// própria, para não parecer uma segunda barra empilhada sobre o layout.
+/// direita, sem título de produto (a marca "InvTec" vive só na sidebar).
+/// Mesma cor do fundo da página e sem borda/sombra própria, para não
+/// parecer uma segunda barra empilhada sobre o layout.
 class _DesktopTopBar extends StatelessWidget {
   const _DesktopTopBar({required this.profile});
 

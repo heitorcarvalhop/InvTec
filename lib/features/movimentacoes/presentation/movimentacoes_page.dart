@@ -19,9 +19,9 @@ import 'widgets/nova_movimentacao_dialog.dart';
 import '../sei/presentation/importar_sei_dialog.dart';
 import '../sei/presentation/widgets/sei_pendencias_section.dart';
 
-/// Listagem geral de movimentações (PROMPT 10.1) — somente leitura: nesta
-/// etapa não há criar/editar/excluir, só consultar o histórico já
-/// registrado pelas telas de patrimônio.
+/// Listagem geral de movimentações — somente leitura: não há criar/editar/
+/// excluir aqui, só consultar o histórico já registrado pelas telas de
+/// patrimônio.
 class MovimentacoesPage extends ConsumerStatefulWidget {
   const MovimentacoesPage({super.key});
 
@@ -29,21 +29,19 @@ class MovimentacoesPage extends ConsumerStatefulWidget {
   ConsumerState<MovimentacoesPage> createState() => _MovimentacoesPageState();
 }
 
-/// Abas da tela (PROMPT 11.3, seção 4): "Pendências / Documentos SEI" fica
-/// SEPARADA de "Histórico de movimentações" — documentos pendentes nunca
-/// entram no histórico de `movimentacoes`, então a aba de pendências lê
-/// exclusivamente `DocumentosSeiRepository`, nunca `MovimentacaoRepository`.
+/// Abas da tela: "Pendências / Documentos SEI" fica SEPARADA de "Histórico
+/// de movimentações" — documentos pendentes nunca entram no histórico de
+/// `movimentacoes`, então a aba de pendências lê exclusivamente
+/// `DocumentosSeiRepository`, nunca `MovimentacaoRepository`.
 enum _MovimentacoesAba { historico, pendencias }
 
 class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
   final _searchController = TextEditingController();
   _MovimentacoesAba _aba = _MovimentacoesAba.historico;
 
-  // Seção 4: a aba de pendências só é CONSTRUÍDA (e só então dispara a
-  // consulta ao `DocumentosSeiRepository`) depois de visitada pelo menos
-  // uma vez — nunca no primeiro build da tela. Isso evita que toda a
-  // suíte de testes já existente de "Histórico" precise conhecer/sobrepor
-  // o novo repositório de pendências.
+  // A aba de pendências só é CONSTRUÍDA (e só então dispara a consulta ao
+  // `DocumentosSeiRepository`) depois de visitada pelo menos uma vez —
+  // nunca no primeiro build da tela.
   bool _pendenciasVisitada = false;
 
   @override
@@ -78,9 +76,9 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
   }
 
   Future<void> _importarDocumentoSei() async {
-    // Seção 1 (PROMPT 11.3): "Salvar como pendência" no assistente devolve
-    // `true` quando a solicitação foi efetivamente persistida — NUNCA
-    // significa que uma movimentação foi registrada.
+    // "Salvar como pendência" no assistente devolve `true` quando a
+    // solicitação foi efetivamente persistida — NUNCA significa que uma
+    // movimentação foi registrada.
     final salvouPendencia = await showImportarSeiDialog(context);
     if (salvouPendencia == true && mounted) {
       ScaffoldMessenger.of(context)
@@ -101,10 +99,9 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Mesma checagem de perfil usada em Patrimônios/Setores (PROMPT 10.2,
-    // seção 2): ADMIN/GESTOR/OPERADOR podem registrar — CONSULTA nunca
-    // recebe uma ação de escrita, mesmo que só visual (a RPC também nega,
-    // mas o botão nem aparece).
+    // Mesma checagem de perfil usada em Patrimônios/Setores: ADMIN/GESTOR/
+    // OPERADOR podem registrar — CONSULTA nunca recebe uma ação de escrita,
+    // mesmo que só visual (a RPC também nega, mas o botão nem aparece).
     final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
     final canManage =
         perfil == ProfilePerfil.admin || perfil == ProfilePerfil.gestor || perfil == ProfilePerfil.operador;
@@ -122,14 +119,11 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
               title: 'Movimentações',
               subtitle: 'Consulte e acompanhe o histórico de movimentações patrimoniais.',
               compact: context.screenSize == ScreenSize.mobile,
-              // "Importar documento SEI" (PROMPT 11.1, seção 3) é uma ação
-              // SECUNDÁRIA e somente leitura — nesta versão nenhum perfil
-              // registra movimentações por ali (o assistente nem tem acesso
-              // a `MovimentacaoRepository`, ver `SeiImportController`), mas
-              // ainda assim fica atrás da mesma checagem de perfil de
-              // "Nova movimentação": nenhuma mudança de RLS foi feita para
-              // isso, e CONSULTA continua sem nenhuma ação aqui até essa
-              // decisão ser revisitada.
+              // "Importar documento SEI" é uma ação SECUNDÁRIA e somente
+              // leitura — nenhum perfil registra movimentações por ali (o
+              // assistente nem tem acesso a `MovimentacaoRepository`, ver
+              // `SeiImportController`), mas ainda assim fica atrás da mesma
+              // checagem de perfil de "Nova movimentação".
               actions: canManage
                   ? [
                       OutlinedButton.icon(
@@ -146,9 +140,9 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                   : const [],
             ),
             const SizedBox(height: AppSpacing.md),
-            // Seção 4 (PROMPT 11.3): duas seções distintas — "Pendências /
-            // Documentos SEI" nunca mistura com o histórico de
-            // movimentações efetivamente registradas.
+            // Duas seções distintas — "Pendências / Documentos SEI" nunca
+            // mistura com o histórico de movimentações efetivamente
+            // registradas.
             SegmentedButton<_MovimentacoesAba>(
               segments: const [
                 ButtonSegment(
@@ -167,8 +161,8 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             if (_aba == _MovimentacoesAba.historico) ...[
-              // Mesmo painel de busca+filtros de Patrimônios/Setores
-              // (PROMPT 9.3.3): tudo agrupado numa única superfície coesa.
+              // Mesmo painel de busca+filtros de Patrimônios/Setores: tudo
+              // agrupado numa única superfície coesa.
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
