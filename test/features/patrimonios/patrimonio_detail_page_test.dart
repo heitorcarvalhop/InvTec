@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
@@ -73,6 +74,95 @@ Future<void> _pumpDetailPage(
   );
   await tester.pumpAndSettle();
 }
+
+/// Monta a página de detalhe dentro de um `GoRouter` de verdade, para
+/// testar o botão "Voltar" do cabeçalho — [comPilha] decide se a página é
+/// aberta via `context.push` (stack válida, `context.canPop() == true`) ou
+/// como `initialLocation` direto (sem stack, o caso de fallback via
+/// `context.go`).
+Future<void> _pumpDetailPageComRouter(
+  WidgetTester tester, {
+  required PatrimonioDetalhe detalhe,
+  required bool comPilha,
+  ProfilePerfil perfil = ProfilePerfil.admin,
+  List<MovimentacaoHistoricoItem> historico = const [],
+}) async {
+  final fakeAuth = FakeAuthRepository(
+    initialUserId: 'fake-user-id',
+    profileResolver: (_) => _profile(perfil),
+  );
+  addTearDown(fakeAuth.dispose);
+
+  final id = detalhe.patrimonio.id;
+  final router = GoRouter(
+    initialLocation: comPilha ? '/patrimonios' : '/patrimonios/$id',
+    routes: [
+      GoRoute(
+        path: '/patrimonios',
+        builder: (context, state) => Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('PAGINA_PATRIMONIOS'),
+                TextButton(
+                  onPressed: () => context.push('/patrimonios/$id'),
+                  child: const Text('Abrir detalhe'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/patrimonios/:id',
+        builder: (context, state) =>
+            Scaffold(body: PatrimonioDetailPage(id: state.pathParameters['id']!)),
+      ),
+    ],
+  );
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(fakeAuth),
+        patrimonioRepositoryProvider.overrideWithValue(
+          FakePatrimonioRepository(itens: [detalhe]),
+        ),
+        tipoPatrimonioRepositoryProvider.overrideWithValue(
+          FakeTipoPatrimonioRepository(tipos: _tipos),
+        ),
+        setorRepositoryProvider.overrideWithValue(
+          FakeSetorRepository(setores: _setores),
+        ),
+        movimentacaoRepositoryProvider.overrideWithValue(
+          FakeMovimentacaoRepository(historico: historico),
+        ),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  if (comPilha) {
+    await tester.tap(find.text('Abrir detalhe'));
+    await tester.pumpAndSettle();
+  }
+}
+
+PatrimonioDetalhe _detalhePadrao() => PatrimonioDetalhe(
+  patrimonio: Patrimonio(
+    id: '1',
+    numeroPatrimonio: '00045872',
+    tipoId: 'tipo-1',
+    status: PatrimonioStatus.emUso,
+    setorAtualId: 'setor-1',
+    dataCadastro: DateTime.utc(2026, 1, 10),
+    atualizadoEm: DateTime.utc(2026, 1, 10),
+  ),
+  tipoNome: 'Notebook',
+  setorNome: 'GETEC',
+);
 
 void main() {
   testWidgets('mostra os campos do patrimônio', (tester) async {
@@ -367,4 +457,63 @@ void main() {
     expect(find.text('GETEC'), findsOneWidget);
     expect(find.byTooltip('Gerência de Tecnologia'), findsOneWidget, reason: 'nome completo do setor por tooltip');
   });
+
+  group('navegação de voltar', () {
+    testWidgets('com pilha de navegação válida, Voltar retorna para a listagem', (tester) async {
+      await _pumpDetailPageComRouter(
+        tester,
+        detalhe: _detalhePadrao(),
+        comPilha: true,
+      );
+
+      expect(find.text('Patrimônio 00045872'), findsOneWidget);
+
+      await tester.tap(find.text('Voltar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('PAGINA_PATRIMONIOS'), findsOneWidget);
+      expect(find.byType(PatrimonioDetailPage), findsNothing);
+    });
+
+    testWidgets(
+      'sem pilha de navegação válida (rota filha aberta direto), Voltar usa o fallback para Patrimônios',
+      (tester) async {
+        await _pumpDetailPageComRouter(
+          tester,
+          detalhe: _detalhePadrao(),
+          comPilha: false,
+        );
+
+        expect(find.text('Patrimônio 00045872'), findsOneWidget);
+
+        await tester.tap(find.text('Voltar'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('PAGINA_PATRIMONIOS'), findsOneWidget);
+        expect(find.byType(PatrimonioDetailPage), findsNothing);
+      },
+    );
+  });
+
+  testWidgets(
+    'dialog de edição não navega para nenhuma rota: Cancelar apenas fecha o diálogo (regressão)',
+    (tester) async {
+      await _pumpDetailPage(tester, detalhe: _detalhePadrao());
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Editar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Editar patrimônio'), findsOneWidget);
+
+      // Sem GoRouter nesta árvore (ver `_pumpDetailPage`): se o diálogo
+      // tentasse `context.go`/`context.push`, este teste já falharia aqui.
+      final botaoCancelar = find.widgetWithText(TextButton, 'Cancelar');
+      await tester.ensureVisible(botaoCancelar);
+      await tester.pumpAndSettle();
+      await tester.tap(botaoCancelar);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Editar patrimônio'), findsNothing);
+      expect(find.text('Patrimônio 00045872'), findsOneWidget);
+    },
+  );
 }

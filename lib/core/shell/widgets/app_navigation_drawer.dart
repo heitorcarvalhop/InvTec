@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../features/auth/domain/profile.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
 import '../navigation_items.dart';
 import 'nav_tile.dart';
@@ -55,7 +56,7 @@ class AppNavigationDrawer extends StatelessWidget {
                       for (final item in items)
                         NavTile(
                           item: item,
-                          selected: item.route == currentRoute,
+                          selected: item.ativoPara(currentRoute),
                           onTap: () => onNavigate(item.route),
                         ),
                       const SizedBox(height: AppSpacing.sm),
@@ -63,13 +64,15 @@ class AppNavigationDrawer extends StatelessWidget {
                       const SizedBox(height: AppSpacing.sm),
                       NavTile(
                         item: configuracoesItem,
-                        selected: configuracoesItem.route == currentRoute,
+                        selected: configuracoesItem.ativoPara(currentRoute),
                         onTap: () => onNavigate(configuracoesItem.route),
                       ),
                       ListTile(
                         iconColor: AppColors.sidebarForegroundMuted,
                         textColor: AppColors.sidebarForegroundMuted,
-                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
                         leading: const Icon(Icons.logout),
                         title: const Text('Sair'),
                         onTap: onLogout,

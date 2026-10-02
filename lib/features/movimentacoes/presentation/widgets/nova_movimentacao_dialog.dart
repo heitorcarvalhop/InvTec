@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/app_exception.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../dashboard/presentation/dashboard_providers.dart';
@@ -218,7 +220,6 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final ultimoPasso = _step == _tituloPassos.length - 1;
 
     return PopScope(
@@ -228,23 +229,20 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
       canPop: !_isSubmitting,
       child: Dialog(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 560, maxHeight: MediaQuery.sizeOf(context).height * 0.85),
+          constraints: BoxConstraints(maxWidth: 600, maxHeight: MediaQuery.sizeOf(context).height * 0.85),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text('Nova movimentação', style: AppTypography.pageSubtitle(context)),
-                    ),
-                    Text(
-                      'Passo ${_step + 1} de ${_tituloPassos.length} · ${_tituloPassos[_step]}',
-                      style: AppTypography.auxiliary(context),
-                    ),
-                  ],
+                Text('Nova movimentação', style: AppTypography.cardTitle(context)),
+                const SizedBox(height: AppSpacing.smd),
+                _IndicadorDePasso(atual: _step, total: _tituloPassos.length),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Passo ${_step + 1} de ${_tituloPassos.length} · ${_tituloPassos[_step]}',
+                  style: AppTypography.auxiliary(context),
                 ),
                 // Lembrete de qual patrimônio está sendo movimentado, visível
                 // em todos os passos depois da seleção — o passo Patrimônio
@@ -257,12 +255,16 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.md),
                 Flexible(child: SingleChildScrollView(child: _conteudoDoPasso())),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.error)),
+                  _ErroBanner(mensagem: _errorMessage!),
                 ],
                 const SizedBox(height: AppSpacing.lg),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.md),
                 // `Wrap` (não `Row`) para o rótulo mais longo ("Confirmar
                 // movimentação") nunca estourar a largura do diálogo — em
                 // vez de overflow, os botões simplesmente quebram para uma
@@ -302,6 +304,74 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Barra de progresso do wizard: um segmento por passo, preenchido até o
+/// passo atual — só reforça visualmente o que o texto "Passo X de N" já diz,
+/// nunca a única fonte dessa informação (o texto continua presente para
+/// leitores de tela e para os testes).
+class _IndicadorDePasso extends StatelessWidget {
+  const _IndicadorDePasso({required this.atual, required this.total});
+
+  final int atual;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        for (var i = 0; i < total; i++) ...[
+          if (i > 0) const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: i <= atual ? colorScheme.primary : colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: const SizedBox(height: 4),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Banner de erro da RPC — mais visível que um texto solto, reaproveitando
+/// `statusColors` (o mesmo token usado nos chips/cards de status do resto do
+/// app) em vez de uma cor nova.
+class _ErroBanner extends StatelessWidget {
+  const _ErroBanner({required this.mensagem});
+
+  final String mensagem;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColors = Theme.of(context).statusColors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: statusColors.errorBackground,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.smd),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline, size: 18, color: statusColors.errorForeground),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                mensagem,
+                style: AppTypography.body(context)?.copyWith(color: statusColors.errorForeground),
+              ),
+            ),
+          ],
         ),
       ),
     );

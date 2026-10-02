@@ -48,6 +48,10 @@ Future<void> _pumpFormPage(
     initialLocation: '/patrimonios/novo',
     routes: [
       GoRoute(
+        path: '/patrimonios',
+        builder: (context, state) => const Scaffold(body: Text('PAGINA_PATRIMONIOS')),
+      ),
+      GoRoute(
         path: '/patrimonios/novo',
         builder: (context, state) =>
             const Scaffold(body: PatrimonioFormPage()),
@@ -89,6 +93,84 @@ Future<void> _pumpFormPage(
   await tester.pumpAndSettle();
 }
 
+/// Mesmo cenário de [_pumpFormPage], mas abrindo "Novo patrimônio" via
+/// `context.push` a partir de uma página "/patrimonios" de verdade — ou
+/// seja, com uma pilha de navegação válida (`context.canPop() == true`),
+/// ao contrário de [_pumpFormPage] (que monta a rota filha diretamente,
+/// sem histórico — o caso de fallback via `context.go`).
+Future<void> _pumpFormPageComPilha(
+  WidgetTester tester, {
+  ProfilePerfil perfil = ProfilePerfil.admin,
+  required FakePatrimonioRepository patrimonioRepo,
+  List<TipoPatrimonio>? tipos,
+  List<Setor>? setores,
+  List<Localizacao>? localizacoes,
+}) async {
+  final fakeAuth = FakeAuthRepository(
+    initialUserId: 'fake-user-id',
+    profileResolver: (_) => _profile(perfil),
+  );
+  addTearDown(fakeAuth.dispose);
+
+  final router = GoRouter(
+    initialLocation: '/patrimonios',
+    routes: [
+      GoRoute(
+        path: '/patrimonios',
+        builder: (context, state) => Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => context.push('/patrimonios/novo'),
+              child: const Text('Abrir novo patrimônio'),
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/patrimonios/novo',
+        builder: (context, state) =>
+            const Scaffold(body: PatrimonioFormPage()),
+      ),
+      GoRoute(
+        path: '/patrimonios/:id',
+        builder: (context, state) => Scaffold(
+          body: Text('DETALHE:${state.pathParameters['id']}'),
+        ),
+      ),
+      GoRoute(
+        path: '/setores',
+        builder: (context, state) => const Scaffold(body: Text('PAGINA_SETORES')),
+      ),
+    ],
+  );
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(fakeAuth),
+        patrimonioRepositoryProvider.overrideWithValue(patrimonioRepo),
+        tipoPatrimonioRepositoryProvider.overrideWithValue(
+          FakeTipoPatrimonioRepository(tipos: tipos ?? _tiposPadrao),
+        ),
+        setorRepositoryProvider.overrideWithValue(
+          FakeSetorRepository(setores: setores ?? _setoresPadrao),
+        ),
+        dashboardRepositoryProvider.overrideWithValue(
+          FakeDashboardRepository(),
+        ),
+        localizacaoRepositoryProvider.overrideWithValue(
+          FakeLocalizacaoRepository(localizacoes: localizacoes ?? const []),
+        ),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  await tester.tap(find.text('Abrir novo patrimônio'));
+  await tester.pumpAndSettle();
+}
+
 final _tiposPadrao = [
   TipoPatrimonio(
     id: 'tipo-1',
@@ -121,6 +203,27 @@ Future<void> _selecionarDropdown(
 
 Future<void> _tocarBotao(WidgetTester tester, String texto) async {
   final botao = find.widgetWithText(FilledButton, texto);
+  await tester.ensureVisible(botao);
+  await tester.pumpAndSettle();
+  await tester.tap(botao);
+  await tester.pumpAndSettle();
+}
+
+/// Rola até o botão "Voltar" do cabeçalho (pode estar fora da viewport
+/// depois de interagir com campos mais abaixo no formulário, que é mais
+/// alto que a viewport padrão de teste) antes de tocá-lo.
+Future<void> _tocarVoltar(WidgetTester tester) async {
+  final botao = find.text('Voltar');
+  await tester.ensureVisible(botao);
+  await tester.pumpAndSettle();
+  await tester.tap(botao);
+  await tester.pumpAndSettle();
+}
+
+/// Mesma rolagem defensiva para o "Cancelar" do rodapé — fica abaixo de
+/// todo o formulário, quase sempre fora da viewport padrão de teste.
+Future<void> _tocarCancelar(WidgetTester tester) async {
+  final botao = find.widgetWithText(OutlinedButton, 'Cancelar');
   await tester.ensureVisible(botao);
   await tester.pumpAndSettle();
   await tester.tap(botao);
@@ -364,4 +467,136 @@ void main() {
       expect(repo.ultimoCadastro?['destinoId'], 'setor-2');
     },
   );
+
+  group('navegação de voltar', () {
+    testWidgets(
+      'formulário vazio: Voltar do cabeçalho retorna para Patrimônios sem confirmação',
+      (tester) async {
+        await _pumpFormPageComPilha(
+          tester,
+          patrimonioRepo: FakePatrimonioRepository(),
+        );
+
+        await _tocarVoltar(tester);
+
+        expect(find.text('Descartar alterações?'), findsNothing);
+        expect(find.text('Abrir novo patrimônio'), findsOneWidget);
+        expect(find.byType(PatrimonioFormPage), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'formulário vazio: Cancelar do rodapé retorna para Patrimônios sem confirmação',
+      (tester) async {
+        await _pumpFormPageComPilha(
+          tester,
+          patrimonioRepo: FakePatrimonioRepository(),
+        );
+
+        await _tocarCancelar(tester);
+
+        expect(find.text('Descartar alterações?'), findsNothing);
+        expect(find.text('Abrir novo patrimônio'), findsOneWidget);
+        expect(find.byType(PatrimonioFormPage), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'formulário com campo preenchido: Voltar pede confirmação; Continuar editando mantém os dados',
+      (tester) async {
+        await _pumpFormPageComPilha(
+          tester,
+          patrimonioRepo: FakePatrimonioRepository(),
+        );
+
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Número patrimonial'),
+          '45872',
+        );
+        await tester.pumpAndSettle();
+
+        await _tocarVoltar(tester);
+
+        expect(find.text('Descartar alterações?'), findsOneWidget);
+
+        await tester.tap(find.text('Continuar editando'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Descartar alterações?'), findsNothing);
+        expect(find.byType(PatrimonioFormPage), findsOneWidget);
+        expect(find.text('45872'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'formulário com campo preenchido: Cancelar pede confirmação; Descartar sai e perde os dados',
+      (tester) async {
+        await _pumpFormPageComPilha(
+          tester,
+          patrimonioRepo: FakePatrimonioRepository(),
+        );
+
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Número patrimonial'),
+          '45872',
+        );
+        await tester.pumpAndSettle();
+
+        await _tocarCancelar(tester);
+
+        expect(find.text('Descartar alterações?'), findsOneWidget);
+
+        await tester.tap(find.text('Descartar'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Abrir novo patrimônio'), findsOneWidget);
+        expect(find.byType(PatrimonioFormPage), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'uma seleção (sem nenhum texto digitado) também conta como dado não salvo',
+      (tester) async {
+        final repo = FakePatrimonioRepository();
+        await _pumpFormPageComPilha(tester, patrimonioRepo: repo);
+
+        await _selecionarDropdown(tester, 'Tipo *', 'Notebook');
+
+        await _tocarVoltar(tester);
+
+        expect(find.text('Descartar alterações?'), findsOneWidget);
+
+        await tester.tap(find.text('Descartar'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Abrir novo patrimônio'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'sem pilha de navegação válida (rota filha aberta direto): Voltar usa o fallback para Patrimônios',
+      (tester) async {
+        // `_pumpFormPage` monta '/patrimonios/novo' como `initialLocation`
+        // direto (sem navegação anterior) — exatamente o caso em que
+        // `context.canPop()` é `false` e `backOrGo` precisa cair no
+        // fallback `context.go('/patrimonios')`.
+        await _pumpFormPage(tester, patrimonioRepo: FakePatrimonioRepository());
+
+        await _tocarVoltar(tester);
+
+        expect(find.text('PAGINA_PATRIMONIOS'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'sem pilha de navegação válida: Cancelar também usa o fallback para Patrimônios',
+      (tester) async {
+        await _pumpFormPage(tester, patrimonioRepo: FakePatrimonioRepository());
+
+        await _tocarCancelar(tester);
+
+        expect(find.text('PAGINA_PATRIMONIOS'), findsOneWidget);
+      },
+    );
+  });
 }

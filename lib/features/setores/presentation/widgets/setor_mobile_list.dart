@@ -94,8 +94,12 @@ class _SetorCard extends StatelessWidget {
               Text(setor.descricao!, style: theme.textTheme.bodyMedium),
             ],
             const SizedBox(height: AppSpacing.sm),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            // `Wrap` (não `Row`) para os rótulos não estourarem a largura em
+            // telas estreitas quando as 3 ações cabem lado a lado.
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
               children: [
                 TextButton.icon(
                   onPressed: onLocalizacoes,

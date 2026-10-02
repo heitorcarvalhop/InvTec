@@ -2,9 +2,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/routing/back_navigation.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/page_header.dart';
+import '../../presentation/widgets/confirm_discard_dialog.dart';
 import 'patrimonio_import_controller.dart';
 import 'patrimonio_import_state.dart';
 import 'widgets/import_comparacao_resumo_step.dart';
@@ -36,7 +41,7 @@ class PatrimonioImportPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Cabecalho(step: state.step),
+              _Cabecalho(state: state),
               const SizedBox(height: AppSpacing.md),
               _StepIndicator(step: state.step),
               const SizedBox(height: AppSpacing.lg),
@@ -53,21 +58,54 @@ class PatrimonioImportPage extends ConsumerWidget {
   }
 }
 
-class _Cabecalho extends StatelessWidget {
-  const _Cabecalho({required this.step});
+/// Progresso "relevante" é tudo além do passo inicial de seleção de
+/// arquivo: a partir dali o usuário já tomou decisões (aba, cabeçalho,
+/// mapeamento, padrões, localizações, tipos, revisão...) que seriam
+/// perdidas ao sair sem confirmar. O passo [ImportStep.resultado] também
+/// sai direto — a importação já terminou (com sucesso ou falhas parciais
+/// já registradas), não há "alterações" pendentes para descartar.
+bool _temProgressoRelevante(PatrimonioImportState state) {
+  switch (state.step) {
+    case ImportStep.selecionarArquivo:
+    case ImportStep.resultado:
+      return false;
+    default:
+      return true;
+  }
+}
 
-  final ImportStep step;
+Future<void> _cancelarImportacao(
+  BuildContext context,
+  WidgetRef ref,
+  PatrimonioImportState state,
+) async {
+  if (_temProgressoRelevante(state)) {
+    final descartar = await confirmarDescartarAlteracoes(
+      context,
+      message: 'O progresso desta importação ainda não foi salvo e será perdido.',
+    );
+    if (!descartar) return;
+  }
+  if (!context.mounted) return;
+  ref.read(patrimonioImportControllerProvider.notifier).reiniciar();
+  backOrGo(context, '/patrimonios');
+}
+
+class _Cabecalho extends ConsumerWidget {
+  const _Cabecalho({required this.state});
+
+  final PatrimonioImportState state;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Importar planilha de patrimônios', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: AppSpacing.xs),
-        Text(_subtituloPorPasso(step), style: theme.textTheme.bodyMedium),
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Mesma regra do `PopScope` da página (não interromper uma importação
+    // em andamento): enquanto `step == importando`, não oferece saída.
+    final podeCancelar = state.step != ImportStep.importando;
+    return InvTecPageHeader(
+      title: 'Importar planilha de patrimônios',
+      subtitle: _subtituloPorPasso(state.step),
+      backLabel: 'Cancelar importação',
+      onBack: podeCancelar ? () => _cancelarImportacao(context, ref, state) : null,
     );
   }
 
@@ -143,22 +181,35 @@ class _StepIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final atual = _posicaoDoPasso(step);
     final colorScheme = Theme.of(context).colorScheme;
+    final surfaceColors = Theme.of(context).surfaceColors;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (var i = 0; i < _rotulosPassos.length; i++) ...[
-            _StepDot(numero: i + 1, label: _rotulosPassos[i], estado: _estadoDoPasso(i, atual)),
-            if (i < _rotulosPassos.length - 1)
-              Container(
-                width: 24,
-                height: 2,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                color: i < atual ? colorScheme.primary : colorScheme.outlineVariant,
-              ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.smd),
+      decoration: BoxDecoration(
+        color: surfaceColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: surfaceColors.border),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (var i = 0; i < _rotulosPassos.length; i++) ...[
+              _StepDot(numero: i + 1, label: _rotulosPassos[i], estado: _estadoDoPasso(i, atual)),
+              if (i < _rotulosPassos.length - 1)
+                Container(
+                  width: AppSpacing.lg,
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                  decoration: BoxDecoration(
+                    color: i < atual ? colorScheme.primary : colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -182,30 +233,40 @@ class _StepDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final (background, foreground, border) = switch (estado) {
-      _StepDotEstado.concluido => (colorScheme.primary, colorScheme.onPrimary, colorScheme.primary),
-      _StepDotEstado.atual => (colorScheme.primaryContainer, colorScheme.onPrimaryContainer, colorScheme.primary),
-      _StepDotEstado.pendente => (Colors.transparent, colorScheme.onSurfaceVariant, colorScheme.outlineVariant),
+    final (background, foreground, border, borderWidth) = switch (estado) {
+      _StepDotEstado.concluido => (colorScheme.primary, colorScheme.onPrimary, colorScheme.primary, 1.5),
+      _StepDotEstado.atual => (colorScheme.primaryContainer, colorScheme.onPrimaryContainer, colorScheme.primary, 2.5),
+      _StepDotEstado.pendente => (Colors.transparent, colorScheme.onSurfaceVariant, colorScheme.outlineVariant, 1.5),
+    };
+    final labelColor = switch (estado) {
+      _StepDotEstado.atual => colorScheme.primary,
+      _StepDotEstado.concluido => colorScheme.onSurface,
+      _StepDotEstado.pendente => colorScheme.onSurfaceVariant,
     };
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 28,
-          height: 28,
+          width: 32,
+          height: 32,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: background, shape: BoxShape.circle, border: Border.all(color: border)),
+          decoration: BoxDecoration(
+            color: background,
+            shape: BoxShape.circle,
+            border: Border.all(color: border, width: borderWidth),
+          ),
           child: estado == _StepDotEstado.concluido
-              ? Icon(Icons.check, size: 16, color: foreground)
-              : Text('$numero', style: TextStyle(color: foreground, fontSize: 12, fontWeight: FontWeight.w600)),
+              ? Icon(Icons.check, size: 18, color: foreground)
+              : Text('$numero', style: TextStyle(color: foreground, fontSize: 13, fontWeight: FontWeight.w700)),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           label,
-          style: AppTypography.caption(
-            context,
-          )?.copyWith(fontWeight: estado == _StepDotEstado.atual ? FontWeight.w700 : null),
+          style: AppTypography.caption(context)?.copyWith(
+            color: labelColor,
+            fontWeight: estado == _StepDotEstado.atual ? FontWeight.w700 : null,
+          ),
         ),
       ],
     );
@@ -302,29 +363,70 @@ class _PassoArquivo extends ConsumerWidget {
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.upload_file_outlined, size: 48),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Selecione a planilha (.xlsx ou .csv) com os patrimônios a importar.\n'
-              'O arquivo é lido localmente — nada é enviado ao Supabase até você '
-              'confirmar a importação no fim do processo.',
-              textAlign: TextAlign.center,
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: colorScheme.primaryContainer, shape: BoxShape.circle),
+                  child: Icon(Icons.upload_file_outlined, size: 32, color: colorScheme.onPrimaryContainer),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text('Selecione a planilha', style: AppTypography.cardTitle(context)),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Com os patrimônios a importar. O arquivo é lido localmente — nada é '
+                  'enviado ao Supabase até você confirmar a importação no fim do processo.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.body(context)?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: AppSpacing.sm,
+                  children: const [_FormatoBadge(label: 'XLSX'), _FormatoBadge(label: 'CSV')],
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                FilledButton.icon(
+                  onPressed: () => _selecionarArquivo(ref),
+                  icon: const Icon(Icons.folder_open_outlined),
+                  label: const Text('Selecionar arquivo'),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton.icon(
-              onPressed: () => _selecionarArquivo(ref),
-              icon: const Icon(Icons.folder_open_outlined),
-              label: const Text('Selecionar arquivo'),
-            ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _FormatoBadge extends StatelessWidget {
+  const _FormatoBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaceColors = Theme.of(context).surfaceColors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: surfaceColors.tableHeader,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: surfaceColors.border),
+      ),
+      child: Text(label, style: AppTypography.caption(context)),
     );
   }
 }

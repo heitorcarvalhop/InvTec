@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/domain/ordenacao_direcao.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/utils/postgrest_filter.dart';
 import '../domain/patrimonio.dart';
 import '../domain/patrimonio_detalhe.dart';
+import '../domain/patrimonio_ordenacao.dart';
 import '../domain/patrimonio_repository.dart';
 import '../domain/patrimonio_search_field.dart';
 import '../domain/patrimonios_resultado.dart';
@@ -160,6 +162,8 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     DateTime? dataCadastroAte,
     DateTime? dataAquisicaoDe,
     DateTime? dataAquisicaoAte,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) async {
     try {
       final termo = busca?.trim();
@@ -187,6 +191,8 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
           limit: limit,
           offset: offset,
           filtros: filtrosComuns,
+          ordenarPor: ordenarPor,
+          ordenacaoDirecao: ordenacaoDirecao,
         );
       }
 
@@ -204,7 +210,13 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
         query = resultado;
       }
       query = _aplicarFiltrosComuns(query, filtrosComuns);
-      return await _executarConsulta(query, limit: limit, offset: offset);
+      return await _executarConsulta(
+        query,
+        limit: limit,
+        offset: offset,
+        ordenarPor: ordenarPor,
+        ordenacaoDirecao: ordenacaoDirecao,
+      );
     } on PostgrestException catch (e) {
       throw AppException(mapPatrimonioErrorMessage(e), cause: e);
     }
@@ -228,6 +240,8 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     required int limit,
     required int offset,
     required _FiltrosComuns filtros,
+    required PatrimonioOrdenacaoCampo? ordenarPor,
+    required OrdenacaoDirecao ordenacaoDirecao,
   }) async {
     final numero = normalizarNumeroPatrimonio(termo)!;
 
@@ -236,7 +250,13 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
         .select(_colunasComRelacionamentos)
         .eq('numero_patrimonio', numero);
     queryPatrimonio = _aplicarFiltrosComuns(queryPatrimonio, filtros);
-    final resultadoPatrimonio = await _executarConsulta(queryPatrimonio, limit: limit, offset: offset);
+    final resultadoPatrimonio = await _executarConsulta(
+      queryPatrimonio,
+      limit: limit,
+      offset: offset,
+      ordenarPor: ordenarPor,
+      ordenacaoDirecao: ordenacaoDirecao,
+    );
     if (resultadoPatrimonio.total > 0) return resultadoPatrimonio;
 
     var querySerie = _client.from('patrimonios').select(_colunasComRelacionamentos).eq('numero_serie', termo);
@@ -331,15 +351,63 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     PostgrestFilterBuilder<PostgrestList> query, {
     required int limit,
     required int offset,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) async {
-    final response = await query
-        .order('data_cadastro', ascending: false)
-        .order('id', ascending: false)
-        .range(offset, offset + limit - 1)
-        .count(CountOption.exact);
+    final ordenada = _aplicarOrdenacao(query, ordenarPor, ordenacaoDirecao);
+    final response = await ordenada.range(offset, offset + limit - 1).count(CountOption.exact);
 
     final itens = response.data.map(PatrimonioDetalhe.fromJson).toList();
     return PatrimoniosResultado(itens: itens, total: response.count);
+  }
+
+  /// Mapeia [campo] (vocabulário fechado, nunca texto vindo da UI — ver
+  /// seção de segurança do pedido original) para a coluna/relacionamento
+  /// real a ordenar. `id` sempre entra como critério de desempate final, na
+  /// MESMA direção do campo escolhido (ou DESC, mantendo o padrão histórico,
+  /// quando nenhum campo foi escolhido) — sem ele, `data_cadastro` sozinho
+  /// (e qualquer um dos novos campos) pode repetir valor entre linhas, e sem
+  /// uma ordem totalmente determinística um registro pode "pular" de página.
+  ///
+  /// [PatrimonioOrdenacaoCampo.numeroPatrimonio] ordena por TEXTO
+  /// (`numero_patrimonio` é `text`, pode conter valores não-numéricos
+  /// legados — ver docs/database.md): "10" vem antes de "2". Uma ordenação
+  /// numérica de verdade exigiria uma coluna/índice calculado novo (fora do
+  /// escopo desta tarefa, que não altera schema/migrations) — ver relatório.
+  ///
+  /// [PatrimonioOrdenacaoCampo.equipamento]/[setor]/[localizacao] ordenam
+  /// pelo NOME do relacionamento embutido (`referencedTable`) — seguro aqui
+  /// porque `patrimonios` tem só uma FK para cada uma dessas tabelas (nunca
+  /// ambíguo, ao contrário de `movimentacoes`, que tem duas FKs para
+  /// `setores`/`localizacoes`).
+  PostgrestTransformBuilder<PostgrestList> _aplicarOrdenacao(
+    PostgrestFilterBuilder<PostgrestList> query,
+    PatrimonioOrdenacaoCampo? campo,
+    OrdenacaoDirecao direcao,
+  ) {
+    if (campo == null) {
+      return query.order('data_cadastro', ascending: false).order('id', ascending: false);
+    }
+
+    final ascending = direcao == OrdenacaoDirecao.asc;
+    final PostgrestTransformBuilder<PostgrestList> ordenada;
+    switch (campo) {
+      case PatrimonioOrdenacaoCampo.numeroPatrimonio:
+        ordenada = query.order('numero_patrimonio', ascending: ascending);
+      case PatrimonioOrdenacaoCampo.equipamento:
+        ordenada = query.order('nome', ascending: ascending, referencedTable: 'tipos_patrimonio');
+      case PatrimonioOrdenacaoCampo.marca:
+        ordenada = query.order('marca', ascending: ascending);
+      case PatrimonioOrdenacaoCampo.setor:
+        ordenada = query.order('nome', ascending: ascending, referencedTable: 'setores');
+      case PatrimonioOrdenacaoCampo.localizacao:
+        ordenada = query.order('nome', ascending: ascending, referencedTable: 'localizacoes');
+      case PatrimonioOrdenacaoCampo.status:
+        ordenada = query.order('status', ascending: ascending);
+      case PatrimonioOrdenacaoCampo.criadoEm:
+        ordenada = query.order('data_cadastro', ascending: ascending);
+    }
+    return ordenada.order('id', ascending: ascending);
   }
 
   /// Aplica o filtro de busca sobre [query], de acordo com [campo] — nunca

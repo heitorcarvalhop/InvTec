@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../responsive/breakpoints.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'compact_icon_button.dart';
 
-/// Cabeçalho padrão de página: título + subtítulo + ações à direita (que
-/// quebram para baixo do título em telas estreitas). Usado em toda página
-/// de listagem/gestão para nunca haver dois estilos de cabeçalho
-/// diferentes na aplicação.
+/// Cabeçalho padrão de página: botão de voltar opcional + título + subtítulo
+/// + ações à direita (que quebram para baixo do título em telas estreitas).
+/// Usado em toda página de listagem/gestão/página filha para nunca haver
+/// dois estilos de cabeçalho diferentes na aplicação.
 class InvTecPageHeader extends StatelessWidget {
   const InvTecPageHeader({
     super.key,
@@ -14,6 +16,8 @@ class InvTecPageHeader extends StatelessWidget {
     this.subtitle,
     this.actions = const [],
     this.compact = false,
+    this.onBack,
+    this.backLabel = 'Voltar',
   });
 
   final String title;
@@ -23,12 +27,22 @@ class InvTecPageHeader extends StatelessWidget {
   /// Telas estreitas: título e ações empilham em vez de ficar lado a lado.
   final bool compact;
 
+  /// Quando informado, mostra um botão de voltar acima do título — ícone +
+  /// texto em telas largas, só ícone com tooltip em telas estreitas. Páginas
+  /// principais (navegáveis pela sidebar) nunca devem passar este callback.
+  final VoidCallback? onBack;
+  final String backLabel;
+
   @override
   Widget build(BuildContext context) {
     final titulo = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (onBack != null) ...[
+          _BackButton(onBack: onBack!, label: backLabel),
+          const SizedBox(height: AppSpacing.xs),
+        ],
         Text(title, style: AppTypography.pageTitle(context)),
         if (subtitle != null) ...[
           const SizedBox(height: AppSpacing.xs),
@@ -62,6 +76,40 @@ class InvTecPageHeader extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.start,
         runSpacing: AppSpacing.md,
         children: [titulo, botoes],
+      ),
+    );
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onBack, required this.label});
+
+  final VoidCallback onBack;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.screenSize == ScreenSize.mobile) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: CompactIconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: label,
+          onPressed: onBack,
+        ),
+      );
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onBack,
+        icon: const Icon(Icons.arrow_back, size: 18),
+        label: Text(label),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          visualDensity: VisualDensity.compact,
+        ),
       ),
     );
   }

@@ -42,4 +42,17 @@ class AppTypography {
   static TextStyle? caption(BuildContext context) => Theme.of(
     context,
   ).textTheme.labelSmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
+
+  /// Rótulo discreto em caixa alta com tracking amplo ("eyebrow") — só para
+  /// o label de stat card e, quando fizer sentido claro, pequenos
+  /// títulos/metadados de seção. Nunca em corpo, tabela, input, sidebar
+  /// inteira, botão ou texto longo. `TextStyle` não tem transformação de
+  /// caixa: quem usa este estilo decide se aplica `.toUpperCase()` no texto.
+  static TextStyle? eyebrow(BuildContext context) =>
+      Theme.of(context).textTheme.labelSmall?.copyWith(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 1.6,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      );
 }

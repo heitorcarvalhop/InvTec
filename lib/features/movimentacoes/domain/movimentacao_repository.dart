@@ -1,6 +1,8 @@
+import '../../../core/domain/ordenacao_direcao.dart';
 import 'movimentacao.dart';
 import 'movimentacao_historico_item.dart';
 import 'movimentacao_listagem_item.dart';
+import 'movimentacao_ordenacao.dart';
 import 'movimentacoes_resultado.dart';
 
 abstract class MovimentacaoRepository {
@@ -19,6 +21,11 @@ abstract class MovimentacaoRepository {
   /// [busca] casa por OR contra número do patrimônio, responsável (origem
   /// OU destino), número de documento e número de chamado. [setorId] casa
   /// contra origem OU destino.
+  ///
+  /// [ordenarPor] `null` (padrão) mantém `data_movimentacao` mais recente
+  /// primeiro; qualquer outro valor substitui totalmente essa ordenação,
+  /// sempre resolvida no SERVIDOR antes de [limit]/[offset].
+  /// [ordenacaoDirecao] só importa quando [ordenarPor] não é `null`.
   Future<MovimentacoesResultado> listar({
     int limit = 25,
     int offset = 0,
@@ -27,6 +34,8 @@ abstract class MovimentacaoRepository {
     String? setorId,
     DateTime? periodoDe,
     DateTime? periodoAte,
+    MovimentacaoOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   });
 
   /// Igual a [listarPorPatrimonio], mas já traz os nomes de setor/localização

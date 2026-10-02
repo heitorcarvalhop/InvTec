@@ -91,4 +91,56 @@ void main() {
     );
     expect(find.widgetWithText(OutlinedButton, 'Tentar novamente'), findsOneWidget);
   });
+
+  group('grade de stat cards responsiva (sem linha com um único card sobrando)', () {
+    Future<void> pumpEm(WidgetTester tester, Size tamanho) async {
+      tester.view.physicalSize = tamanho;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository())],
+          child: const MaterialApp(home: Scaffold(body: DashboardPage())),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    // 6 cards: largura >= 1100 de conteúdo cabe numa única fileira de 6;
+    // larguras menores distribuem em 3+3, 2+2+2 ou 1 por linha — nunca 5+1.
+    for (final tamanho in [const Size(1440, 900), const Size(1024, 768), const Size(800, 600)]) {
+      testWidgets('${tamanho.width.toInt()}x${tamanho.height.toInt()}: sem overflow', (tester) async {
+        await pumpEm(tester, tamanho);
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Total de patrimônios'), findsOneWidget);
+        expect(find.text('Baixados'), findsOneWidget);
+      });
+    }
+
+    testWidgets('mobile (390x844): sem overflow, cards em coluna(s) estreita(s)', (tester) async {
+      await pumpEm(tester, const Size(390, 844));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Total de patrimônios'), findsOneWidget);
+    });
+
+    testWidgets('1440px: os 6 cards ficam todos na mesma fileira (mesmo topo)', (tester) async {
+      await pumpEm(tester, const Size(1440, 900));
+
+      final primeiro = tester.getTopLeft(find.text('Total de patrimônios')).dy;
+      final ultimo = tester.getTopLeft(find.text('Baixados')).dy;
+      expect(primeiro, ultimo);
+    });
+
+    testWidgets('800px: os cards ficam em mais de uma fileira (nunca 5+1)', (tester) async {
+      await pumpEm(tester, const Size(800, 600));
+
+      final primeiro = tester.getTopLeft(find.text('Total de patrimônios')).dy;
+      final ultimo = tester.getTopLeft(find.text('Baixados')).dy;
+      expect(ultimo, greaterThan(primeiro));
+    });
+  });
 }

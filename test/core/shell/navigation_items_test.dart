@@ -40,4 +40,26 @@ void main() {
     expect(item.visivelPara(ProfilePerfil.operador), isFalse);
     expect(item.visivelPara(ProfilePerfil.consulta), isFalse);
   });
+
+  group('NavigationItem.ativoPara', () {
+    const item = NavigationItem(route: '/patrimonios', label: 'Patrimônios', icon: Icons.abc);
+
+    test('rota exatamente igual é ativa', () {
+      expect(item.ativoPara('/patrimonios'), isTrue);
+    });
+
+    test('página filha (sub-rota) também marca o item como ativo', () {
+      expect(item.ativoPara('/patrimonios/novo'), isTrue);
+      expect(item.ativoPara('/patrimonios/importar'), isTrue);
+      expect(item.ativoPara('/patrimonios/abc-123'), isTrue);
+    });
+
+    test('rota de outro item não é ativa', () {
+      expect(item.ativoPara('/setores'), isFalse);
+    });
+
+    test('rota que só começa parecido, sem ser filha de verdade, não é ativa', () {
+      expect(item.ativoPara('/patrimoniosx'), isFalse);
+    });
+  });
 }

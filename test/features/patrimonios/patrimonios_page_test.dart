@@ -67,6 +67,17 @@ Future<void> _pumpPatrimoniosPage(
   FakeLocalizacaoRepository? localizacaoRepo,
   List<Setor>? setores,
 }) async {
+  // Janela desktop "comum" (mesmo padrão usado por outras suítes de página
+  // inteira do projeto, ex.: sidebar/tema) — estes são testes de
+  // comportamento/lógica, não de responsividade (essa cobertura vive em
+  // `patrimonio_responsive_smoke_test.dart`), então usam uma largura
+  // confortável em vez do tamanho mínimo (e bem menor) que o flutter_test
+  // usa por padrão quando nenhum tamanho é definido.
+  tester.view.physicalSize = const Size(1280, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
   final fakeAuth = FakeAuthRepository(
     initialUserId: 'fake-user-id',
     profileResolver: (_) => _profile(perfil),
@@ -216,7 +227,10 @@ void main() {
         patrimonioRepo: FakePatrimonioRepository(),
       );
 
-      expect(find.text('Buscar em'), findsOneWidget);
+      // "Buscar em" virou só um `Tooltip` (não mais um label flutuante
+      // truncando o seletor) — o valor em si ("Tudo") sempre aparece por
+      // extenso.
+      expect(find.byTooltip('Buscar em'), findsOneWidget);
       expect(find.text('Tudo'), findsOneWidget);
 
       await tester.tap(find.text('Tudo'));
@@ -288,6 +302,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
 
+      // "Limpar filtros" vive dentro do painel de filtros, que agora só
+      // aparece depois de clicar em "Filtros" na toolbar.
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(TextButton, 'Limpar filtros'));
       await tester.pumpAndSettle();
 
@@ -380,6 +398,9 @@ void main() {
         ),
       );
 
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
+      await tester.pumpAndSettle();
+
       final campoLocalizacao = find.widgetWithText(DropdownButtonFormField<String>, 'Localização');
       expect(campoLocalizacao, findsOneWidget);
       await tester.ensureVisible(campoLocalizacao);
@@ -416,6 +437,9 @@ void main() {
           ],
         ),
       );
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
+      await tester.pumpAndSettle();
 
       final campoLocalizacao = find.widgetWithText(DropdownButtonFormField<String>, 'Localização');
       await tester.ensureVisible(campoLocalizacao);
@@ -568,6 +592,9 @@ void main() {
           Setor(id: 'id-gepos', nome: 'Gerência de Posturas', sigla: 'GEPOS', ativo: true, criadoEm: DateTime(2026, 1, 1)),
         ],
       );
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
+      await tester.pumpAndSettle();
 
       final campoSetor = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor atual');
       await tester.ensureVisible(campoSetor);

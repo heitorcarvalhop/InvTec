@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/presentation/widgets/patrimonio_desktop_table.dart';
 
 /// A listagem de Patrimônios ficou só com identificação e
@@ -48,6 +50,9 @@ Future<void> _pump(
   WidgetTester tester,
   List<PatrimonioDetalhe> itens, {
   bool canManage = true,
+  PatrimonioOrdenacaoCampo? ordenarPor,
+  OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
+  ValueChanged<PatrimonioOrdenacaoCampo>? onOrdenarPor,
   ValueChanged<PatrimonioDetalhe>? onTap,
   ValueChanged<PatrimonioDetalhe>? onEdit,
 }) async {
@@ -58,6 +63,9 @@ Future<void> _pump(
           child: PatrimonioDesktopTable(
             itens: itens,
             canManage: canManage,
+            ordenarPor: ordenarPor,
+            ordenacaoDirecao: ordenacaoDirecao,
+            onOrdenarPor: onOrdenarPor ?? (_) {},
             onTap: onTap ?? (_) {},
             onEdit: onEdit ?? (_) {},
           ),
@@ -235,9 +243,14 @@ void main() {
       final abertos = <String>[];
       await _pump(tester, [_item('a', numero: '100')], onTap: (d) => abertos.add(d.patrimonio.id));
 
-      // Tab #1 cai na própria linha (InkWell); o botão vem depois.
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
+      // Os 4 cabeçalhos ordenáveis (Patrimônio/Equipamento/Setor/Status)
+      // agora são focáveis e vêm antes da linha na ordem de tabulação; só
+      // depois deles o foco cai na própria linha (InkWell) — o botão vem
+      // em seguida.
+      for (var i = 0; i < 5; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pump();
 

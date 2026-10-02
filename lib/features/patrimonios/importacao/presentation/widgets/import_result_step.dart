@@ -70,8 +70,10 @@ class ImportResultStep extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: AppSpacing.lg),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        Wrap(
+          alignment: WrapAlignment.end,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: [
             OutlinedButton(
               onPressed: () {
@@ -80,7 +82,6 @@ class ImportResultStep extends ConsumerWidget {
               },
               child: const Text('Concluir'),
             ),
-            const SizedBox(width: AppSpacing.sm),
             FilledButton(
               onPressed: () {
                 controller.reiniciar();

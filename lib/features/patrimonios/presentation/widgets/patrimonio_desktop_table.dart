@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/domain/ordenacao_direcao.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/setor_compact_text.dart';
+import '../../../../core/widgets/sortable_header_label.dart';
 import '../../domain/patrimonio_detalhe.dart';
+import '../../domain/patrimonio_ordenacao.dart';
 import 'patrimonio_status_chip.dart';
 
 /// Altura mínima confortável de uma linha da lista.
@@ -25,12 +28,26 @@ class PatrimonioDesktopTable extends StatelessWidget {
     super.key,
     required this.itens,
     required this.canManage,
+    required this.ordenarPor,
+    required this.ordenacaoDirecao,
+    required this.onOrdenarPor,
     required this.onTap,
     required this.onEdit,
   });
 
   final List<PatrimonioDetalhe> itens;
   final bool canManage;
+
+  /// Estado de ordenação atual (ver [PatrimoniosFiltro]) — usado só para
+  /// desenhar a seta correta em cada cabeçalho ordenável; a ordenação em si
+  /// já vem resolvida no servidor pelo [PatrimoniosController].
+  final PatrimonioOrdenacaoCampo? ordenarPor;
+  final OrdenacaoDirecao ordenacaoDirecao;
+
+  /// Clique num cabeçalho ordenável — mesmo estado usado pelo controle
+  /// "Ordenar por" da toolbar (nunca dois estados de ordenação paralelos).
+  final ValueChanged<PatrimonioOrdenacaoCampo> onOrdenarPor;
+
   final ValueChanged<PatrimonioDetalhe> onTap;
   final ValueChanged<PatrimonioDetalhe> onEdit;
 
@@ -40,7 +57,11 @@ class PatrimonioDesktopTable extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          const _HeaderRow(),
+          _HeaderRow(
+            ordenarPor: ordenarPor,
+            ordenacaoDirecao: ordenacaoDirecao,
+            onOrdenarPor: onOrdenarPor,
+          ),
           const Divider(height: 1),
           for (var i = 0; i < itens.length; i++) ...[
             _DataRow(
@@ -57,22 +78,57 @@ class PatrimonioDesktopTable extends StatelessWidget {
   }
 }
 
+/// Estado visual (seta) de uma coluna ordenável: `none` quando a listagem
+/// não está ordenando por [campo] agora, senão `ascending`/`descending`
+/// conforme [direcaoAtual] — nunca um terceiro estado.
+SortIndicatorState _estadoOrdenacao(
+  PatrimonioOrdenacaoCampo campo,
+  PatrimonioOrdenacaoCampo? campoAtual,
+  OrdenacaoDirecao direcaoAtual,
+) {
+  if (campoAtual != campo) return SortIndicatorState.none;
+  return direcaoAtual == OrdenacaoDirecao.asc
+      ? SortIndicatorState.ascending
+      : SortIndicatorState.descending;
+}
+
 class _HeaderRow extends StatelessWidget {
-  const _HeaderRow();
+  const _HeaderRow({
+    required this.ordenarPor,
+    required this.ordenacaoDirecao,
+    required this.onOrdenarPor,
+  });
+
+  final PatrimonioOrdenacaoCampo? ordenarPor;
+  final OrdenacaoDirecao ordenacaoDirecao;
+  final ValueChanged<PatrimonioOrdenacaoCampo> onOrdenarPor;
 
   @override
   Widget build(BuildContext context) {
-    final style = AppTypography.label(context);
+    Widget cabecalho(String label, PatrimonioOrdenacaoCampo campo) {
+      return SortableHeaderLabel(
+        label: label,
+        state: _estadoOrdenacao(campo, ordenarPor, ordenacaoDirecao),
+        onTap: () => onOrdenarPor(campo),
+      );
+    }
+
     return Container(
       color: Theme.of(context).surfaceColors.tableHeader,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Row(
         children: [
-          Expanded(flex: 2, child: Text('Patrimônio', style: style)),
-          Expanded(flex: 5, child: Text('Equipamento', style: style)),
-          Expanded(flex: 2, child: Text('Setor', style: style)),
-          Expanded(flex: 2, child: Text('Status', style: style)),
-          SizedBox(width: 88, child: Text('Ações', style: style)),
+          Expanded(
+            flex: 2,
+            child: cabecalho('Patrimônio', PatrimonioOrdenacaoCampo.numeroPatrimonio),
+          ),
+          Expanded(
+            flex: 5,
+            child: cabecalho('Equipamento', PatrimonioOrdenacaoCampo.equipamento),
+          ),
+          Expanded(flex: 2, child: cabecalho('Setor', PatrimonioOrdenacaoCampo.setor)),
+          Expanded(flex: 2, child: cabecalho('Status', PatrimonioOrdenacaoCampo.status)),
+          SizedBox(width: 88, child: Text('Ações', style: AppTypography.label(context))),
         ],
       ),
     );
@@ -104,8 +160,9 @@ class _DataRowState extends State<_DataRow> {
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       cursor: SystemMouseCursors.click,
-      child: Container(
-        color: _hovering ? theme.surfaceColors.rowHover : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        color: _hovering ? theme.surfaceColors.rowHover : Colors.transparent,
         child: InkWell(
           onTap: widget.onTap,
           child: ConstrainedBox(
@@ -160,6 +217,7 @@ class _DataRowState extends State<_DataRow> {
                             onPressed: widget.onTap,
                           ),
                         ),
+                        if (widget.canManage) const SizedBox(width: 4),
                         if (widget.canManage)
                           Tooltip(
                             message: 'Editar',

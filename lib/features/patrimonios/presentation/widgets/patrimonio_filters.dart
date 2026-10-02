@@ -103,7 +103,7 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
                 data: (tipos) => DropdownButtonFormField<String?>(
                   initialValue: filtro.tipoId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Tipo'),
+                  decoration: const InputDecoration(labelText: 'Tipo', isDense: true),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Todos os tipos')),
                     for (final tipo in tipos)
@@ -123,7 +123,7 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
               child: DropdownButtonFormField<PatrimonioStatus?>(
                 initialValue: filtro.status,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Status'),
+                decoration: const InputDecoration(labelText: 'Status', isDense: true),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Todos os status')),
                   for (final status in PatrimonioStatus.values)
@@ -138,7 +138,7 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
                 data: (setores) => DropdownButtonFormField<String?>(
                   initialValue: filtro.setorId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Setor atual'),
+                  decoration: const InputDecoration(labelText: 'Setor atual', isDense: true),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Todos os setores')),
                     for (final setor in setores)
@@ -165,7 +165,7 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
                 data: (localizacoes) => DropdownButtonFormField<String>(
                   initialValue: filtro.semLocalizacao ? _semLocalizacaoValor : (filtro.localizacaoId ?? ''),
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Localização'),
+                  decoration: const InputDecoration(labelText: 'Localização', isDense: true),
                   items: [
                     const DropdownMenuItem(value: '', child: Text('Todas as localizações')),
                     const DropdownMenuItem(
@@ -200,14 +200,18 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         TextButton.icon(
           onPressed: () => setState(() => _avancadoExpandido = !_avancadoExpandido),
-          icon: Icon(_avancadoExpandido ? Icons.expand_less : Icons.expand_more),
+          icon: Icon(_avancadoExpandido ? Icons.expand_less : Icons.expand_more, size: 18),
           label: Text(
             filtro.quantidadeFiltrosAvancados > 0
                 ? 'Filtros avançados (${filtro.quantidadeFiltrosAvancados})'
                 : 'Filtros avançados',
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            visualDensity: VisualDensity.compact,
           ),
         ),
         if (_avancadoExpandido)
@@ -216,23 +220,23 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
             // de busca+filtros — um tom ligeiramente diferente do fundo do
             // painel basta para demarcar a seção "afundada", sem duplicar
             // bordas.
-            margin: const EdgeInsets.only(top: AppSpacing.sm),
+            margin: const EdgeInsets.only(top: AppSpacing.xs),
             decoration: BoxDecoration(
               color: Theme.of(context).surfaceColors.pageBackground,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               child: Wrap(
                 spacing: AppSpacing.md,
-                runSpacing: AppSpacing.md,
+                runSpacing: AppSpacing.sm,
                 crossAxisAlignment: WrapCrossAlignment.start,
                 children: [
                   SizedBox(
                     width: 200,
                     child: TextField(
                       controller: _marcaController,
-                      decoration: const InputDecoration(labelText: 'Marca'),
+                      decoration: const InputDecoration(labelText: 'Marca', isDense: true),
                       onChanged: notifier.definirMarca,
                     ),
                   ),
@@ -240,7 +244,7 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
                     width: 200,
                     child: TextField(
                       controller: _modeloController,
-                      decoration: const InputDecoration(labelText: 'Modelo'),
+                      decoration: const InputDecoration(labelText: 'Modelo', isDense: true),
                       onChanged: notifier.definirModelo,
                     ),
                   ),
@@ -248,7 +252,7 @@ class _PatrimonioFiltersState extends ConsumerState<PatrimonioFilters> {
                     width: 200,
                     child: TextField(
                       controller: _responsavelController,
-                      decoration: const InputDecoration(labelText: 'Responsável'),
+                      decoration: const InputDecoration(labelText: 'Responsável', isDense: true),
                       onChanged: notifier.definirResponsavel,
                     ),
                   ),
@@ -291,7 +295,7 @@ class _CampoDesabilitado extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: null,
       isExpanded: true,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(labelText: label, isDense: true),
       items: const [],
       onChanged: null,
     );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'compact_icon_button.dart';
 
 /// "Mostrando 1–25 de 1.744 registros / ‹ 1 2 3 4 … 70 › / Itens por
 /// página: [25 ▼]" — genérico o bastante para qualquer listagem paginada
@@ -60,14 +61,11 @@ class PaginationControls extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Tooltip(
-                message: 'Página anterior',
-                child: IconButton(
-                  key: const ValueKey('pagination-prev'),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: podeVoltar ? () => onChanged(paginaAtual - 1) : null,
-                  icon: const Icon(Icons.chevron_left),
-                ),
+              CompactIconButton(
+                key: const ValueKey('pagination-prev'),
+                tooltip: 'Página anterior',
+                onPressed: podeVoltar ? () => onChanged(paginaAtual - 1) : null,
+                icon: const Icon(Icons.chevron_left),
               ),
               for (final pagina in _paginasVisiveis(paginaAtual, totalPaginas))
                 pagina == null
@@ -80,14 +78,11 @@ class PaginationControls extends StatelessWidget {
                         selecionada: pagina == paginaAtual + 1,
                         onPressed: () => onChanged(pagina - 1),
                       ),
-              Tooltip(
-                message: 'Próxima página',
-                child: IconButton(
-                  key: const ValueKey('pagination-next'),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: podeAvancar ? () => onChanged(paginaAtual + 1) : null,
-                  icon: const Icon(Icons.chevron_right),
-                ),
+              CompactIconButton(
+                key: const ValueKey('pagination-next'),
+                tooltip: 'Próxima página',
+                onPressed: podeAvancar ? () => onChanged(paginaAtual + 1) : null,
+                icon: const Icon(Icons.chevron_right),
               ),
             ],
           ),
@@ -101,6 +96,9 @@ class PaginationControls extends StatelessWidget {
               Text('Itens por página: ', style: AppTypography.auxiliary(context)),
               DropdownButton<int>(
                 value: tamanhoPagina,
+                // Mesmo ajuste do "Ordenar por": sem `borderRadius`, o
+                // destaque de hover/focus/toque sai com cantos retos.
+                borderRadius: BorderRadius.circular(8),
                 items: [
                   for (final tamanho in tamanhosPaginaPermitidos!)
                     DropdownMenuItem(value: tamanho, child: Text('$tamanho')),

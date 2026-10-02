@@ -224,3 +224,60 @@ extension AppSurfaceColorsContext on ThemeData {
   AppSurfaceColors get surfaceColors =>
       extension<AppSurfaceColors>() ?? AppSurfaceColors.light;
 }
+
+/// Acento secundário (ciano/teal/esmeralda) reservado a gráficos, métricas
+/// e indicadores visuais de dados — hoje usado só em elementos decorativos
+/// do Dashboard. **Nunca** usar estas cores em botões (Salvar/Cancelar/
+/// qualquer ação), navegação principal, ou como substituto de
+/// [AppStatusColors] (sucesso/atenção/erro/informação já têm cor própria).
+///
+/// São acentos decorativos, não texto sobre fundo colorido — por isso as
+/// mesmas três cores funcionam em claro e escuro sem variante dedicada: nos
+/// dois temas elas aparecem em traços finos/ícones pequenos sobre a
+/// superfície neutra (`AppSurfaceColors.pageBackground`/`.surface`), nunca
+/// como fundo sólido atrás de texto, então não há par de contraste a
+/// recalcular por brilho.
+class AppDataVizColors extends ThemeExtension<AppDataVizColors> {
+  const AppDataVizColors({required this.cyan, required this.teal, required this.emerald});
+
+  final Color cyan;
+  final Color teal;
+  final Color emerald;
+
+  static const light = AppDataVizColors(
+    cyan: Color(0xFF06B6D4),
+    teal: Color(0xFF14B8A6),
+    emerald: Color(0xFF10B981),
+  );
+
+  static const dark = AppDataVizColors(
+    cyan: Color(0xFF06B6D4),
+    teal: Color(0xFF14B8A6),
+    emerald: Color(0xFF10B981),
+  );
+
+  @override
+  AppDataVizColors copyWith({Color? cyan, Color? teal, Color? emerald}) {
+    return AppDataVizColors(
+      cyan: cyan ?? this.cyan,
+      teal: teal ?? this.teal,
+      emerald: emerald ?? this.emerald,
+    );
+  }
+
+  @override
+  AppDataVizColors lerp(ThemeExtension<AppDataVizColors>? other, double t) {
+    if (other is! AppDataVizColors) return this;
+    return AppDataVizColors(
+      cyan: Color.lerp(cyan, other.cyan, t)!,
+      teal: Color.lerp(teal, other.teal, t)!,
+      emerald: Color.lerp(emerald, other.emerald, t)!,
+    );
+  }
+}
+
+/// Acesso curto: `Theme.of(context).dataVizColors`.
+extension AppDataVizColorsContext on ThemeData {
+  AppDataVizColors get dataVizColors =>
+      extension<AppDataVizColors>() ?? AppDataVizColors.light;
+}

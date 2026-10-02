@@ -124,7 +124,16 @@ class _LocalizacaoFormDialogState extends ConsumerState<LocalizacaoFormDialog> {
                 ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.error)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.error_outline, size: 18, color: theme.colorScheme.error),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(_errorMessage!, style: TextStyle(color: theme.colorScheme.error)),
+                      ),
+                    ],
+                  ),
                 ],
                 const SizedBox(height: AppSpacing.lg),
                 Row(

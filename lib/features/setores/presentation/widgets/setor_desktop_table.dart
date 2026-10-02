@@ -2,8 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../domain/setor.dart';
 import 'setor_status_chip.dart';
+
+/// Altura mínima confortável de uma linha da lista — mesmo valor usado na
+/// tabela de Patrimônios, para a densidade ficar igual entre as duas telas.
+const double _alturaMinimaLinha = 56;
+
+/// Largura da coluna de ações: 1 ícone sempre visível (Localizações) + 2
+/// condicionados a `canManage` (Editar, Ativar/Desativar) — 3 × 44.
+const double _larguraColunaAcoes = 132;
 
 /// Lista estruturada (não `DataTable`, para não sofrer overflow horizontal
 /// em janelas estreitas — cada célula usa `Expanded`/`Flexible` normais).
@@ -52,7 +61,7 @@ class _HeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.labelLarge;
+    final style = AppTypography.label(context);
     return Container(
       color: Theme.of(context).surfaceColors.tableHeader,
       padding: const EdgeInsets.symmetric(
@@ -65,7 +74,7 @@ class _HeaderRow extends StatelessWidget {
           Expanded(flex: 4, child: Text('Nome', style: style)),
           Expanded(flex: 4, child: Text('Descrição', style: style)),
           Expanded(flex: 2, child: Text('Status', style: style)),
-          Expanded(flex: 4, child: Text('Ações', style: style)),
+          SizedBox(width: _larguraColunaAcoes, child: Text('Ações', style: style)),
         ],
       ),
     );
@@ -103,11 +112,13 @@ class _DataRowState extends State<_DataRow> {
       onExit: (_) => setState(() => _hovering = false),
       child: Container(
         color: _hovering ? Theme.of(context).surfaceColors.rowHover : null,
+        constraints: const BoxConstraints(minHeight: _alturaMinimaLinha),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.sm,
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               flex: 2,
@@ -133,14 +144,16 @@ class _DataRowState extends State<_DataRow> {
                 child: SetorStatusChip(ativo: setor.ativo),
               ),
             ),
-            Expanded(
-              flex: 4,
+            SizedBox(
+              width: _larguraColunaAcoes,
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Tooltip(
                     message: 'Localizações',
                     child: IconButton(
-                      visualDensity: VisualDensity.compact,
+                      style: _acaoButtonStyle,
+                      iconSize: 18,
                       icon: const Icon(Icons.place_outlined),
                       onPressed: widget.onLocalizacoes,
                     ),
@@ -149,7 +162,8 @@ class _DataRowState extends State<_DataRow> {
                     Tooltip(
                       message: 'Editar',
                       child: IconButton(
-                        visualDensity: VisualDensity.compact,
+                        style: _acaoButtonStyle,
+                        iconSize: 18,
                         icon: const Icon(Icons.edit_outlined),
                         onPressed: widget.onEdit,
                       ),
@@ -157,7 +171,8 @@ class _DataRowState extends State<_DataRow> {
                     Tooltip(
                       message: setor.ativo ? 'Desativar' : 'Reativar',
                       child: IconButton(
-                        visualDensity: VisualDensity.compact,
+                        style: _acaoButtonStyle,
+                        iconSize: 18,
                         icon: Icon(
                           setor.ativo
                               ? Icons.block_outlined
@@ -176,3 +191,11 @@ class _DataRowState extends State<_DataRow> {
     );
   }
 }
+
+/// Mesmo alvo de toque compacto (36×36) usado na tabela de Patrimônios —
+/// cabe 3 ícones lado a lado sem perder a área de toque mínima confortável.
+final ButtonStyle _acaoButtonStyle = IconButton.styleFrom(
+  minimumSize: const Size(36, 36),
+  padding: EdgeInsets.zero,
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+);

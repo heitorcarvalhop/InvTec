@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/core/errors/app_exception.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
@@ -12,6 +13,7 @@ import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supab
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_historico_item.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_listagem_item.dart';
+import 'package:invtec/features/movimentacoes/domain/movimentacao_ordenacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_repository.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacoes_resultado.dart';
 import 'package:invtec/features/movimentacoes/presentation/movimentacoes_page.dart';
@@ -95,7 +97,19 @@ class _RepositorioLento implements MovimentacaoRepository {
     String? setorId,
     DateTime? periodoDe,
     DateTime? periodoAte,
-  }) => _interno.listar(limit: limit, offset: offset, busca: busca, tipo: tipo, setorId: setorId, periodoDe: periodoDe, periodoAte: periodoAte);
+    MovimentacaoOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
+  }) => _interno.listar(
+    limit: limit,
+    offset: offset,
+    busca: busca,
+    tipo: tipo,
+    setorId: setorId,
+    periodoDe: periodoDe,
+    periodoAte: periodoAte,
+    ordenarPor: ordenarPor,
+    ordenacaoDirecao: ordenacaoDirecao,
+  );
 
   @override
   Future<List<Movimentacao>> listarPorPatrimonio(String patrimonioId, {int limit = 20, int offset = 0}) =>
@@ -737,5 +751,43 @@ void main() {
         expect(find.text(setorDestino.nome), findsNothing);
       },
     );
+  });
+
+  group('wizard de Nova Movimentação — responsividade', () {
+    for (final tamanho in const [Size(400, 700), Size(700, 800), Size(1280, 800), Size(1920, 1080)]) {
+      testWidgets('sem overflow/exceções em ${tamanho.width.toInt()}x${tamanho.height.toInt()}', (tester) async {
+        tester.view.physicalSize = tamanho;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final erros = <String>[];
+        final anterior = FlutterError.onError;
+        FlutterError.onError = (details) => erros.add(details.toString());
+
+        await _pumpEAbrirWizard(tester, movimentacaoRepo: FakeMovimentacaoRepository());
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.manutencao);
+        await _avancar(tester);
+        await _selecionarSetorDestino(tester, 'GEVEV');
+        await _avancar(tester);
+
+        FlutterError.onError = anterior;
+        expect(erros, isEmpty, reason: erros.join('\n'));
+      });
+    }
+
+    testWidgets('título, indicador de passo e botões continuam presentes em todas as larguras', (tester) async {
+      tester.view.physicalSize = const Size(420, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await _pumpEAbrirWizard(tester, movimentacaoRepo: FakeMovimentacaoRepository());
+
+      expect(find.descendant(of: find.byType(Dialog), matching: find.text('Nova movimentação')), findsOneWidget);
+      expect(find.text('Passo 1 de 4 · Patrimônio'), findsOneWidget);
+      expect(find.descendant(of: find.byType(Dialog), matching: find.text('Cancelar')), findsOneWidget);
+    });
   });
 }

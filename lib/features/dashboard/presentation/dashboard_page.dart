@@ -93,10 +93,17 @@ class _DashboardContent extends StatelessWidget {
           children: [
             const InvTecPageHeader(title: 'Dashboard', subtitle: 'Visão geral do patrimônio.'),
             const SizedBox(height: AppSpacing.lg),
-            Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
-              children: [for (final card in cards) SizedBox(width: 200, child: card)],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final colunas = _colunasDeStatCards(constraints.maxWidth);
+                final espacamentoTotal = AppSpacing.md * (colunas - 1);
+                final largura = (constraints.maxWidth - espacamentoTotal) / colunas;
+                return Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.md,
+                  children: [for (final card in cards) SizedBox(width: largura, child: card)],
+                );
+              },
             ),
             const SizedBox(height: AppSpacing.xl),
             Text('Movimentações recentes', style: AppTypography.cardTitle(context)),
@@ -116,13 +123,23 @@ class _RecentMovements extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mesmo raio (AppRadius.lg) dos stat cards acima — os dois formam o
+    // conjunto de cards "principais" do Dashboard, enquanto o resto do app
+    // (formulários/tabelas/dialogs) continua no AppRadius.md do cardTheme.
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      side: BorderSide(color: Theme.of(context).surfaceColors.border),
+    );
+
     if (movimentacoes.isEmpty) {
-      return const Card(
-        child: EmptyState(icon: Icons.history_outlined, message: 'Nenhuma movimentação registrada.'),
+      return Card(
+        shape: shape,
+        child: const EmptyState(icon: Icons.history_outlined, message: 'Nenhuma movimentação registrada.'),
       );
     }
 
     return Card(
+      shape: shape,
       clipBehavior: Clip.antiAlias,
       child: ListView.separated(
         shrinkWrap: true,
@@ -165,7 +182,7 @@ class _MovementRowState extends State<_MovementRow> {
       onExit: (_) => setState(() => _hovering = false),
       child: Container(
         color: _hovering ? Theme.of(context).surfaceColors.rowHover : null,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.smd),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         child: Row(
           children: [
             Container(
@@ -200,6 +217,17 @@ class _MovementRowState extends State<_MovementRow> {
       ),
     );
   }
+}
+
+/// Quantidade de colunas dos stat cards por faixa de largura disponível —
+/// faixas discretas (6 / 3+3 / 2+2+2 / 1) em vez de "o quanto couber", para
+/// nunca sobrar um card sozinho numa linha nem espremer cards estreitos
+/// demais só para encaixar todos na mesma fileira.
+int _colunasDeStatCards(double larguraDisponivel) {
+  if (larguraDisponivel >= 1100) return 6;
+  if (larguraDisponivel >= 700) return 3;
+  if (larguraDisponivel >= 420) return 2;
+  return 1;
 }
 
 String _formatarData(DateTime data) {

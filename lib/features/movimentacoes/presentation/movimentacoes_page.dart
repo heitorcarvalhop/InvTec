@@ -1,16 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/ordenacao_direcao.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/active_filter_chip.dart';
+import '../../../core/widgets/compact_icon_button.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/list_page_toolbar.dart';
+import '../../../core/widgets/list_view_mode.dart';
 import '../../../core/widgets/page_header.dart';
 import '../../../core/widgets/pagination_controls.dart';
 import '../../auth/domain/profile.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../setores/domain/setor.dart';
+import '../domain/movimentacao.dart';
 import '../domain/movimentacao_listagem_item.dart';
+import '../domain/movimentacao_ordenacao.dart';
 import 'movimentacoes_controller.dart';
 import 'movimentacoes_filtro.dart';
+import 'movimentacoes_reference_data.dart';
+import 'movimentacoes_view_mode_controller.dart';
+import 'widgets/movimentacao_cards_grid.dart';
 import 'widgets/movimentacao_detail_dialog.dart';
 import 'widgets/movimentacoes_desktop_table.dart';
 import 'widgets/movimentacoes_filters.dart';
@@ -38,6 +50,12 @@ enum _MovimentacoesAba { historico, pendencias }
 class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
   final _searchController = TextEditingController();
   _MovimentacoesAba _aba = _MovimentacoesAba.historico;
+
+  /// Painel de filtros (tipo/setor/período) começa fechado — a
+  /// `ListPageToolbar` só é dona do botão/contador, cada tela decide se
+  /// começa aberta ou fechada (aqui, igual Patrimônios: fechada, para não
+  /// disputar espaço com a tabela/cards logo de cara).
+  bool _filtrosExpandidos = false;
 
   // A aba de pendências só é CONSTRUÍDA (e só então dispara a consulta ao
   // `DocumentosSeiRepository`) depois de visitada pelo menos uma vez —
@@ -119,25 +137,6 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
               title: 'Movimentações',
               subtitle: 'Consulte e acompanhe o histórico de movimentações patrimoniais.',
               compact: context.screenSize == ScreenSize.mobile,
-              // "Importar documento SEI" é uma ação SECUNDÁRIA e somente
-              // leitura — nenhum perfil registra movimentações por ali (o
-              // assistente nem tem acesso a `MovimentacaoRepository`, ver
-              // `SeiImportController`), mas ainda assim fica atrás da mesma
-              // checagem de perfil de "Nova movimentação".
-              actions: canManage
-                  ? [
-                      OutlinedButton.icon(
-                        onPressed: _importarDocumentoSei,
-                        icon: const Icon(Icons.picture_as_pdf_outlined),
-                        label: const Text('Importar documento SEI'),
-                      ),
-                      FilledButton.icon(
-                        onPressed: _novaMovimentacao,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Nova movimentação'),
-                      ),
-                    ]
-                  : const [],
             ),
             const SizedBox(height: AppSpacing.md),
             // Duas seções distintas — "Pendências / Documentos SEI" nunca
@@ -161,26 +160,24 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
             ),
             const SizedBox(height: AppSpacing.md),
             if (_aba == _MovimentacoesAba.historico) ...[
-              // Mesmo painel de busca+filtros de Patrimônios/Setores: tudo
-              // agrupado numa única superfície coesa.
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SearchField(
-                        controller: _searchController,
-                        onChanged: (value) => ref.read(movimentacoesControllerProvider.notifier).buscar(value),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      stateAsync.maybeWhen(
-                        data: (state) => MovimentacoesFilters(filtro: state.filtro, onLimparFiltros: _limparFiltros),
-                        orElse: () => const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
+              // Toolbar compartilhada (busca + filtros + Lista/Cards + ação
+              // principal) — só nesta aba: "Nova movimentação"/"Importar
+              // documento SEI" nunca aparecem em "Pendências / Documentos
+              // SEI".
+              stateAsync.maybeWhen(
+                data: (state) => _HistoricoControles(
+                  filtro: state.filtro,
+                  searchController: _searchController,
+                  onSearchChanged: (value) => ref.read(movimentacoesControllerProvider.notifier).buscar(value),
+                  filtrosExpandidos: _filtrosExpandidos,
+                  onFiltrosPressed: () => setState(() => _filtrosExpandidos = !_filtrosExpandidos),
+                  onLimparFiltros: _limparFiltros,
+                  canManage: canManage,
+                  onNovaMovimentacao: _novaMovimentacao,
+                  onImportarDocumentoSei: _importarDocumentoSei,
+                  onOrdenarPor: (campo) => ref.read(movimentacoesControllerProvider.notifier).ordenarPor(campo),
                 ),
+                orElse: () => const SizedBox.shrink(),
               ),
               const SizedBox(height: AppSpacing.lg),
               stateAsync.when(
@@ -193,12 +190,29 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                     );
                   }
 
+                  final viewModeAsync = ref.watch(movimentacoesViewModeControllerProvider);
+                  final viewMode = viewModeAsync.value ?? ListViewMode.list;
+                  // Mobile SEMPRE usa a lista compacta de 1 coluna,
+                  // independente da preferência de Lista/Cards salva — o
+                  // grid de cards (pensado para tablet/desktop) nunca cabe
+                  // bem numa tela de celular.
+                  final conteudo = context.screenSize == ScreenSize.mobile
+                      ? MovimentacoesMobileList(itens: itens, onVisualizar: _visualizar)
+                      : viewMode == ListViewMode.list
+                      ? MovimentacoesDesktopTable(
+                          itens: itens,
+                          onVisualizar: _visualizar,
+                          ordenarPor: state.filtro.ordenarPor,
+                          ordenacaoDirecao: state.filtro.ordenacaoDirecao,
+                          onOrdenarPor: (campo) =>
+                              ref.read(movimentacoesControllerProvider.notifier).ordenarPor(campo),
+                        )
+                      : MovimentacaoCardsGrid(itens: itens, onVisualizar: _visualizar);
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      context.screenSize == ScreenSize.mobile
-                          ? MovimentacoesMobileList(itens: itens, onVisualizar: _visualizar)
-                          : MovimentacoesDesktopTable(itens: itens, onVisualizar: _visualizar),
+                      conteudo,
                       const SizedBox(height: AppSpacing.lg),
                       PaginationControls(
                         paginaAtual: state.filtro.pagina,
@@ -235,30 +249,209 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
   }
 }
 
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.onChanged});
+/// Toolbar + painel de filtros expansível + chips de filtro ativo + o
+/// controle "Ordenar por" — tudo que fica acima da tabela/grid da aba
+/// Histórico, reunido num único widget para o `build` principal não ficar
+/// gigante.
+class _HistoricoControles extends ConsumerWidget {
+  const _HistoricoControles({
+    required this.filtro,
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.filtrosExpandidos,
+    required this.onFiltrosPressed,
+    required this.onLimparFiltros,
+    required this.canManage,
+    required this.onNovaMovimentacao,
+    required this.onImportarDocumentoSei,
+    required this.onOrdenarPor,
+  });
 
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
+  final MovimentacoesFiltro filtro;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final bool filtrosExpandidos;
+  final VoidCallback onFiltrosPressed;
+  final VoidCallback onLimparFiltros;
+  final bool canManage;
+  final VoidCallback onNovaMovimentacao;
+  final VoidCallback onImportarDocumentoSei;
+  final ValueChanged<MovimentacaoOrdenacaoCampo> onOrdenarPor;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final viewModeAsync = ref.watch(movimentacoesViewModeControllerProvider);
+    final viewMode = viewModeAsync.value ?? ListViewMode.list;
+    final setoresAsync = ref.watch(setoresParaFiltroMovimentacoesProvider);
+
+    final botaoImportarSei = canManage
+        ? OutlinedButton.icon(
+            onPressed: onImportarDocumentoSei,
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: const Text('Importar documento SEI'),
+          )
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListPageToolbar(
+          searchController: searchController,
+          searchHint: 'Buscar por patrimônio, equipamento, documento, chamado, responsável...',
+          onSearchChanged: onSearchChanged,
+          filterCount: _contarFiltrosAtivos(filtro),
+          onFiltersPressed: onFiltrosPressed,
+          viewMode: viewMode,
+          onViewModeChanged: (modo) => ref.read(movimentacoesViewModeControllerProvider.notifier).definir(modo),
+          primaryActionLabel: canManage ? 'Nova movimentação' : null,
+          primaryActionIcon: canManage ? Icons.add : null,
+          onPrimaryAction: canManage ? onNovaMovimentacao : null,
+          secondaryActions: botaoImportarSei != null ? [botaoImportarSei] : const [],
+        ),
+        if (filtrosExpandidos) ...[
+          const SizedBox(height: AppSpacing.md),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: MovimentacoesFilters(filtro: filtro, onLimparFiltros: onLimparFiltros),
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.sm),
+        // "Ordenar por" + chips de filtro ativo compartilham a mesma linha
+        // quando há espaço (nunca uma barra extra só para os chips).
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.xs,
+          children: [
+            _OrdenarPorControl(filtro: filtro, onOrdenarPor: onOrdenarPor),
+            if (filtro.temFiltroAtivo) _ActiveFilterChipsRow(filtro: filtro, setores: setoresAsync.value),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+int _contarFiltrosAtivos(MovimentacoesFiltro filtro) {
+  var contador = 0;
+  if (filtro.tipo != null) contador++;
+  if (filtro.setorId != null) contador++;
+  if (filtro.periodoDe != null) contador++;
+  if (filtro.periodoAte != null) contador++;
+  return contador;
+}
+
+/// Linha de `ActiveFilterChip` abaixo da toolbar — só aparece quando há
+/// filtro ativo (tipo/setor/período; a busca livre não entra aqui, ela já
+/// aparece no próprio campo de busca). Cada chip remove só o seu filtro,
+/// nunca os outros.
+class _ActiveFilterChipsRow extends ConsumerWidget {
+  const _ActiveFilterChipsRow({required this.filtro, required this.setores});
+
+  final MovimentacoesFiltro filtro;
+  final List<Setor>? setores;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(movimentacoesControllerProvider.notifier);
+    final chips = <Widget>[];
+
+    if (filtro.tipo != null) {
+      chips.add(
+        ActiveFilterChip(label: 'Tipo: ${filtro.tipo!.label}', onRemove: () => notifier.filtrarPorTipo(null)),
+      );
+    }
+    if (filtro.setorId != null) {
+      final setor = _encontrarSetor(setores, filtro.setorId);
+      chips.add(
+        ActiveFilterChip(
+          label: 'Setor: ${setor?.rotuloCompacto ?? 'selecionado'}',
+          onRemove: () => notifier.filtrarPorSetor(null),
+        ),
+      );
+    }
+    if (filtro.periodoDe != null || filtro.periodoAte != null) {
+      chips.add(
+        ActiveFilterChip(
+          label: 'Período: ${_rotuloPeriodo(filtro.periodoDe, filtro.periodoAte)}',
+          onRemove: () => notifier.definirPeriodo(null, null),
+        ),
+      );
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+    // Sem `Padding` própria: quem posiciona este bloco é o `Wrap` externo
+    // que o combina com "Ordenar por" (mesma linha, quando cabe).
+    return Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: chips);
+  }
+}
+
+Setor? _encontrarSetor(List<Setor>? setores, String? id) {
+  if (setores == null || id == null) return null;
+  for (final setor in setores) {
+    if (setor.id == id) return setor;
+  }
+  return null;
+}
+
+String _rotuloPeriodo(DateTime? de, DateTime? ate) {
+  if (de != null && ate != null) return '${_formatarDataCurta(de)} – ${_formatarDataCurta(ate)}';
+  if (de != null) return 'A partir de ${_formatarDataCurta(de)}';
+  return 'Até ${_formatarDataCurta(ate!)}';
+}
+
+String _formatarDataCurta(DateTime data) {
+  String pad(int n) => n.toString().padLeft(2, '0');
+  return '${pad(data.day)}/${pad(data.month)}/${data.year}';
+}
+
+/// "Ordenar por: [ seletor ] [↑/↓]" — mesmo estado de ordenação dos
+/// cabeçalhos clicáveis da tabela (nunca duas ordenações paralelas);
+/// sempre visível, tanto em Lista quanto em Cards, já que o modo Cards não
+/// tem cabeçalho de coluna para clicar.
+class _OrdenarPorControl extends StatelessWidget {
+  const _OrdenarPorControl({required this.filtro, required this.onOrdenarPor});
+
+  final MovimentacoesFiltro filtro;
+  final ValueChanged<MovimentacaoOrdenacaoCampo> onOrdenarPor;
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        hintText: 'Buscar por patrimônio, responsável, documento ou chamado...',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  controller.clear();
-                  onChanged('');
-                },
-              ),
-      ),
+    // `null` é a ordenação padrão da tela (data mais recente primeiro) —
+    // aqui exibida já como "Data" + seta decrescente, para o controle
+    // nunca aparecer "em branco".
+    final campoAtual = filtro.ordenarPor ?? MovimentacaoOrdenacaoCampo.data;
+    final direcaoAtual = filtro.ordenarPor == null ? OrdenacaoDirecao.desc : filtro.ordenacaoDirecao;
+    final ascendente = direcaoAtual == OrdenacaoDirecao.asc;
+
+    return Wrap(
+      spacing: AppSpacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('Ordenar por:', style: AppTypography.label(context)),
+        DropdownButton<MovimentacaoOrdenacaoCampo>(
+          value: campoAtual,
+          underline: const SizedBox.shrink(),
+          // Sem isto, o destaque de hover/focus/toque do próprio botão
+          // (não só do menu) sai com cantos retos — ver mesmo ajuste em
+          // `patrimonios_page.dart`.
+          borderRadius: BorderRadius.circular(8),
+          items: [
+            for (final campo in MovimentacaoOrdenacaoCampo.values)
+              DropdownMenuItem(value: campo, child: Text(campo.label)),
+          ],
+          onChanged: (campo) {
+            if (campo != null) onOrdenarPor(campo);
+          },
+        ),
+        CompactIconButton(
+          tooltip: ascendente ? 'Ordem crescente' : 'Ordem decrescente',
+          icon: Icon(ascendente ? Icons.arrow_upward : Icons.arrow_downward),
+          onPressed: () => onOrdenarPor(campoAtual),
+        ),
+      ],
     );
   }
 }

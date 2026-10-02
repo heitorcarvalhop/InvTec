@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/domain/ordenacao_direcao.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/utils/postgrest_filter.dart';
 import '../../../core/utils/text_normalization.dart';
 import '../domain/movimentacao.dart';
 import '../domain/movimentacao_historico_item.dart';
 import '../domain/movimentacao_listagem_item.dart';
+import '../domain/movimentacao_ordenacao.dart';
 import '../domain/movimentacao_repository.dart';
 import '../domain/movimentacoes_resultado.dart';
 import 'movimentacao_error_mapper.dart';
@@ -54,6 +56,8 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
     String? setorId,
     DateTime? periodoDe,
     DateTime? periodoAte,
+    MovimentacaoOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) async {
     try {
       var query = _client.from('movimentacoes').select(_colunasListagem);
@@ -92,17 +96,57 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
         query = query.lt('data_movimentacao', _inicioDoDiaSeguinteLocalEmUtc(periodoAte).toIso8601String());
       }
 
-      final response = await query
-          .order('data_movimentacao', ascending: false)
-          .order('id', ascending: false)
-          .range(offset, offset + limit - 1)
-          .count(CountOption.exact);
+      final ordenada = _aplicarOrdenacao(query, ordenarPor, ordenacaoDirecao);
+      final response = await ordenada.range(offset, offset + limit - 1).count(CountOption.exact);
 
       final itens = response.data.map(MovimentacaoListagemItem.fromJson).toList();
       return MovimentacoesResultado(itens: itens, total: response.count);
     } on PostgrestException catch (e) {
       throw AppException('Falha ao listar movimentações', cause: e);
     }
+  }
+
+  /// Mapeia [campo] (vocabulário fechado, nunca texto vindo da UI) para a
+  /// coluna/relacionamento real a ordenar. `id` sempre entra como critério
+  /// de desempate final, na mesma direção do campo escolhido (ou DESC,
+  /// mantendo o padrão histórico, quando nenhum campo foi escolhido).
+  ///
+  /// [MovimentacaoOrdenacaoCampo.patrimonio] ordena pelo TEXTO de
+  /// `numero_patrimonio` via o embed `patrimonios` (um nível, seguro: cada
+  /// movimentação referencia um único patrimônio) — mesma limitação de
+  /// texto-não-numérico documentada em
+  /// `PatrimonioRepositorySupabase._aplicarOrdenacao`.
+  /// [origem]/[destino] ordenam pelo `nome` dos embeds ALIASADOS
+  /// `setor_origem`/`setor_destino` (ver `_colunasListagem`) — o alias usado
+  /// na consulta é também o nome usado para ordenar, nunca `setores` puro
+  /// (que seria ambíguo: há duas FKs de `movimentacoes` para `setores`).
+  ///
+  /// "Equipamento" (`patrimonios.tipos_patrimonio.nome`) foi deliberadamente
+  /// deixado FORA deste mapeamento — ver [MovimentacaoOrdenacaoCampo].
+  PostgrestTransformBuilder<PostgrestList> _aplicarOrdenacao(
+    PostgrestFilterBuilder<PostgrestList> query,
+    MovimentacaoOrdenacaoCampo? campo,
+    OrdenacaoDirecao direcao,
+  ) {
+    if (campo == null) {
+      return query.order('data_movimentacao', ascending: false).order('id', ascending: false);
+    }
+
+    final ascending = direcao == OrdenacaoDirecao.asc;
+    final PostgrestTransformBuilder<PostgrestList> ordenada;
+    switch (campo) {
+      case MovimentacaoOrdenacaoCampo.data:
+        ordenada = query.order('data_movimentacao', ascending: ascending);
+      case MovimentacaoOrdenacaoCampo.patrimonio:
+        ordenada = query.order('numero_patrimonio', ascending: ascending, referencedTable: 'patrimonios');
+      case MovimentacaoOrdenacaoCampo.tipo:
+        ordenada = query.order('tipo', ascending: ascending);
+      case MovimentacaoOrdenacaoCampo.origem:
+        ordenada = query.order('nome', ascending: ascending, referencedTable: 'setor_origem');
+      case MovimentacaoOrdenacaoCampo.destino:
+        ordenada = query.order('nome', ascending: ascending, referencedTable: 'setor_destino');
+    }
+    return ordenada.order('id', ascending: ascending);
   }
 
   /// Ids de `patrimonios` cujo `numero_patrimonio` contém [termo]

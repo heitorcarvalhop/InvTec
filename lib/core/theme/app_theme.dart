@@ -18,6 +18,7 @@ class AppTheme {
     colorScheme: ColorScheme.fromSeed(seedColor: AppColors.seed, brightness: Brightness.light),
     statusColors: AppStatusColors.light,
     surfaceColors: AppSurfaceColors.light,
+    dataVizColors: AppDataVizColors.light,
   );
 
   static ThemeData get dark {
@@ -26,6 +27,7 @@ class AppTheme {
       colorScheme: colorScheme,
       statusColors: AppStatusColors.dark,
       surfaceColors: AppSurfaceColors.fromDarkColorScheme(colorScheme),
+      dataVizColors: AppDataVizColors.dark,
     );
   }
 
@@ -33,6 +35,7 @@ class AppTheme {
     required ColorScheme colorScheme,
     required AppStatusColors statusColors,
     required AppSurfaceColors surfaceColors,
+    required AppDataVizColors dataVizColors,
   }) {
     final base = ThemeData(useMaterial3: true, colorScheme: colorScheme);
     final textTheme = _textTheme(base.textTheme);
@@ -44,7 +47,7 @@ class AppTheme {
       // temas, e sem o viés lilás da família `surfaceContainer*` gerada
       // por `fromSeed` no tema claro — ver [AppSurfaceColors].
       scaffoldBackgroundColor: surfaceColors.pageBackground,
-      extensions: [statusColors, surfaceColors],
+      extensions: [statusColors, surfaceColors, dataVizColors],
       cardTheme: CardThemeData(
         elevation: 0,
         color: surfaceColors.surface,

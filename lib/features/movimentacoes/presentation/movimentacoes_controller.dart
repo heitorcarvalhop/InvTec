@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/ordenacao_direcao.dart';
 import '../data/movimentacao_repository_supabase.dart';
 import '../domain/movimentacao.dart';
+import '../domain/movimentacao_ordenacao.dart';
 import '../domain/movimentacoes_resultado.dart';
 import 'movimentacoes_filtro.dart';
 
@@ -42,8 +44,27 @@ class MovimentacoesController extends AsyncNotifier<MovimentacoesListState> {
       setorId: _filtro.setorId,
       periodoDe: _filtro.periodoDe,
       periodoAte: _filtro.periodoAte,
+      ordenarPor: _filtro.ordenarPor,
+      ordenacaoDirecao: _filtro.ordenacaoDirecao,
     );
     return MovimentacoesListState(filtro: _filtro, resultado: resultado);
+  }
+
+  /// Mesmo ciclo de clique de Patrimônios — ver
+  /// [PatrimoniosController.ordenarPor] — para a UX nunca divergir entre as
+  /// duas telas.
+  void ordenarPor(MovimentacaoOrdenacaoCampo campo) {
+    final (novoCampo, novaDirecao) = proximoEstadoDeOrdenacao(
+      campoAtual: _filtro.ordenarPor,
+      direcaoAtual: _filtro.ordenarPor == null ? null : _filtro.ordenacaoDirecao,
+      campoClicado: campo,
+    );
+    _filtro = _filtro.copyWith(
+      ordenarPor: novoCampo,
+      ordenacaoDirecao: novaDirecao ?? OrdenacaoDirecao.asc,
+      pagina: 0,
+    );
+    ref.invalidateSelf();
   }
 
   /// Busca com debounce (300ms, mesmo valor de Patrimônios) — sempre volta

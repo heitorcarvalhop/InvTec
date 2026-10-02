@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/theme/app_colors.dart';
 import 'package:invtec/core/theme/app_theme.dart';
+import 'package:invtec/core/theme/app_typography.dart';
 import 'package:invtec/core/widgets/page_header.dart';
 import 'package:invtec/core/widgets/stat_card.dart';
 import 'package:invtec/core/widgets/status_chip.dart';
@@ -72,6 +74,36 @@ void main() {
 
       expect(find.text('Patrimônios'), findsOneWidget);
       expect(find.text('Novo patrimônio'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    test('AppDataVizColors está registrado no tema $nome e com cores não-nulas', () {
+      final dataViz = themeData.dataVizColors;
+      expect(dataViz.cyan, isNotNull);
+      expect(dataViz.teal, isNotNull);
+      expect(dataViz.emerald, isNotNull);
+      // As três cores precisam ser distintas entre si (senão o acento
+      // "decorativo" vira uma única cor disfarçada de três tokens).
+      expect({dataViz.cyan, dataViz.teal, dataViz.emerald}, hasLength(3));
+    });
+
+    testWidgets('AppTypography.eyebrow resolve um TextStyle válido no tema $nome', (tester) async {
+      late BuildContext capturedContext;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: themeData,
+          home: Builder(
+            builder: (context) {
+              capturedContext = context;
+              return const Scaffold(body: SizedBox());
+            },
+          ),
+        ),
+      );
+
+      final style = AppTypography.eyebrow(capturedContext);
+      expect(style, isNotNull);
+      expect(style!.letterSpacing, greaterThan(1));
       expect(tester.takeException(), isNull);
     });
   }

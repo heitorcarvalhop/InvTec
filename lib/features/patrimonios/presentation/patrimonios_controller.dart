@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/ordenacao_direcao.dart';
 import '../../dashboard/presentation/dashboard_providers.dart';
 import '../data/patrimonio_repository_supabase.dart';
 import '../domain/patrimonio.dart';
+import '../domain/patrimonio_ordenacao.dart';
 import '../domain/patrimonio_search_field.dart';
 import '../domain/patrimonios_resultado.dart';
 import 'patrimonios_filtro.dart';
@@ -69,6 +71,8 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
       dataCadastroAte: _filtro.dataCadastroAte,
       dataAquisicaoDe: _filtro.dataAquisicaoDe,
       dataAquisicaoAte: _filtro.dataAquisicaoAte,
+      ordenarPor: _filtro.ordenarPor,
+      ordenacaoDirecao: _filtro.ordenacaoDirecao,
     );
     return PatrimoniosListState(filtro: _filtro, resultado: resultado);
   }
@@ -173,6 +177,25 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
   /// mantém um número de página que pode não existir mais no novo tamanho.
   void definirTamanhoPagina(int tamanho) {
     _filtro = _filtro.copyWith(tamanhoPagina: tamanho, pagina: 0);
+    ref.invalidateSelf();
+  }
+
+  /// Clique num cabeçalho/opção de "Ordenar por": campo diferente -> ASC;
+  /// mesmo campo em ASC -> DESC; mesmo campo em DESC -> volta à ordenação
+  /// padrão (ver [proximoEstadoDeOrdenacao]). Sempre volta para a primeira
+  /// página — a ordenação muda o conjunto DE RESULTADOS visível em cada
+  /// página, nunca só a página atual.
+  void ordenarPor(PatrimonioOrdenacaoCampo campo) {
+    final (novoCampo, novaDirecao) = proximoEstadoDeOrdenacao(
+      campoAtual: _filtro.ordenarPor,
+      direcaoAtual: _filtro.ordenarPor == null ? null : _filtro.ordenacaoDirecao,
+      campoClicado: campo,
+    );
+    _filtro = _filtro.copyWith(
+      ordenarPor: novoCampo,
+      ordenacaoDirecao: novaDirecao ?? OrdenacaoDirecao.asc,
+      pagina: 0,
+    );
     ref.invalidateSelf();
   }
 

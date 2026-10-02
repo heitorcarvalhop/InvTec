@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/errors/app_exception.dart';
+import '../../../core/routing/back_navigation.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/page_header.dart';
@@ -52,7 +53,18 @@ class _LocalizacoesPageState extends ConsumerState<LocalizacoesPage> {
       final confirmou = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Desativar localização?'),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Theme.of(context).colorScheme.error,
+                size: 22,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Flexible(child: Text('Desativar localização?')),
+            ],
+          ),
           content: Text(
             'A localização "${localizacao.nome}" continuará aparecendo no '
             'histórico, mas não poderá ser escolhida para novos '
@@ -63,7 +75,13 @@ class _LocalizacoesPageState extends ConsumerState<LocalizacoesPage> {
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancelar'),
             ),
+            // Mesmo tratamento "danger" do diálogo equivalente em Setores —
+            // uma ação destrutiva nunca deve parecer uma confirmação comum.
             FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Desativar'),
             ),
@@ -99,6 +117,7 @@ class _LocalizacoesPageState extends ConsumerState<LocalizacoesPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InvTecPageHeader(
+              onBack: () => backOrGo(context, '/setores'),
               title: 'Localizações de ${widget.setor.nome}',
               subtitle:
                   'Localizações pertencem sempre a esta gerência — a gerência '
@@ -113,18 +132,19 @@ class _LocalizacoesPageState extends ConsumerState<LocalizacoesPage> {
                     ]
                   : const [],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             localizacoesAsync.when(
               data: (localizacoes) {
                 if (localizacoes.isEmpty) {
-                  return Card(
+                  // A ação de cadastro já está em destaque no cabeçalho
+                  // ("Nova localização"); o estado vazio só explica a
+                  // ausência de dados, sem duplicar o mesmo botão.
+                  return const Card(
                     child: EmptyState(
                       icon: Icons.place_outlined,
                       message:
                           'Esta gerência não possui localizações cadastradas.\n'
                           'Localizações são opcionais para o patrimônio.',
-                      actionLabel: canManage ? 'Cadastrar localização' : null,
-                      onAction: canManage ? _nova : null,
                     ),
                   );
                 }

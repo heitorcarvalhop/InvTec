@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/routing/back_navigation.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/page_header.dart';
 import '../../auth/domain/profile.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../movimentacoes/presentation/movimentacao_historico_providers.dart';
@@ -41,33 +43,43 @@ class PatrimonioDetailPage extends ConsumerWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppSpacing.contentMaxWidth),
-        child: detalheAsync.when(
-          data: (detalhe) {
-            if (detalhe == null) {
-              return const Card(
-                child: EmptyState(
-                  icon: Icons.search_off,
-                  message: 'Patrimônio não encontrado.',
-                ),
-              );
-            }
-            return _Detalhe(
-              detalhe: detalhe,
-              onEditar: () => _editar(context, ref, detalhe),
-            );
-          },
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (error, stackTrace) => Center(
-            child: EmptyState(
-              icon: Icons.error_outline,
-              message: 'Não foi possível carregar o patrimônio. Tente novamente.',
-              actionLabel: 'Tentar novamente',
-              onAction: () => ref.invalidate(patrimonioDetalheProvider(id)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InvTecPageHeader(
+              title: 'Detalhes do patrimônio',
+              onBack: () => backOrGo(context, '/patrimonios'),
             ),
-          ),
+            const SizedBox(height: AppSpacing.lg),
+            detalheAsync.when(
+              data: (detalhe) {
+                if (detalhe == null) {
+                  return const Card(
+                    child: EmptyState(
+                      icon: Icons.search_off,
+                      message: 'Patrimônio não encontrado.',
+                    ),
+                  );
+                }
+                return _Detalhe(
+                  detalhe: detalhe,
+                  onEditar: () => _editar(context, ref, detalhe),
+                );
+              },
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (error, stackTrace) => Center(
+                child: EmptyState(
+                  icon: Icons.error_outline,
+                  message: 'Não foi possível carregar o patrimônio. Tente novamente.',
+                  actionLabel: 'Tentar novamente',
+                  onAction: () => ref.invalidate(patrimonioDetalheProvider(id)),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -89,39 +101,48 @@ class _Detalhe extends ConsumerWidget {
         perfil == ProfilePerfil.gestor ||
         perfil == ProfilePerfil.operador;
 
+    final cabecalho = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          patrimonio.numeroPatrimonio == null
+              ? 'Sem número patrimonial'
+              : 'Patrimônio ${patrimonio.numeroPatrimonio}',
+          style: AppTypography.pageTitle(context),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(detalhe.tipoNome, style: AppTypography.pageSubtitle(context)),
+        const SizedBox(height: AppSpacing.sm),
+        PatrimonioStatusChip(status: patrimonio.status),
+      ],
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    patrimonio.numeroPatrimonio == null
-                        ? 'Sem número patrimonial'
-                        : 'Patrimônio ${patrimonio.numeroPatrimonio}',
-                    style: AppTypography.pageTitle(context),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(detalhe.tipoNome, style: AppTypography.pageSubtitle(context)),
-                  const SizedBox(height: AppSpacing.sm),
-                  PatrimonioStatusChip(status: patrimonio.status),
-                ],
-              ),
+        if (!canManage)
+          cabecalho
+        else
+          // Mesmo padrão do `InvTecPageHeader`: título e ação lado a lado
+          // quando cabem, empilhados (botão abaixo) em telas estreitas —
+          // o botão "Editar" nunca fica solto longe do que ele edita.
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runSpacing: AppSpacing.md,
+              children: [
+                cabecalho,
+                FilledButton.icon(
+                  onPressed: onEditar,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Editar'),
+                ),
+              ],
             ),
-            if (canManage) ...[
-              const SizedBox(width: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: onEditar,
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Editar'),
-              ),
-            ],
-          ],
-        ),
+          ),
         const SizedBox(height: AppSpacing.lg),
         Wrap(
           spacing: AppSpacing.lg,
@@ -171,14 +192,19 @@ class _Detalhe extends ConsumerWidget {
                 _DetailField(label: 'Data de cadastro', value: _formatarData(patrimonio.dataCadastro)),
               ],
             ),
-            _Section(
-              title: 'Observações',
-              icon: Icons.notes_outlined,
-              fields: [
-                _DetailField(label: 'Descrição', value: patrimonio.descricao ?? '—', wide: true),
-                _DetailField(label: 'Observação', value: patrimonio.observacao ?? '—', wide: true),
-              ],
-            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        // Observações ocupa a largura toda do conteúdo (nunca disputa
+        // coluna com os cards menores acima) — cresce bem tanto com texto
+        // curto quanto com descrições longas.
+        _Section(
+          title: 'Observações',
+          icon: Icons.notes_outlined,
+          fullWidth: true,
+          fields: [
+            _DetailField(label: 'Descrição', value: patrimonio.descricao ?? '—', wide: true),
+            _DetailField(label: 'Observação', value: patrimonio.observacao ?? '—', wide: true),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -229,16 +255,25 @@ class _HistoricoCard extends ConsumerWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.icon, required this.fields});
+  const _Section({
+    required this.title,
+    required this.icon,
+    required this.fields,
+    this.fullWidth = false,
+  });
 
   final String title;
   final IconData icon;
   final List<_DetailField> fields;
 
+  /// `true` para seções que devem ocupar toda a largura do conteúdo (ex.:
+  /// Observações) em vez da largura fixa dos demais cards do grid.
+  final bool fullWidth;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 540,
+      width: fullWidth ? double.infinity : 540,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -249,7 +284,14 @@ class _Section extends StatelessWidget {
                 children: [
                   Icon(icon, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: AppSpacing.xs),
-                  Text(title, style: AppTypography.cardTitle(context)),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.cardTitle(context),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),

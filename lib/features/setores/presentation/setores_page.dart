@@ -115,7 +115,10 @@ class _SetoresPageState extends ConsumerState<SetoresPage> {
             // consistência visual entre as duas telas.
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.smd,
+                ),
                 child: _SearchField(
                   controller: _searchController,
                   onChanged: (value) =>
@@ -123,7 +126,7 @@ class _SetoresPageState extends ConsumerState<SetoresPage> {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             setoresAsync.when(
               data: (setores) {
                 if (setores.isEmpty) {

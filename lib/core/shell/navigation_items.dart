@@ -21,6 +21,14 @@ class NavigationItem {
   bool visivelPara(ProfilePerfil perfil) {
     return perfisPermitidos == null || perfisPermitidos!.contains(perfil);
   }
+
+  /// A rota atual é esta própria rota, ou uma página filha dela (ex.:
+  /// `/patrimonios/novo` continua marcando "Patrimônios" como ativa na
+  /// navegação) — evita a sidebar/drawer ficarem sem nenhum item destacado
+  /// ao entrar em uma subpágina.
+  bool ativoPara(String currentRoute) {
+    return currentRoute == route || currentRoute.startsWith('$route/');
+  }
 }
 
 const navigationItems = [

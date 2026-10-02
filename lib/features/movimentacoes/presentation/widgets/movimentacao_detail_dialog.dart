@@ -17,6 +17,11 @@ Future<void> showMovimentacaoDetailDialog(BuildContext context, MovimentacaoList
   );
 }
 
+/// Abaixo desta largura de conteúdo (já descontado o padding do diálogo) os
+/// pares de campo voltam a empilhar em coluna única — não há espaço
+/// confortável para duas colunas.
+const _larguraMinimaParaGrade = 440.0;
+
 class MovimentacaoDetailDialog extends StatelessWidget {
   const MovimentacaoDetailDialog({super.key, required this.item});
 
@@ -27,9 +32,56 @@ class MovimentacaoDetailDialog extends StatelessWidget {
     final (icon, kind) = visualDoTipoMovimentacao(item.tipo);
     final localizacao = _resumoLocalizacao(item);
 
+    // Agrupados em pares que fazem sentido lado a lado quando há espaço;
+    // cada grupo com 1 ou 2 campos (os opcionais entram como `null` quando
+    // ausentes — nunca dados inventados, só o arranjo muda). Motivo e
+    // Observação ficam de fora: são texto livre, potencialmente longo, e
+    // sempre ocupam a linha inteira.
+    final grupos = <List<Widget?>>[
+      [
+        _Field(label: 'Patrimônio', value: item.patrimonioNumero),
+        if (item.patrimonioTipoNome != null) _Field(label: 'Equipamento', value: item.patrimonioTipoNome),
+      ],
+      [
+        // Sigla cadastrada, nome completo por tooltip.
+        _Field(
+          label: 'Origem',
+          value: siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome),
+          valueTooltip:
+              siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome) == item.setorOrigemNome
+              ? null
+              : item.setorOrigemNome,
+        ),
+        _Field(
+          label: 'Destino',
+          value: siglaOuNomeSetor(sigla: item.setorDestinoSigla, nome: item.setorDestinoNome),
+          valueTooltip:
+              siglaOuNomeSetor(sigla: item.setorDestinoSigla, nome: item.setorDestinoNome) == item.setorDestinoNome
+              ? null
+              : item.setorDestinoNome,
+        ),
+      ],
+      [
+        if (localizacao != null) _Field(label: 'Localização', value: localizacao),
+        _Field(label: 'Responsável', value: item.responsavelExibido),
+      ],
+      [
+        _Field(label: 'Autor', value: item.autorExibido),
+        _Field(label: 'Data/hora', value: _formatarDataHora(item.dataMovimentacao)),
+      ],
+      [if (item.motivo != null && item.motivo!.isNotEmpty) _Field(label: 'Motivo', value: item.motivo)],
+      [if (item.observacao != null && item.observacao!.isNotEmpty) _Field(label: 'Observação', value: item.observacao)],
+      [
+        if (item.numeroDocumento != null && item.numeroDocumento!.isNotEmpty)
+          _Field(label: 'Documento', value: item.numeroDocumento),
+        if (item.numeroChamado != null && item.numeroChamado!.isNotEmpty)
+          _Field(label: 'Chamado', value: item.numeroChamado),
+      ],
+    ];
+
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: const BoxConstraints(maxWidth: 640),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
@@ -43,37 +95,15 @@ class MovimentacaoDetailDialog extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              _Field(label: 'Patrimônio', value: item.patrimonioNumero),
-              if (item.patrimonioTipoNome != null) _Field(label: 'Equipamento', value: item.patrimonioTipoNome),
-              // Sigla cadastrada, nome completo por tooltip.
-              _Field(
-                label: 'Origem',
-                value: siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome),
-                valueTooltip:
-                    siglaOuNomeSetor(sigla: item.setorOrigemSigla, nome: item.setorOrigemNome) == item.setorOrigemNome
-                    ? null
-                    : item.setorOrigemNome,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final emGrade = constraints.maxWidth >= _larguraMinimaParaGrade;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [for (final grupo in grupos) _linhaDoGrupo(grupo, emGrade: emGrade)],
+                  );
+                },
               ),
-              _Field(
-                label: 'Destino',
-                value: siglaOuNomeSetor(sigla: item.setorDestinoSigla, nome: item.setorDestinoNome),
-                valueTooltip:
-                    siglaOuNomeSetor(sigla: item.setorDestinoSigla, nome: item.setorDestinoNome) ==
-                        item.setorDestinoNome
-                    ? null
-                    : item.setorDestinoNome,
-              ),
-              if (localizacao != null) _Field(label: 'Localização', value: localizacao),
-              _Field(label: 'Responsável', value: item.responsavelExibido),
-              _Field(label: 'Autor', value: item.autorExibido),
-              _Field(label: 'Data/hora', value: _formatarDataHora(item.dataMovimentacao)),
-              if (item.motivo != null && item.motivo!.isNotEmpty) _Field(label: 'Motivo', value: item.motivo),
-              if (item.observacao != null && item.observacao!.isNotEmpty)
-                _Field(label: 'Observação', value: item.observacao),
-              if (item.numeroDocumento != null && item.numeroDocumento!.isNotEmpty)
-                _Field(label: 'Documento', value: item.numeroDocumento),
-              if (item.numeroChamado != null && item.numeroChamado!.isNotEmpty)
-                _Field(label: 'Chamado', value: item.numeroChamado),
               const SizedBox(height: AppSpacing.md),
               Align(
                 alignment: Alignment.centerRight,
@@ -85,6 +115,25 @@ class MovimentacaoDetailDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Em grade: um grupo com dois campos vira uma `Row` lado a lado; com um só,
+/// ocupa a linha inteira. Em coluna (estreito ou grupo sem campos visíveis),
+/// cada campo do grupo empilha normalmente, na mesma ordem de sempre.
+Widget _linhaDoGrupo(List<Widget?> grupo, {required bool emGrade}) {
+  final campos = grupo.whereType<Widget>().toList();
+  if (campos.isEmpty) return const SizedBox.shrink();
+  if (!emGrade || campos.length == 1) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: campos);
+  }
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(child: campos[0]),
+      const SizedBox(width: AppSpacing.md),
+      Expanded(child: campos[1]),
+    ],
+  );
 }
 
 /// "origem → destino" quando os dois lados existem; só um dos nomes quando

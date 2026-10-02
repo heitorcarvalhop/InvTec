@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/validation/app_validators.dart';
 import '../../domain/patrimonio.dart';
 import '../../domain/patrimonio_detalhe.dart';
@@ -125,16 +126,26 @@ class _PatrimonioEditDialogState extends ConsumerState<PatrimonioEditDialog> {
 
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: const BoxConstraints(maxWidth: 560),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.md,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Editar patrimônio', style: theme.textTheme.titleLarge),
+                Text('Editar patrimônio', style: AppTypography.cardTitle(context)),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Atualize os dados de identificação do equipamento.',
+                  style: AppTypography.pageSubtitle(context),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 TextFormField(
                   controller: _numeroController,

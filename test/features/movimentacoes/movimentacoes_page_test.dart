@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/core/errors/app_exception.dart';
 import 'package:invtec/core/theme/app_theme.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
@@ -11,6 +12,7 @@ import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supab
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_historico_item.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_listagem_item.dart';
+import 'package:invtec/features/movimentacoes/domain/movimentacao_ordenacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_repository.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacoes_resultado.dart';
 import 'package:invtec/features/movimentacoes/presentation/movimentacoes_page.dart';
@@ -49,6 +51,8 @@ class _RepositorioTravado implements MovimentacaoRepository {
     String? setorId,
     DateTime? periodoDe,
     DateTime? periodoAte,
+    MovimentacaoOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) {
     return Completer<MovimentacoesResultado>().future;
   }
@@ -154,6 +158,14 @@ Future<void> _pumpMovimentacoesPage(
       ),
     ),
   );
+  await tester.pumpAndSettle();
+}
+
+/// O painel de filtros (tipo/setor/período) agora começa fechado — ver
+/// `_HistoricoControles` — e só aparece depois de tocar o botão "Filtros"
+/// da `ListPageToolbar` (ícone `filter_list`, único na tela).
+Future<void> _abrirFiltros(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.filter_list));
   await tester.pumpAndSettle();
 }
 
@@ -296,6 +308,7 @@ void main() {
         movimentacaoRepo: FakeMovimentacaoRepository(),
         setores: [Setor(id: 'setor-1', nome: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1))],
       );
+      await _abrirFiltros(tester);
 
       expect(find.widgetWithText(DropdownButtonFormField<MovimentacaoTipo?>, 'Tipo'), findsOneWidget);
       expect(find.widgetWithText(DropdownButtonFormField<String?>, 'Setor'), findsOneWidget);
@@ -312,6 +325,7 @@ void main() {
           ],
         ),
       );
+      await _abrirFiltros(tester);
 
       final campoTipo = find.widgetWithText(DropdownButtonFormField<MovimentacaoTipo?>, 'Tipo');
       await tester.ensureVisible(campoTipo);
@@ -492,6 +506,7 @@ void main() {
             Setor(id: 'setor-2', nome: 'Almoxarifado Antigo', ativo: false, criadoEm: DateTime(2020, 1, 1)),
           ],
         );
+        await _abrirFiltros(tester);
 
         final campoSetor = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor');
         await tester.ensureVisible(campoSetor);
@@ -525,6 +540,7 @@ void main() {
             Setor(id: 'setor-2', nome: 'Gerência de Posturas', sigla: 'GEPOS', ativo: true, criadoEm: DateTime(2026, 1, 1)),
           ],
         );
+        await _abrirFiltros(tester);
 
         final campoSetor = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor');
         await tester.ensureVisible(campoSetor);

@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
@@ -87,6 +89,8 @@ class _RepositorioComPortoesListar implements PatrimonioRepository {
     DateTime? dataCadastroAte,
     DateTime? dataAquisicaoDe,
     DateTime? dataAquisicaoAte,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) async {
     final portao = Completer<void>();
     _pendentes.add(portao);
@@ -108,6 +112,8 @@ class _RepositorioComPortoesListar implements PatrimonioRepository {
       dataCadastroAte: dataCadastroAte,
       dataAquisicaoDe: dataAquisicaoDe,
       dataAquisicaoAte: dataAquisicaoAte,
+      ordenarPor: ordenarPor,
+      ordenacaoDirecao: ordenacaoDirecao,
     );
   }
 
@@ -803,5 +809,271 @@ void main() {
         reason: 'a resposta atrasada da página antiga não pode sobrescrever a página mais nova',
       );
     });
+  });
+
+  group('ordenação', () {
+    PatrimonioDetalhe item({
+      required String id,
+      String? numero,
+      String tipoNome = 'Tipo',
+      String? marca,
+      String setorNome = 'Setor',
+      String? localizacaoNome,
+      PatrimonioStatus status = PatrimonioStatus.disponivel,
+      DateTime? dataCadastro,
+    }) {
+      return PatrimonioDetalhe(
+        patrimonio: Patrimonio(
+          id: id,
+          numeroPatrimonio: numero,
+          marca: marca,
+          tipoId: 'tipo-1',
+          status: status,
+          setorAtualId: 'setor-1',
+          dataCadastro: dataCadastro ?? DateTime(2026, 1, 1),
+          atualizadoEm: DateTime(2026, 1, 1),
+        ),
+        tipoNome: tipoNome,
+        setorNome: setorNome,
+        localizacaoNome: localizacaoNome,
+      );
+    }
+
+    test('sem ordenação escolhida, mantém o padrão (cadastro mais recente primeiro)', () async {
+      final container = _criarContainer(
+        FakePatrimonioRepository(
+          itens: [
+            item(id: '1', numero: '001', dataCadastro: DateTime(2026, 1, 1)),
+            item(id: '2', numero: '002', dataCadastro: DateTime(2026, 1, 3)),
+            item(id: '3', numero: '003', dataCadastro: DateTime(2026, 1, 2)),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await container.read(patrimoniosControllerProvider.future);
+      final state = container.read(patrimoniosControllerProvider).value!;
+      expect(state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio), ['002', '003', '001']);
+    });
+
+    test('Patrimônio ASC ordena pelo texto do número, crescente', () async {
+      final container = _criarContainer(
+        FakePatrimonioRepository(
+          itens: [item(id: '1', numero: '003'), item(id: '2', numero: '001'), item(id: '3', numero: '002')],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(patrimoniosControllerProvider.notifier);
+      await container.read(patrimoniosControllerProvider.future);
+
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio);
+      final state = await container.read(patrimoniosControllerProvider.future);
+
+      expect(state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio), ['001', '002', '003']);
+      expect(state.filtro.ordenarPor, PatrimonioOrdenacaoCampo.numeroPatrimonio);
+      expect(state.filtro.ordenacaoDirecao, OrdenacaoDirecao.asc);
+    });
+
+    test('Patrimônio DESC (segundo clique) inverte a ordem', () async {
+      final container = _criarContainer(
+        FakePatrimonioRepository(
+          itens: [item(id: '1', numero: '003'), item(id: '2', numero: '001'), item(id: '3', numero: '002')],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(patrimoniosControllerProvider.notifier);
+      await container.read(patrimoniosControllerProvider.future);
+
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio);
+      await container.read(patrimoniosControllerProvider.future);
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio);
+      final state = await container.read(patrimoniosControllerProvider.future);
+
+      expect(state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio), ['003', '002', '001']);
+      expect(state.filtro.ordenacaoDirecao, OrdenacaoDirecao.desc);
+    });
+
+    test(
+      'terceiro clique no mesmo campo volta à ordenação padrão (nunca um terceiro estado de direção)',
+      () async {
+        final container = _criarContainer(
+          FakePatrimonioRepository(
+            itens: [
+              item(id: '1', numero: '001', dataCadastro: DateTime(2026, 1, 1)),
+              item(id: '2', numero: '002', dataCadastro: DateTime(2026, 1, 3)),
+            ],
+          ),
+        );
+        addTearDown(container.dispose);
+        final notifier = container.read(patrimoniosControllerProvider.notifier);
+        await container.read(patrimoniosControllerProvider.future);
+
+        notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio); // ASC
+        await container.read(patrimoniosControllerProvider.future);
+        notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio); // DESC
+        await container.read(patrimoniosControllerProvider.future);
+        notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio); // volta ao padrão
+        final state = await container.read(patrimoniosControllerProvider.future);
+
+        expect(state.filtro.ordenarPor, isNull);
+        expect(state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio), ['002', '001']);
+      },
+    );
+
+    test('trocar de campo ordenável sempre começa em ASC, mesmo se o campo anterior estava em DESC', () async {
+      final container = _criarContainer(
+        FakePatrimonioRepository(
+          itens: [item(id: '1', numero: '002', marca: 'B'), item(id: '2', numero: '001', marca: 'A')],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(patrimoniosControllerProvider.notifier);
+      await container.read(patrimoniosControllerProvider.future);
+
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio); // ASC
+      await container.read(patrimoniosControllerProvider.future);
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio); // DESC
+      await container.read(patrimoniosControllerProvider.future);
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.marca); // campo novo -> ASC
+      final state = await container.read(patrimoniosControllerProvider.future);
+
+      expect(state.filtro.ordenarPor, PatrimonioOrdenacaoCampo.marca);
+      expect(state.filtro.ordenacaoDirecao, OrdenacaoDirecao.asc);
+      expect(state.resultado.itens.map((i) => i.patrimonio.marca), ['A', 'B']);
+    });
+
+    test('Equipamento A-Z e Z-A ordenam pelo nome do tipo (o que a coluna realmente mostra)', () async {
+      final container = _criarContainer(
+        FakePatrimonioRepository(
+          itens: [
+            item(id: '1', numero: '1', tipoNome: 'TV'),
+            item(id: '2', numero: '2', tipoNome: 'Monitor'),
+            item(id: '3', numero: '3', tipoNome: 'Notebook'),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(patrimoniosControllerProvider.notifier);
+      await container.read(patrimoniosControllerProvider.future);
+
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.equipamento);
+      final asc = await container.read(patrimoniosControllerProvider.future);
+      expect(asc.resultado.itens.map((i) => i.tipoNome), ['Monitor', 'Notebook', 'TV']);
+
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.equipamento);
+      final desc = await container.read(patrimoniosControllerProvider.future);
+      expect(desc.resultado.itens.map((i) => i.tipoNome), ['TV', 'Notebook', 'Monitor']);
+    });
+
+    test('nova ordenação volta para a primeira página', () async {
+      final container = _criarContainer(
+        FakePatrimonioRepository(itens: [for (var i = 1; i <= 30; i++) item(id: '$i', numero: '$i')]),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(patrimoniosControllerProvider.notifier);
+      await container.read(patrimoniosControllerProvider.future);
+
+      notifier.irParaPagina(1);
+      await container.read(patrimoniosControllerProvider.future);
+      expect(container.read(patrimoniosControllerProvider).value!.filtro.pagina, 1);
+
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio);
+      final state = await container.read(patrimoniosControllerProvider.future);
+      expect(state.filtro.pagina, 0);
+    });
+
+    test('filtro (Status) + ordenação (Marca) funcionam juntos', () async {
+      final container = _criarContainer(
+        FakePatrimonioRepository(
+          itens: [
+            item(id: '1', numero: '1', marca: 'C', status: PatrimonioStatus.disponivel),
+            item(id: '2', numero: '2', marca: 'A', status: PatrimonioStatus.baixado),
+            item(id: '3', numero: '3', marca: 'B', status: PatrimonioStatus.disponivel),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(patrimoniosControllerProvider.notifier);
+      await container.read(patrimoniosControllerProvider.future);
+
+      notifier.filtrarPorStatus(PatrimonioStatus.disponivel);
+      await container.read(patrimoniosControllerProvider.future);
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.marca);
+      final state = await container.read(patrimoniosControllerProvider.future);
+
+      expect(state.resultado.itens.map((i) => i.patrimonio.marca), ['B', 'C']);
+      expect(state.filtro.status, PatrimonioStatus.disponivel);
+    });
+
+    test('busca + ordenação funcionam juntas', () async {
+      final container = _criarContainer(
+        FakePatrimonioRepository(
+          itens: [
+            item(id: '1', numero: '103', marca: 'MarcaX'),
+            item(id: '2', numero: '101', marca: 'MarcaX'),
+            item(id: '3', numero: '999', marca: 'Outra'),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(patrimoniosControllerProvider.notifier);
+      await container.read(patrimoniosControllerProvider.future);
+
+      notifier.definirMarca('MarcaX');
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio);
+      final state = await container.read(patrimoniosControllerProvider.future);
+
+      expect(state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio), ['101', '103']);
+    });
+
+    test(
+      'troca de ordenação persiste no estado do controller — Lista e Cards leem o MESMO estado, '
+      'nunca duas ordenações independentes',
+      () async {
+        final container = _criarContainer(
+          FakePatrimonioRepository(itens: [item(id: '1', numero: '2'), item(id: '2', numero: '1')]),
+        );
+        addTearDown(container.dispose);
+        final notifier = container.read(patrimoniosControllerProvider.notifier);
+        await container.read(patrimoniosControllerProvider.future);
+
+        notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio);
+        await container.read(patrimoniosControllerProvider.future);
+
+        // Nenhuma ação de "trocar para Cards" existe neste nível (é só
+        // estado de UI, não deste controller) — o ponto é que não há dois
+        // `PatrimoniosFiltro.ordenarPor` possíveis: qualquer widget que leia
+        // `patrimoniosControllerProvider` (lista OU cards) vê o mesmo valor.
+        final state1 = container.read(patrimoniosControllerProvider).value!;
+        final state2 = container.read(patrimoniosControllerProvider).value!;
+        expect(state1.filtro.ordenarPor, PatrimonioOrdenacaoCampo.numeroPatrimonio);
+        expect(identical(state1.filtro, state2.filtro), isTrue);
+      },
+    );
+
+    test(
+      'LIMITAÇÃO CONHECIDA (documentada no relatório): número de patrimônio ordena como TEXTO, '
+      'não numericamente — "10" vem antes de "2"',
+      () async {
+        final container = _criarContainer(
+          FakePatrimonioRepository(
+            itens: [item(id: '1', numero: '2'), item(id: '2', numero: '10'), item(id: '3', numero: '100')],
+          ),
+        );
+        addTearDown(container.dispose);
+        final notifier = container.read(patrimoniosControllerProvider.notifier);
+        await container.read(patrimoniosControllerProvider.future);
+
+        notifier.ordenarPor(PatrimonioOrdenacaoCampo.numeroPatrimonio);
+        final state = await container.read(patrimoniosControllerProvider.future);
+
+        // Documenta a limitação de propósito (não é um bug a "corrigir" sem
+        // migração): numero_patrimonio é `text` no banco, e o Postgrest não
+        // aceita um CAST numérico na ordenação — ver
+        // PatrimonioRepositorySupabase._aplicarOrdenacao.
+        expect(state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio), ['10', '100', '2']);
+      },
+    );
   });
 }

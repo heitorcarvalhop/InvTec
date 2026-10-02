@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
+import '../../../../../core/widgets/compact_icon_button.dart';
 import '../../../../../core/widgets/status_chip.dart';
 import '../../../../auth/domain/profile.dart';
 import '../../../../auth/presentation/auth_controller.dart';
@@ -636,9 +637,8 @@ class _BannerDeAvisoState extends State<_BannerDeAviso> {
               Icon(aviso.erro ? Icons.error_outline : Icons.info_outline, size: 20, color: texto),
               const SizedBox(width: AppSpacing.sm),
               Expanded(child: Text(aviso.mensagem, style: estilo)),
-              IconButton(
+              CompactIconButton(
                 tooltip: 'Fechar aviso',
-                visualDensity: VisualDensity.compact,
                 onPressed: widget.onFechar,
                 icon: Icon(Icons.close, size: 18, color: texto),
               ),

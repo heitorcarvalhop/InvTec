@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/domain/ordenacao_direcao.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/setor_compact_text.dart';
+import '../../../../core/widgets/sortable_header_label.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../domain/movimentacao.dart';
 import '../../domain/movimentacao_listagem_item.dart';
+import '../../domain/movimentacao_ordenacao.dart';
 import 'movimentacao_tipo_visual.dart';
 
 /// Altura mínima confortável de uma linha da lista.
@@ -26,10 +29,27 @@ const double _larguraColunaAcoes = 72;
 /// HISTÓRICO de movimentações já executadas — pendências SEI têm lista
 /// própria (`SeiPendenciasList`).
 class MovimentacoesDesktopTable extends StatelessWidget {
-  const MovimentacoesDesktopTable({super.key, required this.itens, required this.onVisualizar});
+  const MovimentacoesDesktopTable({
+    super.key,
+    required this.itens,
+    required this.onVisualizar,
+    this.ordenarPor,
+    this.ordenacaoDirecao = OrdenacaoDirecao.asc,
+    this.onOrdenarPor,
+  });
 
   final List<MovimentacaoListagemItem> itens;
   final ValueChanged<MovimentacaoListagemItem> onVisualizar;
+
+  /// `null` = ordenação padrão da tela (data mais recente primeiro) — mesma
+  /// semântica de `MovimentacoesFiltro.ordenarPor`.
+  final MovimentacaoOrdenacaoCampo? ordenarPor;
+  final OrdenacaoDirecao ordenacaoDirecao;
+
+  /// `null` quando o chamador não oferece ordenação por cabeçalho (ex.: um
+  /// teste isolado da tabela) — nesse caso os cabeçalhos ficam estáticos,
+  /// sem `SortableHeaderLabel` reagir a toque.
+  final ValueChanged<MovimentacaoOrdenacaoCampo>? onOrdenarPor;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +57,7 @@ class MovimentacoesDesktopTable extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          const _HeaderRow(),
+          _HeaderRow(ordenarPor: ordenarPor, ordenacaoDirecao: ordenacaoDirecao, onOrdenarPor: onOrdenarPor),
           const Divider(height: 1),
           for (var i = 0; i < itens.length; i++) ...[
             _DataRow(item: itens[i], onVisualizar: () => onVisualizar(itens[i])),
@@ -50,20 +70,48 @@ class MovimentacoesDesktopTable extends StatelessWidget {
 }
 
 class _HeaderRow extends StatelessWidget {
-  const _HeaderRow();
+  const _HeaderRow({required this.ordenarPor, required this.ordenacaoDirecao, required this.onOrdenarPor});
+
+  final MovimentacaoOrdenacaoCampo? ordenarPor;
+  final OrdenacaoDirecao ordenacaoDirecao;
+  final ValueChanged<MovimentacaoOrdenacaoCampo>? onOrdenarPor;
+
+  SortIndicatorState _estadoDe(MovimentacaoOrdenacaoCampo campo) {
+    if (ordenarPor != campo) return SortIndicatorState.none;
+    return ordenacaoDirecao == OrdenacaoDirecao.asc ? SortIndicatorState.ascending : SortIndicatorState.descending;
+  }
 
   @override
   Widget build(BuildContext context) {
     final style = AppTypography.label(context);
+    final onOrdenarPor = this.onOrdenarPor;
+
+    Widget cabecalho(String label, MovimentacaoOrdenacaoCampo campo) {
+      if (onOrdenarPor == null) return Text(label, style: style);
+      return SortableHeaderLabel(label: label, state: _estadoDe(campo), onTap: () => onOrdenarPor(campo));
+    }
+
     return Container(
       color: Theme.of(context).surfaceColors.tableHeader,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Row(
         children: [
-          Expanded(flex: 2, child: Text('Data', style: style)),
-          Expanded(flex: 2, child: Text('Patrimônio', style: style)),
-          Expanded(flex: 2, child: Text('Tipo', style: style)),
-          Expanded(flex: 5, child: Text('Origem → Destino', style: style)),
+          Expanded(flex: 2, child: cabecalho('Data', MovimentacaoOrdenacaoCampo.data)),
+          Expanded(flex: 2, child: cabecalho('Patrimônio', MovimentacaoOrdenacaoCampo.patrimonio)),
+          Expanded(flex: 2, child: cabecalho('Tipo', MovimentacaoOrdenacaoCampo.tipo)),
+          Expanded(
+            flex: 5,
+            child: Row(
+              children: [
+                Flexible(child: cabecalho('Origem', MovimentacaoOrdenacaoCampo.origem)),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  child: Icon(Icons.arrow_forward, size: 14),
+                ),
+                Flexible(child: cabecalho('Destino', MovimentacaoOrdenacaoCampo.destino)),
+              ],
+            ),
+          ),
           SizedBox(
             width: _larguraColunaAcoes,
             child: Text('Ações', style: style, maxLines: 1, overflow: TextOverflow.ellipsis),

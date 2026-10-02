@@ -1,6 +1,8 @@
+import '../../../core/domain/ordenacao_direcao.dart';
 import '../importacao/domain/comparacao_execucao.dart';
 import 'patrimonio.dart';
 import 'patrimonio_detalhe.dart';
+import 'patrimonio_ordenacao.dart';
 import 'patrimonio_search_field.dart';
 import 'patrimonios_resultado.dart';
 
@@ -44,6 +46,18 @@ abstract class PatrimonioRepository {
   ///
   /// [dataCadastroDe]/[dataCadastroAte] e [dataAquisicaoDe]/
   /// [dataAquisicaoAte] filtram por intervalo INCLUSIVO nos dois limites.
+  ///
+  /// [ordenarPor] `null` (padrão) mantém a ordenação padrão (`data_cadastro`
+  /// mais recente primeiro) — qualquer outro valor substitui totalmente essa
+  /// ordenação, sempre resolvida no SERVIDOR antes de [limit]/[offset]
+  /// (nunca ordenar só a página já paginada). [ordenacaoDirecao] só importa
+  /// quando [ordenarPor] não é `null`.
+  ///
+  /// [PatrimonioOrdenacaoCampo.numeroPatrimonio] ordena pelo valor de TEXTO
+  /// armazenado (`numero_patrimonio` é `text`, nunca `integer` — ver
+  /// docs/database.md): "10" vem antes de "2" alfabeticamente. Isso é uma
+  /// limitação conhecida, não um bug — ver nota em
+  /// PatrimonioRepositorySupabase._colunaDeOrdenacao.
   Future<PatrimoniosResultado> listar({
     int limit = 25,
     int offset = 0,
@@ -61,6 +75,8 @@ abstract class PatrimonioRepository {
     DateTime? dataCadastroAte,
     DateTime? dataAquisicaoDe,
     DateTime? dataAquisicaoAte,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   });
 
   /// Cadastra um patrimônio novo e sua movimentação inicial (ENTRADA) via

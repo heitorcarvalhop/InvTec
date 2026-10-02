@@ -35,6 +35,14 @@ class InvTecStatCard extends StatelessWidget {
     };
 
     return Card(
+      // Card "principal" de destaque do Dashboard: raio um pouco maior
+      // (AppRadius.lg) que o padrão de card do app (AppRadius.md, usado em
+      // formulários/tabelas/dialogs) para reforçar a hierarquia visual sem
+      // alterar o `cardTheme` global. Mesma cor/borda do tema, só o raio muda.
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: Theme.of(context).surfaceColors.border),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -53,7 +61,11 @@ class InvTecStatCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text('$value', style: AppTypography.metric(context)),
             const SizedBox(height: AppSpacing.xs),
-            Text(label, style: AppTypography.auxiliary(context)),
+            // Label em estilo "eyebrow" (menor, tracking amplo) — fica
+            // acima/abaixo do número como metadado discreto, sem precisar de
+            // caixa alta (o rótulo em português tende a ficar mais longo que
+            // o padrão de referência e perde legibilidade em CAPS).
+            Text(label, style: AppTypography.eyebrow(context)),
           ],
         ),
       ),

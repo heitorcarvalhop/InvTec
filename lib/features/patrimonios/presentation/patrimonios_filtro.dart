@@ -1,4 +1,6 @@
+import '../../../core/domain/ordenacao_direcao.dart';
 import '../domain/patrimonio.dart';
+import '../domain/patrimonio_ordenacao.dart';
 import '../domain/patrimonio_search_field.dart';
 
 /// Sentinela para distinguir "não mudar este filtro" de "limpar para null"
@@ -38,6 +40,8 @@ class PatrimoniosFiltro {
     this.dataCadastroAte,
     this.dataAquisicaoDe,
     this.dataAquisicaoAte,
+    this.ordenarPor,
+    this.ordenacaoDirecao = OrdenacaoDirecao.asc,
     this.pagina = 0,
     this.tamanhoPagina = patrimoniosTamanhoPaginaPadrao,
   });
@@ -72,6 +76,14 @@ class PatrimoniosFiltro {
   /// limites.
   final DateTime? dataAquisicaoDe;
   final DateTime? dataAquisicaoAte;
+
+  /// `null` = ordenação padrão (cadastro mais recente primeiro). Qualquer
+  /// outro valor substitui totalmente essa ordenação, sempre resolvida no
+  /// servidor — ver [PatrimonioRepository.listar].
+  final PatrimonioOrdenacaoCampo? ordenarPor;
+
+  /// Só importa quando [ordenarPor] não é `null`.
+  final OrdenacaoDirecao ordenacaoDirecao;
 
   /// 0-based.
   final int pagina;
@@ -125,6 +137,8 @@ class PatrimoniosFiltro {
     Object? dataCadastroAte = _unset,
     Object? dataAquisicaoDe = _unset,
     Object? dataAquisicaoAte = _unset,
+    Object? ordenarPor = _unset,
+    OrdenacaoDirecao? ordenacaoDirecao,
     int? pagina,
     int? tamanhoPagina,
   }) {
@@ -155,6 +169,8 @@ class PatrimoniosFiltro {
       dataAquisicaoAte: identical(dataAquisicaoAte, _unset)
           ? this.dataAquisicaoAte
           : dataAquisicaoAte as DateTime?,
+      ordenarPor: identical(ordenarPor, _unset) ? this.ordenarPor : ordenarPor as PatrimonioOrdenacaoCampo?,
+      ordenacaoDirecao: ordenacaoDirecao ?? this.ordenacaoDirecao,
       pagina: pagina ?? this.pagina,
       tamanhoPagina: tamanhoPagina ?? this.tamanhoPagina,
     );

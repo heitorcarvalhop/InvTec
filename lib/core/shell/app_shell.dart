@@ -8,6 +8,7 @@ import '../responsive/breakpoints.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'navigation_items.dart';
+import 'sidebar_controller.dart';
 import 'widgets/app_navigation_drawer.dart';
 import 'widgets/navigation_sidebar.dart';
 import 'widgets/theme_toggle_button.dart';
@@ -65,6 +66,16 @@ class AppShell extends ConsumerWidget {
       );
     }
 
+    // Preferência explícita do usuário (persistida); sem ela, tablet
+    // começa recolhida (espaço é mais escasso) e desktop começa expandida —
+    // e esse padrão automático nunca é gravado, só calculado aqui.
+    final preferenciaSalva = ref.watch(sidebarControllerProvider).value;
+    final sidebarRecolhida = preferenciaSalva ?? (context.screenSize == ScreenSize.tablet);
+
+    void onToggleSidebar() {
+      ref.read(sidebarControllerProvider.notifier).definir(!sidebarRecolhida);
+    }
+
     // Sem `Scaffold.appBar`: uma AppBar no Scaffold cria uma faixa de
     // largura total acima de tudo, empurrando a sidebar para baixo dela —
     // mas a sidebar precisa ser full-height. Em vez disso, sidebar e
@@ -77,6 +88,8 @@ class AppShell extends ConsumerWidget {
             items: items,
             onNavigate: onNavigate,
             onLogout: onLogout,
+            collapsed: sidebarRecolhida,
+            onToggleCollapse: onToggleSidebar,
           ),
           Expanded(
             child: Column(
@@ -94,8 +107,8 @@ class AppShell extends ConsumerWidget {
 
 /// Topbar do desktop: só o seletor de tema e o usuário logado, alinhados à
 /// direita, sem título de produto (a marca "InvTec" vive só na sidebar).
-/// Mesma cor do fundo da página e sem borda/sombra própria, para não
-/// parecer uma segunda barra empilhada sobre o layout.
+/// Mesma cor do fundo da página, com uma borda inferior discreta para se
+/// ler como uma região própria do app em vez de uma faixa solta.
 class _DesktopTopBar extends StatelessWidget {
   const _DesktopTopBar({required this.profile});
 
@@ -106,12 +119,21 @@ class _DesktopTopBar extends StatelessWidget {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      color: Theme.of(context).surfaceColors.pageBackground,
+      decoration: BoxDecoration(
+        color: Theme.of(context).surfaceColors.pageBackground,
+        border: Border(bottom: BorderSide(color: Theme.of(context).surfaceColors.border)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const ThemeToggleButton(),
-          const SizedBox(width: AppSpacing.lg),
+          // Densidade compacta reduz um pouco a presença visual do seletor
+          // sem remover os rótulos "Claro"/"Escuro" (continuam clicáveis e
+          // legíveis — só ocupam menos espaço).
+          Theme(
+            data: Theme.of(context).copyWith(visualDensity: VisualDensity.compact),
+            child: const ThemeToggleButton(),
+          ),
+          const SizedBox(width: AppSpacing.md),
           Flexible(child: UserProfileHeader(profile: profile)),
         ],
       ),

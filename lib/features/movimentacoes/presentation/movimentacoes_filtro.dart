@@ -1,4 +1,6 @@
+import '../../../core/domain/ordenacao_direcao.dart';
 import '../domain/movimentacao.dart';
+import '../domain/movimentacao_ordenacao.dart';
 
 /// Sentinela para distinguir "não mudar este filtro" de "limpar para null"
 /// em [MovimentacoesFiltro.copyWith] — mesmo padrão de `PatrimoniosFiltro`.
@@ -26,6 +28,8 @@ class MovimentacoesFiltro {
     this.setorId,
     this.periodoDe,
     this.periodoAte,
+    this.ordenarPor,
+    this.ordenacaoDirecao = OrdenacaoDirecao.asc,
     this.pagina = 0,
     this.tamanhoPagina = movimentacoesTamanhoPaginaPadrao,
   });
@@ -44,6 +48,12 @@ class MovimentacoesFiltro {
   final DateTime? periodoDe;
   final DateTime? periodoAte;
 
+  /// `null` = ordenação padrão (`data_movimentacao` mais recente primeiro).
+  final MovimentacaoOrdenacaoCampo? ordenarPor;
+
+  /// Só importa quando [ordenarPor] não é `null`.
+  final OrdenacaoDirecao ordenacaoDirecao;
+
   /// 0-based.
   final int pagina;
 
@@ -58,6 +68,8 @@ class MovimentacoesFiltro {
     Object? setorId = _unset,
     Object? periodoDe = _unset,
     Object? periodoAte = _unset,
+    Object? ordenarPor = _unset,
+    OrdenacaoDirecao? ordenacaoDirecao,
     int? pagina,
     int? tamanhoPagina,
   }) {
@@ -67,6 +79,8 @@ class MovimentacoesFiltro {
       setorId: identical(setorId, _unset) ? this.setorId : setorId as String?,
       periodoDe: identical(periodoDe, _unset) ? this.periodoDe : periodoDe as DateTime?,
       periodoAte: identical(periodoAte, _unset) ? this.periodoAte : periodoAte as DateTime?,
+      ordenarPor: identical(ordenarPor, _unset) ? this.ordenarPor : ordenarPor as MovimentacaoOrdenacaoCampo?,
+      ordenacaoDirecao: ordenacaoDirecao ?? this.ordenacaoDirecao,
       pagina: pagina ?? this.pagina,
       tamanhoPagina: tamanhoPagina ?? this.tamanhoPagina,
     );

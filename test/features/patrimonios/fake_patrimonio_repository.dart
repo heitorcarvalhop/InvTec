@@ -1,6 +1,8 @@
+import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/core/errors/app_exception.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
@@ -261,14 +263,68 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     return resultado;
   }
 
-  PatrimoniosResultado _paginar(Iterable<PatrimonioDetalhe> itens, {required int limit, required int offset}) {
-    final lista = itens.toList()
-      ..sort((a, b) {
-        final porData = b.patrimonio.dataCadastro.compareTo(a.patrimonio.dataCadastro);
-        return porData != 0 ? porData : b.patrimonio.id.compareTo(a.patrimonio.id);
-      });
+  PatrimoniosResultado _paginar(
+    Iterable<PatrimonioDetalhe> itens, {
+    required int limit,
+    required int offset,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
+  }) {
+    final lista = itens.toList()..sort(_comparadorDe(ordenarPor, ordenacaoDirecao));
     final pagina = lista.skip(offset).take(limit).toList();
     return PatrimoniosResultado(itens: pagina, total: lista.length);
+  }
+
+  /// Mesma semântica de [PatrimonioRepositorySupabase._aplicarOrdenacao]:
+  /// `null` mantém o padrão (`data_cadastro` mais recente primeiro, `id`
+  /// como desempate); qualquer campo escolhido usa `id` como desempate final
+  /// na MESMA direção. `numeroPatrimonio` compara como TEXTO (nunca
+  /// numericamente) — de propósito, para o fake nunca fingir uma ordenação
+  /// que o Postgrest real não faz.
+  int Function(PatrimonioDetalhe, PatrimonioDetalhe) _comparadorDe(
+    PatrimonioOrdenacaoCampo? campo,
+    OrdenacaoDirecao direcao,
+  ) {
+    if (campo == null) {
+      return (a, b) {
+        final porData = b.patrimonio.dataCadastro.compareTo(a.patrimonio.dataCadastro);
+        return porData != 0 ? porData : b.patrimonio.id.compareTo(a.patrimonio.id);
+      };
+    }
+
+    final sinal = direcao == OrdenacaoDirecao.asc ? 1 : -1;
+    int porCampo(PatrimonioDetalhe a, PatrimonioDetalhe b) {
+      switch (campo) {
+        case PatrimonioOrdenacaoCampo.numeroPatrimonio:
+          return _compararNulosPorUltimo(a.patrimonio.numeroPatrimonio, b.patrimonio.numeroPatrimonio, sinal);
+        case PatrimonioOrdenacaoCampo.equipamento:
+          return _compararNulosPorUltimo(a.tipoNome, b.tipoNome, sinal);
+        case PatrimonioOrdenacaoCampo.marca:
+          return _compararNulosPorUltimo(a.patrimonio.marca, b.patrimonio.marca, sinal);
+        case PatrimonioOrdenacaoCampo.setor:
+          return _compararNulosPorUltimo(a.setorNome, b.setorNome, sinal);
+        case PatrimonioOrdenacaoCampo.localizacao:
+          return _compararNulosPorUltimo(a.localizacaoNome, b.localizacaoNome, sinal);
+        case PatrimonioOrdenacaoCampo.status:
+          return _compararNulosPorUltimo(a.patrimonio.status.value, b.patrimonio.status.value, sinal);
+        case PatrimonioOrdenacaoCampo.criadoEm:
+          return sinal * a.patrimonio.dataCadastro.compareTo(b.patrimonio.dataCadastro);
+      }
+    }
+
+    return (a, b) {
+      final cmp = porCampo(a, b);
+      return cmp != 0 ? cmp : sinal * a.patrimonio.id.compareTo(b.patrimonio.id);
+    };
+  }
+
+  /// `null` sempre por último, nas duas direções — mesma convenção do
+  /// Postgrest real (`nullsFirst` nunca é usado por este repositório).
+  int _compararNulosPorUltimo(String? a, String? b, int sinal) {
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;
+    if (b == null) return -1;
+    return sinal * a.compareTo(b);
   }
 
   @override
@@ -289,6 +345,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     DateTime? dataCadastroAte,
     DateTime? dataAquisicaoDe,
     DateTime? dataAquisicaoAte,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) async {
     if (erro != null) throw erro!;
 
@@ -313,7 +371,13 @@ class FakePatrimonioRepository implements PatrimonioRepository {
         dataAquisicaoDe: dataAquisicaoDe,
         dataAquisicaoAte: dataAquisicaoAte,
       );
-      final resultadoPatrimonio = _paginar(matchPatrimonio, limit: limit, offset: offset);
+      final resultadoPatrimonio = _paginar(
+        matchPatrimonio,
+        limit: limit,
+        offset: offset,
+        ordenarPor: ordenarPor,
+        ordenacaoDirecao: ordenacaoDirecao,
+      );
       if (resultadoPatrimonio.total > 0) return resultadoPatrimonio;
 
       final matchSerie = _comFiltrosComuns(
@@ -358,7 +422,13 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       dataAquisicaoDe: dataAquisicaoDe,
       dataAquisicaoAte: dataAquisicaoAte,
     );
-    return _paginar(resultado, limit: limit, offset: offset);
+    return _paginar(
+      resultado,
+      limit: limit,
+      offset: offset,
+      ordenarPor: ordenarPor,
+      ordenacaoDirecao: ordenacaoDirecao,
+    );
   }
 
   @override

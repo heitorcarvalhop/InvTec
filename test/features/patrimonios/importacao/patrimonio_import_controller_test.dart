@@ -4,12 +4,14 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/core/errors/app_exception.dart';
 import 'package:invtec/features/dashboard/data/dashboard_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/data/tipo_patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
@@ -157,6 +159,8 @@ class _RepositorioComFalhaSeletiva implements PatrimonioRepository {
     DateTime? dataCadastroAte,
     DateTime? dataAquisicaoDe,
     DateTime? dataAquisicaoAte,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) =>
       throw UnimplementedError();
 
@@ -279,6 +283,8 @@ class _RepositorioComPortoes implements PatrimonioRepository {
     DateTime? dataCadastroAte,
     DateTime? dataAquisicaoDe,
     DateTime? dataAquisicaoAte,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) =>
       throw UnimplementedError();
 
@@ -1635,6 +1641,8 @@ class _RepositorioContadorConcorrencia implements PatrimonioRepository {
     DateTime? dataCadastroAte,
     DateTime? dataAquisicaoDe,
     DateTime? dataAquisicaoAte,
+    PatrimonioOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) =>
       throw UnimplementedError();
 

@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/core/errors/app_exception.dart';
 import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supabase.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_listagem_item.dart';
+import 'package:invtec/features/movimentacoes/domain/movimentacao_ordenacao.dart';
 import 'package:invtec/features/movimentacoes/presentation/movimentacoes_controller.dart';
 
 import 'fake_movimentacao_repository.dart';
@@ -14,6 +16,8 @@ MovimentacaoListagemItem _item(
   String? patrimonioNumero,
   String? setorOrigemId,
   String? setorDestinoId,
+  String? setorOrigemNome,
+  String? setorDestinoNome,
   String? responsavelOrigem,
   String? responsavelDestino,
   String? numeroDocumento,
@@ -27,6 +31,8 @@ MovimentacaoListagemItem _item(
     patrimonioNumero: patrimonioNumero,
     setorOrigemId: setorOrigemId,
     setorDestinoId: setorDestinoId,
+    setorOrigemNome: setorOrigemNome,
+    setorDestinoNome: setorDestinoNome,
     responsavelOrigem: responsavelOrigem,
     responsavelDestino: responsavelDestino,
     numeroDocumento: numeroDocumento,
@@ -377,5 +383,213 @@ void main() {
       expect(state.filtro.pagina, 0);
       expect(state.filtro.tamanhoPagina, 50);
     });
+  });
+
+  group('ordenação', () {
+    test('sem ordenação escolhida, mantém o padrão (Data DESC)', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [
+            _item('1', patrimonioNumero: '1', dataMovimentacao: DateTime(2026, 1, 1)),
+            _item('2', patrimonioNumero: '2', dataMovimentacao: DateTime(2026, 1, 3)),
+            _item('3', patrimonioNumero: '3', dataMovimentacao: DateTime(2026, 1, 2)),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+
+      await container.read(movimentacoesControllerProvider.future);
+      final state = container.read(movimentacoesControllerProvider).value!;
+      expect(state.resultado.itens.map((i) => i.patrimonioNumero), ['2', '3', '1']);
+    });
+
+    test('Data ASC inverte para a mais antiga primeiro', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [
+            _item('1', patrimonioNumero: '1', dataMovimentacao: DateTime(2026, 1, 1)),
+            _item('2', patrimonioNumero: '2', dataMovimentacao: DateTime(2026, 1, 3)),
+            _item('3', patrimonioNumero: '3', dataMovimentacao: DateTime(2026, 1, 2)),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(movimentacoesControllerProvider.notifier);
+      await container.read(movimentacoesControllerProvider.future);
+
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.data);
+      final state = await container.read(movimentacoesControllerProvider.future);
+
+      expect(state.resultado.itens.map((i) => i.patrimonioNumero), ['1', '3', '2']);
+      expect(state.filtro.ordenarPor, MovimentacaoOrdenacaoCampo.data);
+      expect(state.filtro.ordenacaoDirecao, OrdenacaoDirecao.asc);
+    });
+
+    test('Patrimônio ASC/DESC ordena pelo texto do número', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [_item('1', patrimonioNumero: '003'), _item('2', patrimonioNumero: '001'), _item('3', patrimonioNumero: '002')],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(movimentacoesControllerProvider.notifier);
+      await container.read(movimentacoesControllerProvider.future);
+
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.patrimonio);
+      final asc = await container.read(movimentacoesControllerProvider.future);
+      expect(asc.resultado.itens.map((i) => i.patrimonioNumero), ['001', '002', '003']);
+
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.patrimonio);
+      final desc = await container.read(movimentacoesControllerProvider.future);
+      expect(desc.resultado.itens.map((i) => i.patrimonioNumero), ['003', '002', '001']);
+    });
+
+    test('Tipo ordena pelo valor bruto da movimentação (ENTRADA/SAIDA/...)', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [
+            _item('1', patrimonioNumero: '1', tipo: MovimentacaoTipo.entrada),
+            _item('2', patrimonioNumero: '2', tipo: MovimentacaoTipo.saida),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(movimentacoesControllerProvider.notifier);
+      await container.read(movimentacoesControllerProvider.future);
+
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.tipo);
+      final state = await container.read(movimentacoesControllerProvider.future);
+      // ENTRADA < SAIDA alfabeticamente (valor bruto do enum, mesma coluna
+      // `tipo` do banco).
+      expect(state.resultado.itens.map((i) => i.tipo), [MovimentacaoTipo.entrada, MovimentacaoTipo.saida]);
+    });
+
+    test('Origem e Destino ordenam independentemente pelo nome do setor', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [
+            _item('1', patrimonioNumero: '1', setorOrigemNome: 'Zeta', setorDestinoNome: 'Alfa'),
+            _item('2', patrimonioNumero: '2', setorOrigemNome: 'Alfa', setorDestinoNome: 'Zeta'),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(movimentacoesControllerProvider.notifier);
+      await container.read(movimentacoesControllerProvider.future);
+
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.origem);
+      final porOrigem = await container.read(movimentacoesControllerProvider.future);
+      expect(porOrigem.resultado.itens.map((i) => i.setorOrigemNome), ['Alfa', 'Zeta']);
+
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.destino); // campo novo -> ASC
+      final porDestino = await container.read(movimentacoesControllerProvider.future);
+      expect(porDestino.resultado.itens.map((i) => i.setorDestinoNome), ['Alfa', 'Zeta']);
+    });
+
+    test('terceiro clique no mesmo campo volta à ordenação padrão', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [
+            _item('1', patrimonioNumero: '1', dataMovimentacao: DateTime(2026, 1, 1)),
+            _item('2', patrimonioNumero: '2', dataMovimentacao: DateTime(2026, 1, 3)),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(movimentacoesControllerProvider.notifier);
+      await container.read(movimentacoesControllerProvider.future);
+
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.data); // ASC
+      await container.read(movimentacoesControllerProvider.future);
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.data); // DESC
+      await container.read(movimentacoesControllerProvider.future);
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.data); // volta ao padrão
+      final state = await container.read(movimentacoesControllerProvider.future);
+
+      expect(state.filtro.ordenarPor, isNull);
+      expect(state.resultado.itens.map((i) => i.patrimonioNumero), ['2', '1']);
+    });
+
+    test('filtro (Tipo) + ordenação (Patrimônio) funcionam juntos', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [
+            _item('1', patrimonioNumero: '003', tipo: MovimentacaoTipo.entrada),
+            _item('2', patrimonioNumero: '001', tipo: MovimentacaoTipo.saida),
+            _item('3', patrimonioNumero: '002', tipo: MovimentacaoTipo.entrada),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(movimentacoesControllerProvider.notifier);
+      await container.read(movimentacoesControllerProvider.future);
+
+      notifier.filtrarPorTipo(MovimentacaoTipo.entrada);
+      await container.read(movimentacoesControllerProvider.future);
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.patrimonio);
+      final state = await container.read(movimentacoesControllerProvider.future);
+
+      expect(state.resultado.itens.map((i) => i.patrimonioNumero), ['002', '003']);
+    });
+
+    test('busca + ordenação funcionam juntas', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [
+            _item('1', patrimonioNumero: '203', responsavelDestino: 'Fulano'),
+            _item('2', patrimonioNumero: '201', responsavelDestino: 'Fulano'),
+            _item('3', patrimonioNumero: '999', responsavelDestino: 'Outro'),
+          ],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(movimentacoesControllerProvider.notifier);
+      await container.read(movimentacoesControllerProvider.future);
+
+      notifier.buscar('Fulano');
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.patrimonio);
+      final state = await container.read(movimentacoesControllerProvider.future);
+
+      expect(state.resultado.itens.map((i) => i.patrimonioNumero), ['201', '203']);
+    });
+
+    test('nova ordenação volta para a primeira página', () async {
+      final container = _criarContainer(
+        FakeMovimentacaoRepository(
+          itens: [for (var i = 1; i <= 30; i++) _item('$i', patrimonioNumero: '$i')],
+        ),
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(movimentacoesControllerProvider.notifier);
+      await container.read(movimentacoesControllerProvider.future);
+
+      notifier.irParaPagina(1);
+      await container.read(movimentacoesControllerProvider.future);
+      notifier.ordenarPor(MovimentacaoOrdenacaoCampo.data);
+      final state = await container.read(movimentacoesControllerProvider.future);
+
+      expect(state.filtro.pagina, 0);
+    });
+
+    test(
+      'troca de ordenação persiste no estado do controller — Lista e Cards leem o MESMO estado',
+      () async {
+        final container = _criarContainer(
+          FakeMovimentacaoRepository(itens: [_item('1', patrimonioNumero: '2'), _item('2', patrimonioNumero: '1')]),
+        );
+        addTearDown(container.dispose);
+        final notifier = container.read(movimentacoesControllerProvider.notifier);
+        await container.read(movimentacoesControllerProvider.future);
+
+        notifier.ordenarPor(MovimentacaoOrdenacaoCampo.patrimonio);
+        await container.read(movimentacoesControllerProvider.future);
+
+        final state1 = container.read(movimentacoesControllerProvider).value!;
+        final state2 = container.read(movimentacoesControllerProvider).value!;
+        expect(state1.filtro.ordenarPor, MovimentacaoOrdenacaoCampo.patrimonio);
+        expect(identical(state1.filtro, state2.filtro), isTrue);
+      },
+    );
   });
 }

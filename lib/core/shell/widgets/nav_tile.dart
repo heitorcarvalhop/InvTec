@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
 import '../navigation_items.dart';
 
 /// Item de navegação compartilhado entre a sidebar (desktop/tablet) e o
@@ -10,11 +11,21 @@ import '../navigation_items.dart';
 /// vez de `Theme.of(context).colorScheme` (que mudaria com o tema claro/
 /// escuro e perderia contraste sobre um fundo sempre escuro).
 class NavTile extends StatefulWidget {
-  const NavTile({super.key, required this.item, required this.selected, required this.onTap});
+  const NavTile({
+    super.key,
+    required this.item,
+    required this.selected,
+    required this.onTap,
+    this.collapsed = false,
+  });
 
   final NavigationItem item;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Sidebar recolhida: só o ícone, centralizado, com [Tooltip] mostrando
+  /// o rótulo (nunca exige adivinhar o que o ícone significa).
+  final bool collapsed;
 
   @override
   State<NavTile> createState() => _NavTileState();
@@ -30,7 +41,27 @@ class _NavTileState extends State<NavTile> {
         : (_hovering ? AppColors.sidebarSurfaceHover : Colors.transparent);
     final foreground = widget.selected ? AppColors.sidebarSelectedForeground : AppColors.sidebarForeground;
 
-    return MouseRegion(
+    final content = widget.collapsed
+        ? Center(child: Icon(widget.item.icon, size: 20, color: foreground))
+        : Row(
+            children: [
+              Icon(widget.item.icon, size: 20, color: foreground),
+              const SizedBox(width: AppSpacing.smd),
+              Expanded(
+                child: Text(
+                  widget.item.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foreground,
+                    fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          );
+
+    final tile = MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       cursor: SystemMouseCursors.click,
@@ -43,28 +74,16 @@ class _NavTileState extends State<NavTile> {
             borderRadius: BorderRadius.circular(AppRadius.sm),
             onTap: widget.onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Icon(widget.item.icon, size: 20, color: foreground),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.item.label,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: foreground,
-                        fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              padding: widget.collapsed
+                  ? const EdgeInsets.symmetric(vertical: AppSpacing.smd)
+                  : const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.smd),
+              child: content,
             ),
           ),
         ),
       ),
     );
+
+    return widget.collapsed ? Tooltip(message: widget.item.label, child: tile) : tile;
   }
 }

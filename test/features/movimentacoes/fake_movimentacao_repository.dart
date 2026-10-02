@@ -1,6 +1,8 @@
+import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_historico_item.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_listagem_item.dart';
+import 'package:invtec/features/movimentacoes/domain/movimentacao_ordenacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_repository.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacoes_resultado.dart';
 
@@ -90,6 +92,8 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
     String? setorId,
     DateTime? periodoDe,
     DateTime? periodoAte,
+    MovimentacaoOrdenacaoCampo? ordenarPor,
+    OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) async {
     listarCallCount++;
     ultimaChamadaListar = {
@@ -100,6 +104,8 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
       'setorId': setorId,
       'periodoDe': periodoDe,
       'periodoAte': periodoAte,
+      'ordenarPor': ordenarPor,
+      'ordenacaoDirecao': ordenacaoDirecao,
     };
     if (erro != null) throw erro!;
 
@@ -134,14 +140,58 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
       resultado = resultado.where((item) => item.dataMovimentacao.isBefore(fimExclusivo));
     }
 
-    final lista = resultado.toList()
-      ..sort((a, b) {
-        final porData = b.dataMovimentacao.compareTo(a.dataMovimentacao);
-        return porData != 0 ? porData : b.id.compareTo(a.id);
-      });
+    final lista = resultado.toList()..sort(_comparadorDe(ordenarPor, ordenacaoDirecao));
 
     final pagina = lista.skip(offset).take(limit).toList();
     return MovimentacoesResultado(itens: pagina, total: lista.length);
+  }
+
+  /// Mesma semântica de
+  /// [MovimentacaoRepositorySupabase._aplicarOrdenacao]: `null` mantém o
+  /// padrão (`data_movimentacao` mais recente primeiro, `id` como
+  /// desempate); qualquer campo escolhido usa `id` como desempate final na
+  /// MESMA direção. `patrimonio` compara como TEXTO (nunca numericamente),
+  /// igual ao Postgrest real.
+  int Function(MovimentacaoListagemItem, MovimentacaoListagemItem) _comparadorDe(
+    MovimentacaoOrdenacaoCampo? campo,
+    OrdenacaoDirecao direcao,
+  ) {
+    if (campo == null) {
+      return (a, b) {
+        final porData = b.dataMovimentacao.compareTo(a.dataMovimentacao);
+        return porData != 0 ? porData : b.id.compareTo(a.id);
+      };
+    }
+
+    final sinal = direcao == OrdenacaoDirecao.asc ? 1 : -1;
+    int porCampo(MovimentacaoListagemItem a, MovimentacaoListagemItem b) {
+      switch (campo) {
+        case MovimentacaoOrdenacaoCampo.data:
+          return sinal * a.dataMovimentacao.compareTo(b.dataMovimentacao);
+        case MovimentacaoOrdenacaoCampo.patrimonio:
+          return _compararNulosPorUltimo(a.patrimonioNumero, b.patrimonioNumero, sinal);
+        case MovimentacaoOrdenacaoCampo.tipo:
+          return sinal * a.tipo.value.compareTo(b.tipo.value);
+        case MovimentacaoOrdenacaoCampo.origem:
+          return _compararNulosPorUltimo(a.setorOrigemNome, b.setorOrigemNome, sinal);
+        case MovimentacaoOrdenacaoCampo.destino:
+          return _compararNulosPorUltimo(a.setorDestinoNome, b.setorDestinoNome, sinal);
+      }
+    }
+
+    return (a, b) {
+      final cmp = porCampo(a, b);
+      return cmp != 0 ? cmp : sinal * a.id.compareTo(b.id);
+    };
+  }
+
+  /// `null` sempre por último, nas duas direções — mesma convenção do
+  /// Postgrest real.
+  int _compararNulosPorUltimo(String? a, String? b, int sinal) {
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;
+    if (b == null) return -1;
+    return sinal * a.compareTo(b);
   }
 
   @override
