@@ -1181,6 +1181,8 @@ Profile _perfil(String id) => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 SeiItemPendente _item({required String id, required String patrimonioId, String documentoId = 'doc-1'}) {

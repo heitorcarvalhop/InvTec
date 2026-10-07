@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../auth/domain/profile.dart';
 import '../../../auth/presentation/auth_controller.dart';
+import '../../../auth/presentation/current_permissions_controller.dart';
 import '../../../localizacoes/domain/localizacao.dart';
 import '../../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../../dashboard/presentation/dashboard_providers.dart';
@@ -263,15 +264,37 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     }
   }
 
-  /// só ADMIN pode ativar/desativar o modo
-  /// "Comparar e Atualizar" (defesa em profundidade: a UI já esconde o
-  /// controle de qualquer outro perfil, mas esta checagem garante que
+  /// DUPLA TRAVA (seção 21 do pedido de Etapa 5 — mesmo motivo documentado
+  /// em `_ModoComparacaoAdminToggle`): só ADMIN COM a permissão
+  /// `patrimonio.compare_update` pode ativar/desativar o modo "Comparar e
+  /// Atualizar" (defesa em profundidade: a UI já esconde o controle de
+  /// qualquer sessão sem as duas condições, mas esta checagem garante que
   /// nenhuma chamada direta ao controller o contorne). Sem efeito para
-  /// qualquer outro perfil — nunca lança, nunca muda nada.
+  /// qualquer outra sessão — nunca lança, nunca muda nada.
   void definirModoComparacaoAdmin(bool valor) {
+    // Síncrono de propósito (`onChanged` de um Switch não pode ser
+    // assíncrono): na prática só é alcançável depois que o próprio toggle
+    // já está visível na UI (`_ModoComparacaoAdminToggle` só renderiza com
+    // `ref.watch(...hasPermission...)` já resolvido), então
+    // `currentPermissionsControllerProvider` já está carregado quando este
+    // método roda.
     final perfil = ref.read(authControllerProvider).value?.profile?.perfil;
-    if (perfil != ProfilePerfil.admin) return;
+    final temPermissao =
+        ref.read(currentPermissionsControllerProvider).value?.hasPermission('patrimonio.compare_update') ?? false;
+    if (perfil != ProfilePerfil.admin || !temPermissao) return;
     state = state.copyWith(modoComparacaoAdmin: valor);
+  }
+
+  /// Versão ASSÍNCRONA da dupla trava: espera `currentPermissionsControllerProvider`
+  /// resolver antes de checar — evita o falso-negativo de ler `.value` ainda
+  /// `null` (AsyncLoading) numa chamada direta ao controller logo após o
+  /// login, quando a permissão pode não ter terminado de carregar. Usada
+  /// por [compararParaAdmin], que já é `async` e pode pagar esse `await`.
+  Future<bool> _podeCompararEAtualizar() async {
+    final perfil = ref.read(authControllerProvider).value?.profile?.perfil;
+    if (perfil != ProfilePerfil.admin) return false;
+    final permissoes = await ref.read(currentPermissionsControllerProvider.future);
+    return permissoes.hasPermission('patrimonio.compare_update');
   }
 
   // ---------------------------------------------------------------------
@@ -528,18 +551,18 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   /// [PatrimonioComparador.comparar] — um SEGUNDO OLHAR, só de leitura,
   /// nunca uma segunda implementação de importador.
   ///
-  /// Restrito ao perfil ADMIN (seção 6): qualquer outro perfil (ou sessão
-  /// sem perfil resolvido) recebe [mensagemComparacaoRestritaAdmin] em
-  /// [PatrimonioImportState.mensagemErro] e NADA é lido/comparado — nem a
-  /// planilha é analisada.
+  /// Restrito a ADMIN COM a permissão `patrimonio.compare_update` — DUPLA
+  /// TRAVA (seção 21 do pedido de Etapa 5): qualquer sessão sem as duas
+  /// condições (perfil, ou sem perfil resolvido, ou sem a permissão) recebe
+  /// [mensagemComparacaoRestritaAdmin] em [PatrimonioImportState.
+  /// mensagemErro] e NADA é lido/comparado — nem a planilha é analisada.
   ///
   /// Só CONSULTA e COMPARA: nenhuma chamada a `cadastrar`/`atualizar` (nem
   /// aqui, nem dentro de [analisar]/[ImportAnalyzer]/[PatrimonioComparador]
   /// — todos os três são estritamente de leitura). A autorização de
   /// escrita deste modo é tratada à parte, por [ComparacaoExecucaoController].
   Future<void> compararParaAdmin() async {
-    final perfil = ref.read(authControllerProvider).value?.profile?.perfil;
-    if (perfil != ProfilePerfil.admin) {
+    if (!await _podeCompararEAtualizar()) {
       state = state.copyWith(mensagemErro: () => mensagemComparacaoRestritaAdmin);
       return;
     }

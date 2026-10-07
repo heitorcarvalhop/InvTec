@@ -52,6 +52,12 @@ const navigationItems = [
     label: 'Setores',
     icon: Icons.apartment_outlined,
   ),
+  NavigationItem(
+    route: '/administracao/usuarios',
+    label: 'Administração',
+    icon: Icons.admin_panel_settings_outlined,
+    perfisPermitidos: [ProfilePerfil.admin],
+  ),
 ];
 
 const configuracoesItem = NavigationItem(

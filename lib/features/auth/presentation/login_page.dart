@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_colors.dart';
@@ -63,8 +64,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     switch (reason) {
       case AuthDenialReason.profileNotFound:
         return 'Usuário sem cadastro no InvTec. Entre em contato com um administrador.';
-      case AuthDenialReason.profileInactive:
-        return 'Seu acesso ao InvTec está desativado. Entre em contato com um administrador.';
       case AuthDenialReason.none:
         return null;
     }
@@ -203,6 +202,11 @@ class _LoginForm extends StatelessWidget {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Text('Entrar'),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      TextButton(
+                        onPressed: isSubmitting ? null : () => context.go('/cadastro'),
+                        child: const Text('Criar conta'),
                       ),
                     ],
                   ),

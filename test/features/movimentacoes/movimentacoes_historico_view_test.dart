@@ -6,6 +6,7 @@ import 'package:invtec/core/widgets/active_filter_chip.dart';
 import 'package:invtec/core/widgets/list_view_mode.dart';
 import 'package:invtec/core/widgets/sortable_header_label.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supabase.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
@@ -21,6 +22,7 @@ import 'package:invtec/features/setores/domain/setor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/fake_auth_repository.dart';
+import '../auth/fake_permissions_repository.dart';
 import '../setores/fake_setor_repository.dart';
 import 'fake_movimentacao_repository.dart';
 
@@ -38,6 +40,8 @@ Profile _profile() => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 MovimentacaoListagemItem _item(
@@ -82,6 +86,7 @@ Future<ProviderContainer> _pumpPage(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
         movimentacaoRepositoryProvider.overrideWithValue(movimentacaoRepo),
         setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: setores)),
       ],

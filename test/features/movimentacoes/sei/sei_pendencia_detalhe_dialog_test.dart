@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/sei/data/documentos_sei_repository_supabase.dart';
@@ -12,6 +13,7 @@ import 'package:invtec/features/movimentacoes/sei/domain/sei_valor_corrigivel.da
 import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_pendencia_detalhe_dialog.dart';
 
 import '../../auth/fake_auth_repository.dart';
+import '../../auth/fake_permissions_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
 Profile _profile() => Profile(
@@ -22,6 +24,8 @@ Profile _profile() => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 SeiItemPendente _item({
@@ -57,6 +61,7 @@ Future<void> _pumpDialogo(WidgetTester tester, SeiDocumentoPendente documento) a
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
         documentosSeiRepositoryProvider.overrideWithValue(
           FakeDocumentosSeiRepository(documentosIniciais: [documento]),
         ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/auth/presentation/auth_controller.dart';
 import 'package:invtec/features/dashboard/data/dashboard_repository_supabase.dart';
@@ -28,6 +29,7 @@ import 'package:invtec/features/setores/data/setor_repository_supabase.dart';
 import 'package:invtec/features/setores/domain/setor.dart';
 
 import '../../auth/fake_auth_repository.dart';
+import '../../auth/fake_permissions_repository.dart';
 import '../../dashboard/fake_dashboard_repository.dart';
 import '../../localizacoes/fake_localizacao_repository.dart';
 import '../../setores/fake_setor_repository.dart';
@@ -68,6 +70,8 @@ Profile _perfil(ProfilePerfil perfil) => Profile(
   ativo: true,
   criadoEm: DateTime(2026, 1, 1),
   atualizadoEm: DateTime(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 ProviderContainer _criarContainer({
@@ -83,6 +87,7 @@ ProviderContainer _criarContainer({
       localizacaoRepositoryProvider.overrideWithValue(FakeLocalizacaoRepository(localizacoes: _localizacoes)),
       dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
       authRepositoryProvider.overrideWithValue(auth),
+      permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(perfil)),
     ],
   );
   container.listen(patrimonioImportControllerProvider, (_, _) {});

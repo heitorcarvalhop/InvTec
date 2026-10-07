@@ -37,6 +37,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invtec/core/theme/app_theme.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/sei/application/sei_conclusao_erros.dart';
@@ -58,6 +59,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 // auditado. Nenhum destes arquivos depende de `package:flutter_test` (só
 // Dart/Flutter comuns).
 import '../features/auth/fake_auth_repository.dart';
+import '../features/auth/fake_permissions_repository.dart';
 import '../features/movimentacoes/sei/fake_documentos_sei_repository.dart';
 import '../features/patrimonios/fake_patrimonio_repository.dart';
 
@@ -110,6 +112,8 @@ class SeiLotePreviewRootState extends State<SeiLotePreviewRoot> {
         ativo: true,
         criadoEm: DateTime.utc(2026, 1, 1),
         atualizadoEm: DateTime.utc(2026, 1, 1),
+        accessStatus: ProfileAccessStatus.active,
+        rejectionCount: 0,
       ),
     );
     final documento = documentoPreviewDemo();
@@ -131,6 +135,18 @@ class SeiLotePreviewRootState extends State<SeiLotePreviewRoot> {
         authRepositoryProvider.overrideWithValue(auth),
         documentosSeiRepositoryProvider.overrideWithValue(repoDocumentos),
         patrimonioRepositoryProvider.overrideWithValue(repoPatrimonios),
+        // Sem este override, `currentPermissionsControllerProvider` cairia
+        // no `PermissionsRepositorySupabase` real (sem `Supabase.initialize`
+        // nesta prévia — ver cabeçalho do arquivo) e falharia, deixando
+        // `ref.hasPermission(...)` fail-closed em `false` (ver
+        // `CurrentPermissionsController`) — escondendo "Concluir
+        // selecionados"/"Concluir todos os aptos" (gated por `sei.manage`)
+        // mesmo para a usuária ADMIN desta prévia. Mesma fonte de verdade de
+        // `FakePermissionsRepository.paraPerfil` já usada pelos outros ~20
+        // arquivos de teste migrados (Etapa 5, seções 19-21).
+        permissionsRepositoryProvider.overrideWithValue(
+          FakePermissionsRepository.paraPerfil(ProfilePerfil.admin),
+        ),
       ],
       child: MaterialApp(
         title: 'Prévia — Conclusão em lote SEI',

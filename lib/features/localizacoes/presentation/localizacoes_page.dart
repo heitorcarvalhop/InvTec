@@ -7,8 +7,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/page_header.dart';
 import '../../../core/widgets/status_chip.dart';
-import '../../auth/domain/profile.dart';
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/current_permissions_controller.dart';
 import '../../setores/domain/setor.dart';
 import '../domain/localizacao.dart';
 import 'localizacoes_controller.dart';
@@ -105,8 +104,9 @@ class _LocalizacoesPageState extends ConsumerState<LocalizacoesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
-    final canManage = perfil == ProfilePerfil.admin || perfil == ProfilePerfil.gestor;
+    // Migrado de perfil-direto para permissão efetiva (seção 19/20 do
+    // pedido de Etapa 5).
+    final canManage = ref.hasPermission('localizacao.manage');
     final localizacoesAsync = ref.watch(localizacoesControllerProvider(widget.setor.id));
 
     return SingleChildScrollView(

@@ -5,6 +5,7 @@ import '../../../../../core/config/env_config.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../auth/domain/profile.dart';
 import '../../../../auth/presentation/auth_controller.dart';
+import '../../../../auth/presentation/current_permissions_controller.dart';
 import '../comparacao_execucao_controller.dart';
 import '../patrimonio_import_controller.dart';
 import '../patrimonio_import_state.dart';
@@ -26,9 +27,13 @@ class ImportComparacaoResumoStep extends ConsumerWidget {
     final execucao = ref.watch(comparacaoExecucaoControllerProvider);
     // defesa em profundidade: mesmo alcançando esta
     // tela (já protegida no controller/toggle), o botão de execução some se
-    // a sessão atual não for ADMIN (ex.: perfil rebaixado no meio da
-    // revisão) — a autoridade de verdade continua sendo a RPC no servidor.
+    // a sessão atual não for ADMIN COM a permissão `patrimonio.
+    // compare_update` (ex.: perfil rebaixado ou permissão revogada no meio
+    // da revisão) — DUPLA TRAVA (seção 21): a autoridade de verdade
+    // continua sendo a RPC no servidor, que também exige as duas.
     final ehAdmin = ref.watch(authControllerProvider).value?.profile?.perfil == ProfilePerfil.admin;
+    final temPermissaoCompareUpdate = ref.hasPermission('patrimonio.compare_update');
+    final podeExecutar = ehAdmin && temPermissaoCompareUpdate;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,9 +113,9 @@ class ImportComparacaoResumoStep extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          if (!ehAdmin)
+          if (!podeExecutar)
             Text(
-              'Sua sessão não tem mais perfil ADMIN — a execução não está disponível.',
+              'Sua sessão não tem mais perfil ADMIN ou a permissão necessária — a execução não está disponível.',
               style: TextStyle(color: theme.colorScheme.error),
             )
           else if (!EnvConfig.comparacaoExecucaoHabilitada)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/sei/data/documentos_sei_repository_supabase.dart';
@@ -15,6 +16,7 @@ import 'package:invtec/features/movimentacoes/sei/domain/sei_valor_corrigivel.da
 import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_pendencia_detalhe_dialog.dart';
 
 import '../../auth/fake_auth_repository.dart';
+import '../../auth/fake_permissions_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
 /// Auditoria do cancelamento e documento ENCERRADO.
@@ -69,6 +71,8 @@ Profile _perfil(ProfilePerfil perfil) => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 Future<FakeDocumentosSeiRepository> _abrir(
@@ -91,6 +95,7 @@ Future<FakeDocumentosSeiRepository> _abrir(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(auth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(perfil)),
         documentosSeiRepositoryProvider.overrideWithValue(repo),
       ],
       child: MaterialApp(

@@ -5,6 +5,7 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/utils/text_normalization.dart';
 import '../../../../auth/domain/profile.dart';
 import '../../../../auth/presentation/auth_controller.dart';
+import '../../../../auth/presentation/current_permissions_controller.dart';
 import '../../../../setores/domain/setor.dart';
 import '../../../presentation/patrimonio_reference_data.dart';
 import '../../domain/import_defaults.dart';
@@ -232,8 +233,18 @@ class _ModoComparacaoAdminToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // DUPLA TRAVA deliberada (seção 21 do pedido de Etapa 5, caso mais
+    // sensível desta migração): "Comparar e Atualizar" exige ADMIN E a
+    // permissão granular `patrimonio.compare_update`, nunca só uma das
+    // duas — espelha a dupla trava real do servidor (RLS/RPC exige ADMIN E
+    // a permission_key, ver migration
+    // `20261006120000_migrate_business_authorization_to_permissions.sql`).
+    // Nunca simplificar para só a permissão isolada: um ADMIN sem a
+    // permissão (ex. revogada por outro ADMIN) continua sem acesso, e
+    // nenhum outro perfil passa a ter acesso só por receber a permissão.
     final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
-    if (perfil != ProfilePerfil.admin) return const SizedBox.shrink();
+    final podeCompararEAtualizar = perfil == ProfilePerfil.admin && ref.hasPermission('patrimonio.compare_update');
+    if (!podeCompararEAtualizar) return const SizedBox.shrink();
 
     return Card(
       color: Theme.of(context).colorScheme.tertiaryContainer,

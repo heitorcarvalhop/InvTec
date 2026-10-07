@@ -27,9 +27,10 @@ void main() {
       expect(find.widgetWithText(TextFormField, 'Senha'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Entrar'), findsOneWidget);
 
-      // Não deve haver nenhum caminho para cadastro público de usuários.
-      expect(find.textContaining('Criar conta'), findsNothing);
-      expect(find.textContaining('Cadastrar'), findsNothing);
+      // Etapa 5: cadastro público de usuários passa a existir (fica
+      // PENDING até aprovação administrativa) — a tela de login expõe o
+      // link para a nova rota `/cadastro`.
+      expect(find.widgetWithText(TextButton, 'Criar conta'), findsOneWidget);
     },
   );
 }

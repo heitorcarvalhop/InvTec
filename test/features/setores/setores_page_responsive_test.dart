@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/core/theme/app_theme.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/setores/data/setor_repository_supabase.dart';
 import 'package:invtec/features/setores/domain/setor.dart';
 import 'package:invtec/features/setores/presentation/setores_page.dart';
 
 import '../auth/fake_auth_repository.dart';
+import '../auth/fake_permissions_repository.dart';
 import 'fake_setor_repository.dart';
 
 /// Smoke test de responsividade (Etapa 2 do design system): garante que a
@@ -26,6 +28,8 @@ Profile _profile() => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 const _larguras = [1440.0, 1024.0, 800.0, 390.0];
@@ -43,6 +47,7 @@ Future<void> _pumpEm(WidgetTester tester, double largura, {required List<Setor> 
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
         setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: setores)),
       ],
       child: MaterialApp(theme: AppTheme.light, home: const Scaffold(body: SetoresPage())),

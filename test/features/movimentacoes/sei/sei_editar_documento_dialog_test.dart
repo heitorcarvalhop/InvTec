@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/localizacoes/data/localizacao_repository_supabase.dart';
 import 'package:invtec/features/localizacoes/domain/localizacao.dart';
@@ -23,6 +24,7 @@ import 'package:invtec/features/setores/data/setor_repository_supabase.dart';
 import 'package:invtec/features/setores/domain/setor.dart';
 
 import '../../auth/fake_auth_repository.dart';
+import '../../auth/fake_permissions_repository.dart';
 import '../../localizacoes/fake_localizacao_repository.dart';
 import '../../setores/fake_setor_repository.dart';
 import 'fake_documentos_sei_repository.dart';
@@ -44,6 +46,8 @@ Profile _profile() => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 final _setorGetec = Setor(id: 'setor-getec', nome: 'Gerencia de Tecnologia', sigla: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1));
@@ -136,6 +140,7 @@ Future<FakeDocumentosSeiRepository> _pumpDetalheComEdicao(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
         documentosSeiRepositoryProvider.overrideWithValue(fakeDocumentosSei),
         setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: setores)),
         localizacaoRepositoryProvider.overrideWithValue(FakeLocalizacaoRepository(localizacoes: localizacoes)),
@@ -482,6 +487,7 @@ void main() {
         ProviderScope(
           overrides: [
             authRepositoryProvider.overrideWithValue(fakeAuth),
+            permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
             documentosSeiRepositoryProvider.overrideWithValue(repoBloqueado),
             setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: [_setorGetec, _setorGeasi])),
             localizacaoRepositoryProvider.overrideWithValue(FakeLocalizacaoRepository()),

@@ -7,8 +7,7 @@ import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/page_header.dart';
-import '../../auth/domain/profile.dart';
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/current_permissions_controller.dart';
 import '../domain/setor.dart';
 import 'setores_controller.dart';
 import 'widgets/confirm_deactivate_dialog.dart';
@@ -81,9 +80,9 @@ class _SetoresPageState extends ConsumerState<SetoresPage> {
 
   @override
   Widget build(BuildContext context) {
-    final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
-    final canManage =
-        perfil == ProfilePerfil.admin || perfil == ProfilePerfil.gestor;
+    // Migrado de perfil-direto para permissão efetiva (seção 19/20 do
+    // pedido de Etapa 5).
+    final canManage = ref.hasPermission('setor.manage');
     final setoresAsync = ref.watch(setoresControllerProvider);
     final termoBusca = _searchController.text.trim();
 

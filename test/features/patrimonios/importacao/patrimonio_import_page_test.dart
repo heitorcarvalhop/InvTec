@@ -18,6 +18,8 @@ Profile _profile(ProfilePerfil perfil) => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 /// Subclasse só para teste: expõe uma forma de forçar um [state] arbitrário

@@ -4,6 +4,7 @@ import '../../../../core/config/env_config.dart';
 import '../../../../core/utils/uuid_v4.dart';
 import '../../../auth/domain/profile.dart';
 import '../../../auth/presentation/auth_controller.dart';
+import '../../../auth/presentation/current_permissions_controller.dart';
 import '../../data/patrimonio_repository_supabase.dart';
 import '../../domain/patrimonio_repository.dart';
 import '../domain/comparacao_execucao.dart';
@@ -178,10 +179,18 @@ class ComparacaoExecucaoController extends Notifier<ComparacaoExecucaoState> {
     required String justificativa,
   }) async {
     // validação obrigatória em TRÊS camadas: esta é
-    // a camada do controller (a UI já esconde o botão para não-ADMIN, e a
-    // RPC exige ADMIN no servidor — nenhuma delas sozinha é suficiente).
-    // Nunca confiar que só esconder o botão já impede a chamada.
-    if (ref.read(authControllerProvider).value?.profile?.perfil != ProfilePerfil.admin) return;
+    // a camada do controller (a UI já esconde o botão para quem não é
+    // ADMIN+permissão, e a RPC exige ADMIN E `patrimonio.compare_update`
+    // no servidor — nenhuma delas sozinha é suficiente). Nunca confiar que
+    // só esconder o botão já impede a chamada. DUPLA TRAVA (seção 21):
+    // ADMIN sozinho não basta — precisa também da permissão granular.
+    // `await` na permissão (em vez de ler `.value` sincronamente) evita um
+    // falso-negativo se `currentPermissionsControllerProvider` ainda não
+    // tiver terminado de carregar numa chamada direta ao controller.
+    final perfil = ref.read(authControllerProvider).value?.profile?.perfil;
+    if (perfil != ProfilePerfil.admin) return;
+    final permissoes = await ref.read(currentPermissionsControllerProvider.future);
+    if (!permissoes.hasPermission('patrimonio.compare_update')) return;
 
     // trava operacional adicional, independente do
     // perfil ADMIN e de `kReleaseMode`: enquanto

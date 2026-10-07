@@ -5,8 +5,7 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/compact_icon_button.dart';
 import '../../../../../core/widgets/status_chip.dart';
-import '../../../../auth/domain/profile.dart';
-import '../../../../auth/presentation/auth_controller.dart';
+import '../../../../auth/presentation/current_permissions_controller.dart';
 import '../../../../patrimonios/data/patrimonio_repository_supabase.dart';
 import '../../../../patrimonios/domain/patrimonio_detalhe.dart';
 import '../../../domain/movimentacao.dart';
@@ -390,9 +389,9 @@ class _SeiPendenciaDetalheDialogState extends ConsumerState<_SeiPendenciaDetalhe
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
-    final podeGerenciar =
-        perfil == ProfilePerfil.admin || perfil == ProfilePerfil.gestor || perfil == ProfilePerfil.operador;
+    // Migrado de perfil-direto para permissão efetiva (seção 19/20 do
+    // pedido de Etapa 5).
+    final podeGerenciar = ref.hasPermission('sei.manage');
     final documento = _documento;
     // O controller é GLOBAL (não por documento), então avisar/bloquear
     // escrita exige comparar `documentoId` — senão uma tentativa pendente

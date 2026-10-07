@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/core/widgets/status_chip.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/sei/data/documentos_sei_repository_supabase.dart';
@@ -14,6 +15,7 @@ import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_itens
 import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_pendencia_detalhe_dialog.dart';
 
 import '../../auth/fake_auth_repository.dart';
+import '../../auth/fake_permissions_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
 /// Itens do Documento SEI no diálogo de detalhe.
@@ -83,6 +85,8 @@ Profile _perfil(ProfilePerfil perfil) => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 /// Abre o diálogo de detalhe REAL (com o repositório fake — nenhum acesso ao
@@ -100,6 +104,7 @@ Future<FakeDocumentosSeiRepository> _abrirDialogo(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(auth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(perfil)),
         documentosSeiRepositoryProvider.overrideWithValue(repo),
       ],
       child: MaterialApp(

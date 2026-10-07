@@ -1,0 +1,21 @@
+-- InvTec — Supabase Realtime em public.profiles (Etapa 5).
+--
+-- Necessidade: o Flutter precisa observar o PRÓPRIO profile (ex.: usuário
+-- PENDING aprovado em outra máquina deve ver o novo access_status/perfil
+-- refletido sem precisar reabrir o app).
+--
+-- Nenhuma RPC nova, nenhuma policy nova: a RLS de SELECT já existente
+-- (`profiles_select`, criada em 20261005120000_add_profile_access_control.sql,
+-- seção 10) já é suficiente —
+--
+--   id = (select auth.uid()) or (select private.has_perfil('ADMIN'))
+--
+-- O Realtime do Supabase avalia essa mesma policy de SELECT para cada
+-- assinante antes de emitir um evento (mesmo mecanismo já usado para
+-- `public.notifications`, ver 20261007100000_add_notifications.sql, seção
+-- 11). Logo, adicionar `profiles` à publicação não abre nenhuma leitura
+-- além do que `profiles_select` já permite hoje via PostgREST: um usuário
+-- comum só recebe eventos Realtime da própria linha (id = auth.uid()); um
+-- ADMIN ACTIVE recebe de qualquer linha, o que é aceitável porque ADMIN já
+-- pode ler todas as linhas via SELECT comum.
+alter publication supabase_realtime add table public.profiles;

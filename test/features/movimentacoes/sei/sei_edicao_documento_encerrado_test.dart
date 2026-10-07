@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/sei/data/documentos_sei_repository_supabase.dart';
@@ -16,6 +17,7 @@ import 'package:invtec/features/movimentacoes/sei/presentation/widgets/sei_pende
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import '../../auth/fake_auth_repository.dart';
+import '../../auth/fake_permissions_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
 /// `editar_documento_sei_pendente` deve recusar documento ENCERRADO (nenhum
@@ -182,6 +184,8 @@ void main() {
           ativo: true,
           criadoEm: DateTime.utc(2026, 1, 1),
           atualizadoEm: DateTime.utc(2026, 1, 1),
+          accessStatus: ProfileAccessStatus.active,
+          rejectionCount: 0,
         ),
       );
       addTearDown(auth.dispose);
@@ -189,6 +193,7 @@ void main() {
         ProviderScope(
           overrides: [
             authRepositoryProvider.overrideWithValue(auth),
+            permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
             documentosSeiRepositoryProvider.overrideWithValue(
               FakeDocumentosSeiRepository(documentosIniciais: [documento]),
             ),

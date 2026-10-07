@@ -10,8 +10,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/validation/app_validators.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/page_header.dart';
-import '../../auth/domain/profile.dart';
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/current_permissions_controller.dart';
 import '../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../setores/domain/setor.dart';
 import '../domain/tipo_patrimonio.dart';
@@ -131,9 +130,9 @@ class _Conteudo extends ConsumerWidget {
     }
 
     if (setores.isEmpty) {
-      final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
-      final podeConfigurar =
-          perfil == ProfilePerfil.admin || perfil == ProfilePerfil.gestor;
+      // Migrado de perfil-direto para permissão efetiva (seção 19/20 do
+      // pedido de Etapa 5) — mesma permissão usada em SetoresPage.
+      final podeConfigurar = ref.hasPermission('setor.manage');
       return _BloqueioCadastro(
         mensagem: podeConfigurar
             ? 'Cadastre pelo menos um setor antes de registrar patrimônios.'

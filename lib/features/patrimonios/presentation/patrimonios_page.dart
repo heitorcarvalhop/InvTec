@@ -13,8 +13,7 @@ import '../../../core/widgets/list_page_toolbar.dart';
 import '../../../core/widgets/list_view_mode.dart';
 import '../../../core/widgets/page_header.dart';
 import '../../../core/widgets/pagination_controls.dart';
-import '../../auth/domain/profile.dart';
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/current_permissions_controller.dart';
 import '../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../setores/domain/setor.dart';
 import '../domain/patrimonio.dart';
@@ -97,11 +96,16 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
 
   @override
   Widget build(BuildContext context) {
-    final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
-    final canManage =
-        perfil == ProfilePerfil.admin ||
-        perfil == ProfilePerfil.gestor ||
-        perfil == ProfilePerfil.operador;
+    // Migrado de perfil-direto (ADMIN/GESTOR/OPERADOR) para permissão
+    // efetiva (seção 19 do pedido de Etapa 5). `canManage` continua
+    // controlando tanto ações de CRIAÇÃO (Novo patrimônio/Importar
+    // planilha/"Cadastrar patrimônio" na lista vazia) quanto de EDIÇÃO
+    // (onEdit nas listas) — combinamos as duas permissões com OR em vez de
+    // separar, porque o preset padrão (migration
+    // `20261006100000_add_permission_catalog.sql`) sempre concede as duas
+    // juntas por perfil (ADMIN/GESTOR/OPERADOR têm ambas; CONSULTA não tem
+    // nenhuma), então o comportamento resultante é idêntico ao anterior.
+    final canManage = ref.hasPermission('patrimonio.create') || ref.hasPermission('patrimonio.edit');
     final stateAsync = ref.watch(patrimoniosControllerProvider);
     final viewMode =
         ref.watch(patrimoniosViewModeControllerProvider).value ?? ListViewMode.list;

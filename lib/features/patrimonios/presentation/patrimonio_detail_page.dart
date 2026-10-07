@@ -6,8 +6,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/page_header.dart';
-import '../../auth/domain/profile.dart';
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/current_permissions_controller.dart';
 import '../../movimentacoes/presentation/movimentacao_historico_providers.dart';
 import '../domain/patrimonio_detalhe.dart';
 import 'patrimonio_detalhe_providers.dart';
@@ -95,11 +94,9 @@ class _Detalhe extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final patrimonio = detalhe.patrimonio;
-    final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
-    final canManage =
-        perfil == ProfilePerfil.admin ||
-        perfil == ProfilePerfil.gestor ||
-        perfil == ProfilePerfil.operador;
+    // Migrado de perfil-direto para permissão efetiva (seção 19 do pedido
+    // de Etapa 5) — só gate do botão "Editar" nesta tela.
+    final canManage = ref.hasPermission('patrimonio.edit');
 
     final cabecalho = Column(
       crossAxisAlignment: CrossAxisAlignment.start,

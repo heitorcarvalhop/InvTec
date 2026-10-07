@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/sei/data/documentos_sei_repository_supabase.dart';
@@ -17,6 +18,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 
 import '../../auth/fake_auth_repository.dart';
+import '../../auth/fake_permissions_repository.dart';
 import '../../patrimonios/fake_patrimonio_repository.dart';
 import 'fake_documentos_sei_repository.dart';
 
@@ -45,6 +47,8 @@ Profile _perfil(ProfilePerfil perfil) => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 SeiItemPendente _item({
@@ -141,6 +145,7 @@ Future<_Cenario> _abrirCenario(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(auth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
         documentosSeiRepositoryProvider.overrideWithValue(repo),
         patrimonioRepositoryProvider.overrideWithValue(fakePatrimonios),
         if (gerarLoteId != null)
@@ -302,6 +307,7 @@ void main() {
         ProviderScope(
           overrides: [
             authRepositoryProvider.overrideWithValue(auth),
+            permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
             documentosSeiRepositoryProvider.overrideWithValue(repoSemente),
             patrimonioRepositoryProvider.overrideWithValue(fakePatrimonios),
             seiConclusaoLoteControllerProvider.overrideWith(

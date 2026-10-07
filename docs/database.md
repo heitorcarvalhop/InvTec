@@ -105,14 +105,23 @@ são regras do sistema, com lógica correspondente nas RPCs.
 ### Autorização sem armadilha de `NULL`
 
 Toda checagem de permissão — nas RPCs e nas policies — usa
-`public.has_perfil(...)`:
+`private.has_perfil(...)` (a função vive no schema `private`; versões
+anteriores desta documentação diziam `public.has_perfil`, divergência já
+corrigida):
 
 ```sql
 select exists (
   select 1 from public.profiles p
-  where p.id = auth.uid() and p.ativo is true and p.perfil = any (p_perfis)
+  where p.id = auth.uid()
+    and p.ativo is true
+    and p.access_status = 'ACTIVE'
+    and p.perfil = any (p_perfis)
 );
 ```
+
+`ativo` e `access_status = 'ACTIVE'` são redundantes entre si (garantido
+pela constraint `profiles_ativo_access_status_coerente` — ver "Estados de
+acesso da conta" abaixo), mas a função checa os dois explicitamente.
 
 `EXISTS` retorna sempre `true` ou `false`, nunca `NULL`. Por isso:
 
@@ -120,12 +129,20 @@ select exists (
 |---|---|
 | sem sessão (`auth.uid()` nulo) | `false` |
 | autenticado sem profile | `false` |
-| profile inativo | `false` |
-| profile ativo sem o papel pedido | `false` |
-| profile ativo com o papel pedido | `true` |
+| profile `PENDING`/`REJECTED`/`BLOCKED` (`ativo=false`) | `false` |
+| profile `ACTIVE` sem o papel pedido | `false` |
+| profile `ACTIVE` com o papel pedido | `true` |
 
 As RPCs ainda testam `if has_perfil(...) is not true then raise`, que nega
 mesmo se, por algum erro futuro, o valor vier `NULL`.
+
+**`has_perfil` vs. `has_permission` (desde a Etapa 3)**: `private.has_perfil`
+resolve IDENTIDADE de perfil — continua sendo a única autorização das RPCs
+administrativas de usuários/permissões (ela não mudou nesta etapa).
+`private.has_permission(permission_key)` resolve CAPACIDADE DE NEGÓCIO
+(perfil base + override individual) e é quem autoriza, desde a Etapa 3, as
+policies/RPCs de patrimônios/movimentações/setores/localizações/tipos de
+patrimônio/documentos SEI. Ver "Permissões granulares" abaixo.
 
 A versão anterior usava `current_profile_perfil() not in (...)`. Para um
 usuário sem profile isso resultava em `NULL`, o `IF` não disparava e a
@@ -137,19 +154,29 @@ aprovado). Os CHECKs de normalização usam `is not distinct from` por isso.
 
 ### O que cada situação consegue fazer
 
-| | profiles | setores / tipos | patrimonios | movimentacoes | RPCs |
-|---|---|---|---|---|---|
-| `anon` | nada | nada | nada | nada | nada |
-| autenticado sem profile | nada | nada | nada | nada | negado |
-| profile **inativo** | lê só o próprio | nada | nada | nada | negado |
-| `CONSULTA` | lê o próprio; edita o próprio `nome` | lê | lê | lê | negado |
-| `OPERADOR` | idem | lê | lê; edita metadados | lê | cadastra e movimenta |
-| `GESTOR` | lê todos; edita o próprio `nome` | lê; cria; edita/desativa | idem OPERADOR | lê | idem OPERADOR |
-| `ADMIN` | idem GESTOR | idem GESTOR | idem OPERADOR | lê | idem OPERADOR |
+| | profiles | setores / tipos | patrimonios | movimentacoes | RPCs de negócio | RPCs administrativas |
+|---|---|---|---|---|---|---|
+| `anon` | nada | nada | nada | nada | nada | nada |
+| autenticado sem profile | nada | nada | nada | nada | negado | negado |
+| `PENDING` / `REJECTED` | lê só o próprio (`access_status`, `rejection_count`, `rejected_reason`...) | nada | nada | nada | negado | `reenviar_solicitacao_acesso` (só se `REJECTED` e `rejection_count<3`) |
+| `BLOCKED` | lê só o próprio | nada | nada | nada | negado | negado (nem reenvio) |
+| `CONSULTA`/`OPERADOR`/`GESTOR` `ACTIVE` | lê o próprio; **não edita nada diretamente** | conforme `role_permissions`/override (ver "Permissões granulares") | idem | idem | idem | negado |
+| `ADMIN` `ACTIVE` | lê todos; **não edita diretamente** (usa as RPCs abaixo) | idem (preset ADMIN tem tudo, salvo override) | idem | idem | idem | `aprovar_usuario`, `rejeitar_usuario`, `bloquear_usuario`, `desbloquear_usuario`, `alterar_perfil_usuario`, `alterar_identidade_usuario`, `definir_permissao_usuario`, `remover_override_permissao_usuario`, `resetar_permissoes_usuario` |
 
-Hoje ADMIN e GESTOR têm os mesmos poderes no banco. A diferença virá com o
-fluxo administrativo de usuários (ativar, trocar perfil), ainda não
-implementado — até lá, isso é feito pelo SQL Editor.
+Ninguém — nem o próprio usuário, nem ADMIN — tem `GRANT UPDATE` em
+`profiles` mais. Toda mudança de `nome`/`cpf`/`perfil`/`access_status` passa
+pelas RPCs administrativas da seção "Estados de acesso da conta" abaixo, que
+gravam auditoria em `admin_audit_log` na mesma transação.
+
+Desde a Etapa 3, a coluna "conforme perfil" de versões antigas desta tabela
+virou "conforme `role_permissions`/override": ADMIN e GESTOR têm, por
+PADRÃO, os mesmos presets nas tabelas de negócio (exceto
+`patrimonio.compare_update`, só ADMIN), mas qualquer um dos quatro perfis
+pode ter uma capacidade específica ligada/desligada por override individual
+— ver "Permissões granulares" abaixo. A diferença administrativa
+(identidade/acesso de usuários) continua exclusivamente ADMIN, sem
+granularização: só ADMIN `ACTIVE` pode chamar as RPCs de
+aprovação/bloqueio/perfil/permissões.
 
 Nenhum papel escreve diretamente em `movimentacoes`, nem altera
 `status`/`setor_atual_id`/`responsavel_atual`.
@@ -157,14 +184,22 @@ Nenhum papel escreve diretamente em `movimentacoes`, nem altera
 ### Novos usuários
 
 Todo usuário criado no Supabase Auth recebe automaticamente (trigger
-`handle_new_user`) um profile com `perfil = CONSULTA` e **`ativo = false`**.
-Ele consegue autenticar, mas não enxerga nenhum dado até um ADMIN ativá-lo.
-O app pode ler o próprio profile para exibir "Seu acesso ao InvTec está
-desativado".
+`handle_new_user`) um profile com `perfil = CONSULTA`, **`ativo = false`**
+e **`access_status = 'PENDING'`**. Ele consegue autenticar, mas não enxerga
+nenhum dado até um ADMIN aprovar (`aprovar_usuario`). `nome`/`cpf` podem vir
+de `raw_user_meta_data` (dado de identidade preenchido pelo próprio usuário
+no cadastro) — qualquer outra chave de metadata (`perfil`, `role`, `ativo`,
+`access_status`, `rejection_count`, `approved_by` etc.) é **ignorada**: a
+função nunca lê essas chaves, então não há nenhum valor de metadata capaz
+de alterar privilégio. O app pode ler o próprio profile (policy
+`profiles_select`, ramo `id = auth.uid()`) para exibir o estado — inclusive
+`PENDING`/`REJECTED`/`BLOCKED`.
 
 **Ao configurar o projeto remoto:** desabilitar o cadastro público no
 Supabase Auth (Authentication → Sign In / Providers → desmarcar "Allow new
-users to sign up"). Usuários serão criados/convidados pelo dashboard.
+users to sign up") **só se** o cadastro público do InvTec ainda não estiver
+em produção — a partir do momento em que o fluxo de signup do app existir,
+esta opção deve ficar HABILITADA (é o próprio mecanismo de cadastro).
 
 ### Bootstrap do primeiro ADMIN
 
@@ -172,14 +207,21 @@ Não há ID nem email fixo na migration. Depois de aplicá-la:
 
 1. Criar o primeiro usuário no Supabase Auth (dashboard → Authentication →
    Add user).
-2. O profile é criado automaticamente como `CONSULTA` / inativo.
+2. O profile é criado automaticamente como `CONSULTA` / `ativo=false` /
+   `access_status='PENDING'`.
 3. No SQL Editor, **uma única vez**:
 
    ```sql
    update public.profiles
-   set perfil = 'ADMIN', ativo = true
+   set perfil = 'ADMIN', ativo = true, access_status = 'ACTIVE', approved_at = now()
    where email = 'email-do-primeiro-admin@exemplo';
    ```
+
+   **Atenção**: desde a Etapa 2, `access_status = 'ACTIVE'` é
+   OBRIGATÓRIO neste UPDATE — `handle_new_user` agora cria todo profile
+   novo como `PENDING` por padrão (antes só existia `ativo`). Esquecer
+   `access_status` deixa o primeiro admin preso em `PENDING`, sem nenhum
+   outro ADMIN no sistema para aprová-lo (bootstrap circular).
 
 Isso funciona porque o SQL Editor executa como dono do banco. A trigger
 `protect_profile_columns` só bloqueia alterações vindas dos papéis `anon` e
@@ -187,14 +229,215 @@ Isso funciona porque o SQL Editor executa como dono do banco. A trigger
 
 ### Proteção de `profiles`
 
-- `GRANT UPDATE` apenas na coluna `nome`, e a policy só permite a própria
-  linha, com profile ativo.
-- Sem `GRANT INSERT` (feito pela trigger) e sem `DELETE` (usar `ativo`).
+- **Nenhum `GRANT UPDATE`** em `profiles` para `authenticated` — nem mesmo
+  da coluna `nome` (existia antes da Etapa 2). Toda mudança de identidade
+  (`nome`, `cpf`) ou de estado (`perfil`, `access_status`,
+  `rejection_count`...) passa pelas RPCs administrativas `SECURITY DEFINER`
+  (seção "Estados de acesso da conta"), que não dependem de `GRANT`/RLS.
+- Sem `GRANT INSERT` (feito pela trigger) e sem `DELETE` (usar
+  `access_status`/`ativo`).
 - Defesa em profundidade: a trigger `protect_profile_columns` rejeita
-  mudança de `id`, `email`, `perfil`, `ativo` e `criado_em` feita pelos
-  papéis do cliente, mesmo que um `GRANT` amplo seja aplicado por engano no
-  futuro (ex.: `grant all on all tables in schema public to authenticated`,
-  snippet comum). Ninguém se autopromove.
+  mudança de QUALQUER coluna sensível (`id`, `email`, `nome`, `cpf`,
+  `perfil`, `ativo`, `access_status`, `rejection_count`, `approved_at`,
+  `approved_by`, `rejected_reason`, `blocked_reason`, `criado_em`) feita
+  pelos papéis do cliente, mesmo que um `GRANT` amplo seja aplicado por
+  engano no futuro. Ninguém se autopromove.
+
+### Estados de acesso da conta
+
+Desde a Etapa 2, `profiles.access_status` (enum `public.profile_access_status`)
+representa o estado COMPLETO da conta — `ativo` continua existindo só por
+compatibilidade com o código Flutter atual (que ainda só lê esse campo), e
+os dois são mantidos coerentes pela constraint
+`profiles_ativo_access_status_coerente`:
+
+| `access_status` | `ativo` |
+|---|---|
+| `PENDING` | `false` |
+| `ACTIVE` | `true` |
+| `REJECTED` | `false` |
+| `BLOCKED` | `false` |
+
+Nenhum UPDATE consegue gravar uma combinação fora desta tabela — a
+constraint rejeita no banco, não só nas RPCs.
+
+**Fluxo:** `handle_new_user` cria toda conta nova como `PENDING`. Um ADMIN
+`ACTIVE` chama `aprovar_usuario(user_id, perfil)` (exige CPF já válido no
+alvo) ou `rejeitar_usuario(user_id, motivo)`. Rejeição incrementa
+`rejection_count`; na 3ª (`rejection_count >= 3`), o próprio
+`rejeitar_usuario` já grava `access_status = 'BLOCKED'` em vez de
+`REJECTED` — a constraint `profiles_rejection_count_coerente` (`rejection_count
+< 3 or access_status = 'BLOCKED'`) é só a rede de segurança, nunca o
+mecanismo que decide a transição. Um usuário `REJECTED` com
+`rejection_count < 3` pode chamar `reenviar_solicitacao_acesso()`
+(self-service, sem `user_id` — sempre `auth.uid()`) para voltar a
+`PENDING`; o contador NUNCA zera nesse caminho. `BLOCKED` não pode reenviar.
+
+`desbloquear_usuario(user_id)` tem dois resultados possíveis, segundo
+`approved_at`: se o usuário já foi aprovado alguma vez, volta para `ACTIVE`
+(perfil preservado); se nunca foi aprovado (bloqueado pelas 3 rejeições),
+volta para `PENDING` com `rejection_count` **resetado a 0** — único caminho
+que zera o contador, e só um ADMIN pode acioná-lo.
+
+**CPF**: `profiles.cpf` é `text`, normalizado só a dígitos por trigger
+(`trg_profiles_normalize_cpf`), com `CHECK` de formato (11 dígitos) e
+índice único PARCIAL (`profiles_cpf_key`, `where cpf is not null` — contas
+legadas ficam com `cpf = NULL` indefinidamente, nunca inventado
+retroativamente). O algoritmo completo do dígito verificador
+(`private.is_valid_cpf`) só é exigido na APROVAÇÃO (`aprovar_usuario`
+rejeita alvo sem CPF válido) e na correção administrativa
+(`alterar_identidade_usuario`) — nunca no cadastro (`handle_new_user`
+aceita um CPF malformado na própria conta, para um erro de digitação não
+travar a criação da conta; só o formato de 11 dígitos é CHECK).
+
+**Identidade não é autoeditável**: depois do cadastro, nome/CPF/email não
+são alteráveis pelo próprio usuário em NENHUM estado (nem `REJECTED`
+reenviando). Correções são exclusivamente administrativas via
+`alterar_identidade_usuario(user_id, novo_nome, novo_cpf, motivo)` — motivo
+obrigatório, uma linha de auditoria por campo que de fato mudou
+(`USER_NAME_CHANGED`/`USER_CPF_CHANGED`). E-mail não tem RPC própria ainda
+(fluxo com solicitação + justificativa + aprovação é etapa futura) — hoje
+só é alterável via Supabase Auth diretamente, sincronizado em `profiles`
+pela trigger já existente `handle_user_email_updated`.
+
+**Proteção do último ADMIN**: a trigger `prevent_remove_last_active_admin`
+(`BEFORE UPDATE OF perfil, access_status ON profiles`) aborta qualquer
+UPDATE que tiraria o último ADMIN `ACTIVE` dessa condição —
+`bloquear_usuario` e `alterar_perfil_usuario` dependem dela (não duplicam a
+checagem) para a regra nunca divergir entre a RPC e a garantia real.
+`pg_advisory_xact_lock(hashtextextended('last_active_admin_guard', 0))`
+serializa tentativas concorrentes de remover administradores diferentes,
+para a contagem nunca ver um estado "no ar" (duas transações não-commitadas
+cada uma vendo "ainda existe o outro").
+
+**`admin_audit_log`**: trilha append-only (mesmo padrão de
+`documentos_sei_eventos`) — `ator_id`, `alvo_id`, `acao` (texto livre, não
+enum fechado), `motivo`, `dados_antes`/`dados_depois` (jsonb de colunas de
+`profiles`, nunca de `auth.users`), `criado_em`. Sem `UPDATE`/`DELETE`
+concedido a ninguém; leitura só para ADMIN `ACTIVE`. Nunca contém
+senha/token/credencial. Toda RPC administrativa grava sua linha de
+auditoria NA MESMA TRANSAÇÃO da mudança em `profiles` — ou as duas
+acontecem, ou nenhuma.
+
+### Permissões granulares (perfil base + overrides)
+
+Desde a Etapa 3, autorização de NEGÓCIO (patrimônios, movimentações,
+setores, localizações, tipos de patrimônio, documentos SEI) não lê mais
+`perfil` diretamente — passa por `private.has_permission(permission_key)`:
+
+```
+effectivePermission = userOverride ?? roleDefault
+```
+
+1. usuário precisa estar `ACTIVE` e `ativo=true` (senão nega, sem nem olhar
+   overrides);
+2. existe override explícito em `user_permissions` → ele decide (`true`
+   permite, `false` nega, mesmo contra o preset do perfil);
+3. sem override → cai no preset do perfil em `role_permissions`.
+
+Três tabelas novas:
+
+- **`permissions`**: catálogo central (`permission_key` PK, convenção
+  `modulo.acao` — ex. `patrimonio.create`). RPCs de override só aceitam
+  chave existente aqui; nenhuma chave client-side é aceita "no escuro".
+- **`role_permissions`** (`perfil`, `permission_key`): preset padrão de cada
+  um dos 4 perfis — seed reproduz EXATAMENTE o comportamento pré-Etapa 3 (um
+  usuário sem override continua fazendo o que já fazia).
+- **`user_permissions`** (`user_id`, `permission_key`, `granted`,
+  `concedido_por`, timestamps): override individual, semântica de 3 estados
+  — SEM LINHA = herda do perfil; `granted=true` = permite; `granted=false` =
+  nega. Sem `GRANT` de escrita a `authenticated`: só pelas RPCs abaixo.
+
+`private.has_permission` nunca é alcançada por quem não está `ACTIVE` —
+nenhum override `granted=true` contorna `access_status`/`ativo` (checados
+primeiro, incondicionalmente).
+
+**Operação crítica (`patrimonio.compare_update`)**: "Comparar e Atualizar"
+(RPC `aplicar_decisao_comparacao_patrimonio`) mantém a dupla trava — além do
+`has_permission('patrimonio.compare_update')`, continua exigindo
+`has_perfil('ADMIN')` estrutural. Um override nunca dá essa capacidade a
+GESTOR/OPERADOR/CONSULTA; só pode, no máximo, RETIRAR a capacidade de um
+ADMIN específico.
+
+**Troca de perfil preserva overrides**: `alterar_perfil_usuario` não é
+tocada por esta etapa — ela já não manipulava `user_permissions`, e
+overrides de um usuário sobrevivem a uma troca de perfil (são customizações
+da CONTA, não do preset). Para "limpar e voltar ao preset puro", existe
+`resetar_permissoes_usuario`.
+
+**RPCs de gerenciamento** (todas ADMIN `ACTIVE`, alvo precisa estar `ACTIVE`,
+nenhuma aceita alvo = o próprio chamador):
+
+- `definir_permissao_usuario(user_id, permission_key, granted)` — cria/
+  atualiza um override (UPSERT; `granted` nunca pode ser `null`).
+- `remover_override_permissao_usuario(user_id, permission_key)` — apaga o
+  override (volta a herdar do perfil); idempotente, sem auditoria se não
+  havia nada para remover.
+- `resetar_permissoes_usuario(user_id)` — apaga TODOS os overrides do
+  usuário de uma vez.
+
+**Consulta de permissões efetivas**: `minhas_permissoes()` (self-service,
+sem parâmetro — devolve só as chaves efetivamente concedidas ao usuário
+logado) e `obter_permissoes_usuario(user_id)` (ADMIN-only — devolve, por
+chave, o preset do perfil, o override e o valor efetivo, para a futura tela
+de administração).
+
+Toda RPC de gerenciamento grava `PERMISSION_GRANTED` / `PERMISSION_DENIED` /
+`PERMISSION_OVERRIDE_REMOVED` / `USER_PERMISSIONS_RESET` em
+`admin_audit_log` (reaproveitado da Etapa 2 — nenhum audit log novo), na
+MESMA transação da mudança.
+
+### Notificações internas (ADMIN)
+
+Desde a Etapa 4, `public.notifications` avisa ADMIN ACTIVE sobre eventos de
+solicitação de acesso — NUNCA é a fonte de verdade de nenhum estado (isso
+continua `profiles.access_status`). Uma linha por DESTINATÁRIO (não duas
+tabelas `events`+`recipients`): todas as linhas geradas pelo mesmo evento
+(ex.: todos os ADMIN ACTIVE no momento de uma submissão) compartilham o
+mesmo `event_id`, o que dá leitura individual (`lida_em` por ADMIN) e
+resolução em lote (ver abaixo) sem precisar de uma segunda tabela.
+
+**Geração**: `private.notify_admins_access_request(alvo_usuario_id, tipo,
+titulo, corpo)` insere uma linha por ADMIN ACTIVE no momento da chamada
+(nenhuma se não existir nenhum ainda — bootstrap). Chamada de dentro de
+`handle_new_user` (tipo `ACCESS_REQUEST_CREATED`, mesma transação do
+cadastro — dispara uma vez por conta criada, nunca em login) e de
+`reenviar_solicitacao_acesso` (tipo `ACCESS_REQUEST_RESUBMITTED`, sempre com
+um `event_id` NOVO — nunca reabre o evento anterior). **Fail-safe
+deliberado**: o corpo inteiro de `notify_admins_access_request` (e de
+`resolve_access_request_notifications`, abaixo) está dentro de um bloco com
+`EXCEPTION WHEN OTHERS` que só grava `RAISE WARNING` — um bug futuro na
+notificação nunca pode impedir um cadastro/reenvio/aprovação/rejeição de
+completar; o `EXCEPTION` em PL/pgSQL cria um savepoint implícito, então o
+rollback fica contido só ali, nunca desfazendo a transação do chamador.
+
+**Resolução global**: `aprovar_usuario`/`rejeitar_usuario` chamam
+`private.resolve_access_request_notifications(alvo_usuario_id)`, que marca
+`resolvida_em`/`resolvida_por` em TODAS as linhas ainda abertas daquele
+usuário (todos os destinatários, independente de cada um ter lido ou não).
+`lida_em` continua individual e nunca é tocado pela resolução — um ADMIN
+pode ter lido e resolvido, outro nunca ter lido mas ter a notificação
+igualmente resolvida. Uma notificação resolvida nunca reabre: um reenvio
+posterior gera linhas NOVAS (novo `event_id`), nunca reaproveita as antigas.
+
+**RLS**: `notifications_select` — só a própria linha
+(`destinatario_id = auth.uid()`) e só se `has_perfil('ADMIN')` (que já exige
+ACTIVE). Sem policy de INSERT/UPDATE/DELETE — toda escrita é por função
+`SECURITY DEFINER`. `marcar_notificacao_lida(id)` (idempotente, nunca aceita
+`user_id` do cliente — sempre `auth.uid()`, nunca toca `resolvida_em`) e
+`marcar_todas_notificacoes_lidas()` (só as do próprio chamador). Nenhuma RPC
+de leitura foi criada — "últimas notificações" e "total não lidas" são
+`SELECT`/`count()` simples, já protegidos pela RLS.
+
+**Realtime**: primeira tabela do projeto com Supabase Realtime habilitado
+(`alter publication supabase_realtime add table public.notifications`). RLS
+continua sendo a autoridade: o Realtime do Supabase avalia a policy de
+SELECT por assinante antes de emitir, então um ADMIN só recebe em tempo real
+as próprias linhas.
+
+Protegido por `has_perfil('ADMIN')` — não por uma `permission_key` granular
+(Etapa 3). Só `aprovar_usuario`/`rejeitar_usuario` resolvem; `bloquear_usuario`
+não gera nem resolve notificação (fora do escopo desta etapa).
 
 ### Usuários do InvTec devem ser desativados, e não excluídos
 
@@ -253,13 +496,17 @@ public` não os remove, e `grant select` não reduz um `all` já concedido.
 
 | Objeto | `authenticated` |
 |---|---|
-| `profiles` | `SELECT`; `UPDATE (nome)` |
+| `profiles` | `SELECT` apenas — **sem `UPDATE`** (desde a Etapa 2; antes era `UPDATE (nome)`) |
+| `admin_audit_log` | `SELECT` apenas (RLS restringe a ADMIN `ACTIVE`) — sem INSERT/UPDATE/DELETE |
 | `setores` | `SELECT`; `INSERT (nome, sigla, descricao)`; `UPDATE (nome, sigla, descricao, ativo)` |
 | `localizacoes` | `SELECT`; `INSERT (setor_id, nome, sigla)`; `UPDATE (nome, sigla, ativo)` — `setor_id` **não** é gravável no `UPDATE` (imutável, ver seção própria) |
 | `tipos_patrimonio` | `SELECT`; `INSERT (nome, descricao)`; `UPDATE (nome, descricao, ativo)` |
 | `patrimonios` | `SELECT`; `UPDATE (numero_patrimonio, numero_serie, tipo_id, marca, modelo, descricao, observacao, data_aquisicao)` — `localizacao_atual_id` **não** está na lista: só muda por movimentação registrada |
 | `movimentacoes` | `SELECT` |
-| funções | `EXECUTE` em `normalize_text`, `has_perfil`, `cadastrar_patrimonio`, `registrar_movimentacao` |
+| `permissions` / `role_permissions` | `SELECT` apenas — sem nenhuma escrita client-side (catálogo e presets só mudam por migration) |
+| `user_permissions` | `SELECT` apenas (RLS restringe a ADMIN) — escrita só pelas RPCs de override abaixo |
+| `notifications` | `SELECT` apenas (RLS restringe `destinatario_id = auth.uid()` + ADMIN) — escrita só por `marcar_notificacao_lida`/`marcar_todas_notificacoes_lidas` |
+| funções | `EXECUTE` em `normalize_text`, `has_perfil`, `cadastrar_patrimonio`, `registrar_movimentacao`, as 4 RPCs de documentos SEI + as 2 de conclusão, `aplicar_decisao_comparacao_patrimonio`, as 7 RPCs administrativas de usuários da Etapa 2, `minhas_permissoes`, `obter_permissoes_usuario`, `definir_permissao_usuario`, `remover_override_permissao_usuario`, `resetar_permissoes_usuario`, `marcar_notificacao_lida`, `marcar_todas_notificacoes_lidas` — a autorização real de cada uma está no corpo (`has_perfil`/`has_permission`/dono da linha), não no `GRANT` |
 
 Leitura de `localizacoes` é liberada para os mesmos quatro perfis de
 `setores` (ADMIN/GESTOR/OPERADOR/CONSULTA); escrita (`INSERT`/`UPDATE`), só
@@ -294,6 +541,21 @@ confiável entra no `search_path`.
 | `validate_localizacao_pertence_ao_setor` | garantir em `patrimonios` que `localizacao_atual_id` sempre pertence ao `setor_atual_id` da mesma linha | trigger (não chamável via RPC); defesa em profundidade mesmo se a lógica das RPCs tiver um bug futuro |
 | `validate_setor_ativo_para_localizacao` | `FOR SHARE` no setor pai ao criar/reativar localização ativa | trigger (não chamável via RPC); impede localização ativa em gerência inativa, mesmo sob concorrência |
 | `validate_tipo_patrimonio_ativo` | `FOR SHARE` exige passar pela policy de `UPDATE` de tipos, que OPERADOR não tem | trigger (não chamável via RPC) |
+| `prevent_remove_last_active_admin` | contar **todos** os ADMIN `ACTIVE`, independente da RLS do chamador | trigger (não chamável via RPC); `pg_advisory_xact_lock` serializa updates concorrentes; aborta se zerar os administradores |
+| `aprovar_usuario` / `rejeitar_usuario` / `alterar_identidade_usuario` / `bloquear_usuario` / `desbloquear_usuario` / `alterar_perfil_usuario` | cliente não tem `UPDATE` em `profiles`, nem `INSERT` em `admin_audit_log` | `has_perfil('ADMIN')` explícito no início; valida estado/CPF/motivo antes de escrever; audita na mesma transação |
+| `reenviar_solicitacao_acesso` | cliente não tem `UPDATE` em `profiles` | self-service (sem checagem de perfil) — só altera a PRÓPRIA linha (`auth.uid()`), e só de `REJECTED` com `rejection_count<3` |
+| `is_valid_cpf` | não é `SECURITY DEFINER` (função pura, `IMMUTABLE`) — listada aqui por ser parte do mesmo conjunto de segurança | fica em `private`, **sem `GRANT EXECUTE`** para nenhum papel do cliente (nem direto, nem indireto) — só chamável de dentro de outra função `SECURITY DEFINER`; isso evita existir um endpoint tipo `cpf_existe(...)` que permitisse enumerar CPFs |
+| `has_permission` | ler `profiles`/`role_permissions`/`user_permissions` a partir de policies sem recursão | fica em `private`, **sem `GRANT EXECUTE`** (mesmo padrão de `is_valid_cpf`) — só chamável de dentro de policy/RPC `SECURITY DEFINER`; nega sempre que o perfil não estiver `ACTIVE`, antes de olhar qualquer override |
+| `criar_documento_sei_pendente` / `editar_documento_sei_pendente` / `cancelar_item_sei_pendente` / `cancelar_pendentes_documento_sei` / `concluir_item_documento_sei` / `concluir_itens_documento_sei_lote` | cliente não tem escrita direta em `documentos_sei*` | `has_permission('sei.manage')` explícito no início (migrada da Etapa 3; antes era `has_perfil`) |
+| `aplicar_decisao_comparacao_patrimonio` | cliente não tem escrita direta nas tabelas envolvidas | **dupla checagem**: `has_perfil('ADMIN')` (estrutural) **e** `has_permission('patrimonio.compare_update')` (pode ser revogada de um ADMIN específico por override, sem afetar as demais RPCs administrativas) |
+| `minhas_permissoes` | ler `role_permissions`/`user_permissions` do próprio usuário | self-service; devolve vazio se não `ACTIVE` |
+| `obter_permissoes_usuario` / `definir_permissao_usuario` / `remover_override_permissao_usuario` / `resetar_permissoes_usuario` | cliente não tem leitura/escrita direta em `user_permissions` | `has_perfil('ADMIN')` explícito; as 3 de escrita exigem alvo `ACTIVE` e recusam alvo = o próprio chamador; audita em `admin_audit_log` na mesma transação |
+| `notify_admins_access_request` / `resolve_access_request_notifications` | cliente não tem `INSERT`/`UPDATE` em `notifications` | fica em `private`, **sem `GRANT EXECUTE`** (mesmo padrão de `is_valid_cpf`/`has_permission`) — só chamável de dentro de `handle_new_user`/`reenviar_solicitacao_acesso`/`aprovar_usuario`/`rejeitar_usuario`; bloco `EXCEPTION WHEN OTHERS` próprio garante que nunca propaga erro para o chamador |
+| `marcar_notificacao_lida` / `marcar_todas_notificacoes_lidas` | cliente não tem `UPDATE` em `notifications` | sem checagem de perfil — autorização é `destinatario_id = auth.uid()` na própria query; primeira idempotente, segunda só afeta as linhas do chamador |
+
+A linha `aprovar_usuario` / `rejeitar_usuario` / ... acima não foi tocada
+pela Etapa 3 — continua só `has_perfil('ADMIN')`, nunca `has_permission`
+(administração de identidade/acesso não é granularizável nesta etapa).
 
 Nenhuma RPC aceita `criado_por`, `realizado_por`, `criado_em`,
 `atualizado_em` ou a origem de uma movimentação existente: tudo vem de
@@ -704,7 +966,7 @@ pertence a exatamente um `setor_id`; para um patrimônio, é **opcional**
 | `setores` | `ativo`; desativação bloqueada se houver item não baixado **ou** localização ativa vinculada. |
 | `localizacoes` | `ativo`; desativação bloqueada se houver item não baixado apontando para ela; criação/reativação bloqueada se a gerência estiver inativa. |
 | `tipos_patrimonio` | `ativo`. |
-| `profiles` | `ativo`; nasce `false`. |
+| `profiles` | `ativo` + `access_status` (PENDING/ACTIVE/REJECTED/BLOCKED, coerentes entre si); nasce `PENDING`/`false`. Nunca apagado — ver "Estados de acesso da conta". |
 | `movimentacoes` | Nunca apagada nem editada. |
 
 ## Responsáveis em texto

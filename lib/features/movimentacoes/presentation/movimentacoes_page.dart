@@ -12,8 +12,7 @@ import '../../../core/widgets/list_page_toolbar.dart';
 import '../../../core/widgets/list_view_mode.dart';
 import '../../../core/widgets/page_header.dart';
 import '../../../core/widgets/pagination_controls.dart';
-import '../../auth/domain/profile.dart';
-import '../../auth/presentation/auth_controller.dart';
+import '../../auth/presentation/current_permissions_controller.dart';
 import '../../setores/domain/setor.dart';
 import '../domain/movimentacao.dart';
 import '../domain/movimentacao_listagem_item.dart';
@@ -117,12 +116,13 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Mesma checagem de perfil usada em Patrimônios/Setores: ADMIN/GESTOR/
-    // OPERADOR podem registrar — CONSULTA nunca recebe uma ação de escrita,
-    // mesmo que só visual (a RPC também nega, mas o botão nem aparece).
-    final perfil = ref.watch(authControllerProvider).value?.profile?.perfil;
-    final canManage =
-        perfil == ProfilePerfil.admin || perfil == ProfilePerfil.gestor || perfil == ProfilePerfil.operador;
+    // Migrado de perfil-direto para permissão efetiva (seção 19/20 do
+    // pedido de Etapa 5) — "Nova movimentação" por `movimentacao.create`,
+    // "Importar documento SEI" por `sei.manage` (é uma ação de gestão: cria
+    // pendência). CONSULTA nunca tem nenhuma das duas — a RPC também nega,
+    // mas o botão nem aparece.
+    final podeRegistrarMovimentacao = ref.hasPermission('movimentacao.create');
+    final podeGerenciarSei = ref.hasPermission('sei.manage');
     final stateAsync = ref.watch(movimentacoesControllerProvider);
     final termoBusca = _searchController.text.trim();
 
@@ -172,7 +172,8 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                   filtrosExpandidos: _filtrosExpandidos,
                   onFiltrosPressed: () => setState(() => _filtrosExpandidos = !_filtrosExpandidos),
                   onLimparFiltros: _limparFiltros,
-                  canManage: canManage,
+                  podeRegistrarMovimentacao: podeRegistrarMovimentacao,
+                  podeGerenciarSei: podeGerenciarSei,
                   onNovaMovimentacao: _novaMovimentacao,
                   onImportarDocumentoSei: _importarDocumentoSei,
                   onOrdenarPor: (campo) => ref.read(movimentacoesControllerProvider.notifier).ordenarPor(campo),
@@ -261,7 +262,8 @@ class _HistoricoControles extends ConsumerWidget {
     required this.filtrosExpandidos,
     required this.onFiltrosPressed,
     required this.onLimparFiltros,
-    required this.canManage,
+    required this.podeRegistrarMovimentacao,
+    required this.podeGerenciarSei,
     required this.onNovaMovimentacao,
     required this.onImportarDocumentoSei,
     required this.onOrdenarPor,
@@ -273,7 +275,8 @@ class _HistoricoControles extends ConsumerWidget {
   final bool filtrosExpandidos;
   final VoidCallback onFiltrosPressed;
   final VoidCallback onLimparFiltros;
-  final bool canManage;
+  final bool podeRegistrarMovimentacao;
+  final bool podeGerenciarSei;
   final VoidCallback onNovaMovimentacao;
   final VoidCallback onImportarDocumentoSei;
   final ValueChanged<MovimentacaoOrdenacaoCampo> onOrdenarPor;
@@ -284,7 +287,7 @@ class _HistoricoControles extends ConsumerWidget {
     final viewMode = viewModeAsync.value ?? ListViewMode.list;
     final setoresAsync = ref.watch(setoresParaFiltroMovimentacoesProvider);
 
-    final botaoImportarSei = canManage
+    final botaoImportarSei = podeGerenciarSei
         ? OutlinedButton.icon(
             onPressed: onImportarDocumentoSei,
             icon: const Icon(Icons.picture_as_pdf_outlined),
@@ -303,9 +306,9 @@ class _HistoricoControles extends ConsumerWidget {
           onFiltersPressed: onFiltrosPressed,
           viewMode: viewMode,
           onViewModeChanged: (modo) => ref.read(movimentacoesViewModeControllerProvider.notifier).definir(modo),
-          primaryActionLabel: canManage ? 'Nova movimentação' : null,
-          primaryActionIcon: canManage ? Icons.add : null,
-          onPrimaryAction: canManage ? onNovaMovimentacao : null,
+          primaryActionLabel: podeRegistrarMovimentacao ? 'Nova movimentação' : null,
+          primaryActionIcon: podeRegistrarMovimentacao ? Icons.add : null,
+          onPrimaryAction: podeRegistrarMovimentacao ? onNovaMovimentacao : null,
           secondaryActions: botaoImportarSei != null ? [botaoImportarSei] : const [],
         ),
         if (filtrosExpandidos) ...[

@@ -4,15 +4,26 @@ import 'package:invtec/core/shell/navigation_items.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 
 void main() {
-  test('hoje todos os perfis ativos veem os mesmos 4 menus operacionais', () {
+  test('todos os perfis ativos veem os mesmos 4 menus operacionais', () {
     for (final perfil in ProfilePerfil.values) {
       final items = navigationItemsFor(perfil);
-      expect(items.map((i) => i.route), [
-        '/dashboard',
-        '/patrimonios',
-        '/movimentacoes',
-        '/setores',
-      ]);
+      expect(items.map((i) => i.route), contains('/dashboard'));
+      expect(items.map((i) => i.route), contains('/patrimonios'));
+      expect(items.map((i) => i.route), contains('/movimentacoes'));
+      expect(items.map((i) => i.route), contains('/setores'));
+    }
+  });
+
+  test('item "Administração" (Etapa 5) só aparece para ADMIN', () {
+    expect(
+      navigationItemsFor(ProfilePerfil.admin).map((i) => i.route),
+      contains('/administracao/usuarios'),
+    );
+    for (final perfil in [ProfilePerfil.gestor, ProfilePerfil.operador, ProfilePerfil.consulta]) {
+      expect(
+        navigationItemsFor(perfil).map((i) => i.route),
+        isNot(contains('/administracao/usuarios')),
+      );
     }
   });
 

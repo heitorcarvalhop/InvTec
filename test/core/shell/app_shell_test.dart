@@ -5,12 +5,14 @@ import 'package:invtec/app/app.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/dashboard/data/dashboard_repository_supabase.dart';
+import 'package:invtec/features/notificacoes/data/app_notification_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/data/tipo_patrimonio_repository_supabase.dart';
 import 'package:invtec/features/setores/data/setor_repository_supabase.dart';
 
 import '../../features/auth/fake_auth_repository.dart';
 import '../../features/dashboard/fake_dashboard_repository.dart';
+import '../../features/notificacoes/fake_app_notification_repository.dart';
 import '../../features/patrimonios/fake_patrimonio_repository.dart';
 import '../../features/patrimonios/fake_tipo_patrimonio_repository.dart';
 import '../../features/setores/fake_setor_repository.dart';
@@ -23,6 +25,8 @@ Profile _adminProfile() => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 Future<FakeAuthRepository> _pumpAuthenticated(
@@ -54,6 +58,9 @@ Future<FakeAuthRepository> _pumpAuthenticated(
           FakeTipoPatrimonioRepository(),
         ),
         setorRepositoryProvider.overrideWithValue(FakeSetorRepository()),
+        appNotificationRepositoryProvider.overrideWithValue(
+          FakeAppNotificationRepository(),
+        ),
       ],
       child: const InvTecApp(),
     ),

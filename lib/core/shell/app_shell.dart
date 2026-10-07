@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/domain/profile.dart';
 import '../../features/auth/presentation/auth_controller.dart';
+import '../../features/notificacoes/presentation/widgets/notification_bell.dart';
 import '../responsive/breakpoints.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -43,11 +44,20 @@ class AppShell extends ConsumerWidget {
 
     void onLogout() => ref.read(authControllerProvider.notifier).signOut();
 
+    // Sino administrativo: só para ADMIN (etapa não estende notificações a
+    // outros perfis ainda — nunca renderizado, nem "vazio", para
+    // GESTOR/OPERADOR/CONSULTA/PENDING/REJECTED/BLOCKED).
+    final mostrarSinoNotificacoes = profile.perfil == ProfilePerfil.admin;
+
     if (context.screenSize == ScreenSize.mobile) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('InvTec'),
-          actions: const [ThemeToggleButton(compact: true), SizedBox(width: AppSpacing.sm)],
+          actions: [
+            if (mostrarSinoNotificacoes) const NotificationBell(),
+            const ThemeToggleButton(compact: true),
+            const SizedBox(width: AppSpacing.sm),
+          ],
         ),
         drawer: AppNavigationDrawer(
           profile: profile,
@@ -94,7 +104,7 @@ class AppShell extends ConsumerWidget {
           Expanded(
             child: Column(
               children: [
-                _DesktopTopBar(profile: profile),
+                _DesktopTopBar(profile: profile, mostrarSinoNotificacoes: mostrarSinoNotificacoes),
                 Expanded(child: child),
               ],
             ),
@@ -110,9 +120,10 @@ class AppShell extends ConsumerWidget {
 /// Mesma cor do fundo da página, com uma borda inferior discreta para se
 /// ler como uma região própria do app em vez de uma faixa solta.
 class _DesktopTopBar extends StatelessWidget {
-  const _DesktopTopBar({required this.profile});
+  const _DesktopTopBar({required this.profile, required this.mostrarSinoNotificacoes});
 
   final Profile profile;
+  final bool mostrarSinoNotificacoes;
 
   @override
   Widget build(BuildContext context) {
@@ -126,6 +137,10 @@ class _DesktopTopBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          if (mostrarSinoNotificacoes) ...[
+            const NotificationBell(),
+            const SizedBox(width: AppSpacing.md),
+          ],
           // Densidade compacta reduz um pouco a presença visual do seletor
           // sem remover os rótulos "Claro"/"Escuro" (continuam clicáveis e
           // legíveis — só ocupam menos espaço).

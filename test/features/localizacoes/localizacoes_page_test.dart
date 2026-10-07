@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/localizacoes/data/localizacao_repository_supabase.dart';
 import 'package:invtec/features/localizacoes/domain/localizacao.dart';
@@ -10,6 +11,7 @@ import 'package:invtec/features/localizacoes/presentation/localizacoes_page.dart
 import 'package:invtec/features/setores/domain/setor.dart';
 
 import '../auth/fake_auth_repository.dart';
+import '../auth/fake_permissions_repository.dart';
 import 'fake_localizacao_repository.dart';
 
 Profile _profile(ProfilePerfil perfil) => Profile(
@@ -20,6 +22,8 @@ Profile _profile(ProfilePerfil perfil) => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 final _setorGetec = Setor(id: 'setor-getec', nome: 'GETEC', sigla: 'GE', ativo: true, criadoEm: DateTime(2026, 1, 1));
@@ -39,6 +43,7 @@ Future<void> _pumpLocalizacoesPage(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(perfil)),
         localizacaoRepositoryProvider.overrideWithValue(repo),
       ],
       child: MaterialApp(home: Scaffold(body: LocalizacoesPage(setor: _setorGetec))),
@@ -81,6 +86,7 @@ Future<GoRouter> _pumpComRouter(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
+        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
         localizacaoRepositoryProvider.overrideWithValue(repo),
       ],
       child: MaterialApp.router(routerConfig: router),

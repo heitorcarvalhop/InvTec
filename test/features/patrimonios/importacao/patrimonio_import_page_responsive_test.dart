@@ -30,6 +30,8 @@ Profile _profile() => Profile(
   ativo: true,
   criadoEm: DateTime.utc(2026, 1, 1),
   atualizadoEm: DateTime.utc(2026, 1, 1),
+  accessStatus: ProfileAccessStatus.active,
+  rejectionCount: 0,
 );
 
 const _larguras = [1440.0, 1024.0, 800.0, 390.0];

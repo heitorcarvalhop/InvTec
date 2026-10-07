@@ -33,6 +33,28 @@ extension ProfilePerfilLabel on ProfilePerfil {
   }
 }
 
+/// Estado completo da conta — ver migration
+/// `20261005120000_add_profile_access_control.sql`. `ativo` é mantido em
+/// paralelo por compatibilidade com código já existente, mas o banco garante
+/// (`profiles_ativo_access_status_coerente`) que os dois nunca divergem:
+/// `ACTIVE` ↔ `ativo = true`; `PENDING`/`REJECTED`/`BLOCKED` ↔ `ativo = false`.
+enum ProfileAccessStatus {
+  pending('PENDING'),
+  active('ACTIVE'),
+  rejected('REJECTED'),
+  blocked('BLOCKED');
+
+  const ProfileAccessStatus(this.value);
+  final String value;
+
+  static ProfileAccessStatus fromValue(String value) {
+    return ProfileAccessStatus.values.firstWhere(
+      (status) => status.value == value,
+      orElse: () => throw ArgumentError('Status de acesso inválido: $value'),
+    );
+  }
+}
+
 class Profile {
   const Profile({
     required this.id,
@@ -42,6 +64,13 @@ class Profile {
     required this.ativo,
     required this.criadoEm,
     required this.atualizadoEm,
+    required this.accessStatus,
+    required this.rejectionCount,
+    this.cpf,
+    this.approvedAt,
+    this.approvedBy,
+    this.rejectedReason,
+    this.blockedReason,
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) {
@@ -53,6 +82,13 @@ class Profile {
       ativo: json['ativo'] as bool,
       criadoEm: DateTime.parse(json['criado_em'] as String),
       atualizadoEm: DateTime.parse(json['atualizado_em'] as String),
+      accessStatus: ProfileAccessStatus.fromValue(json['access_status'] as String),
+      rejectionCount: json['rejection_count'] as int,
+      cpf: json['cpf'] as String?,
+      approvedAt: json['approved_at'] == null ? null : DateTime.parse(json['approved_at'] as String),
+      approvedBy: json['approved_by'] as String?,
+      rejectedReason: json['rejected_reason'] as String?,
+      blockedReason: json['blocked_reason'] as String?,
     );
   }
 
@@ -64,6 +100,20 @@ class Profile {
   final DateTime criadoEm;
   final DateTime atualizadoEm;
 
+  /// Somente dígitos (11), ou `null` para contas legadas que nunca
+  /// forneceram CPF — ver `profiles.cpf` na migration
+  /// `20261005120000_add_profile_access_control.sql`.
+  final String? cpf;
+  final ProfileAccessStatus accessStatus;
+
+  /// Quantas vezes esta conta já foi rejeitada. 3 rejeições vira `BLOCKED`
+  /// automaticamente (ver `rejeitar_usuario` no banco).
+  final int rejectionCount;
+  final DateTime? approvedAt;
+  final String? approvedBy;
+  final String? rejectedReason;
+  final String? blockedReason;
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -73,6 +123,13 @@ class Profile {
       'ativo': ativo,
       'criado_em': criadoEm.toIso8601String(),
       'atualizado_em': atualizadoEm.toIso8601String(),
+      'access_status': accessStatus.value,
+      'rejection_count': rejectionCount,
+      'cpf': cpf,
+      'approved_at': approvedAt?.toIso8601String(),
+      'approved_by': approvedBy,
+      'rejected_reason': rejectedReason,
+      'blocked_reason': blockedReason,
     };
   }
 }
