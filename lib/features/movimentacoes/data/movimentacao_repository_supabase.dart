@@ -35,12 +35,14 @@ const _tamanhoPaginaDuplicidade = 500;
 /// Início (00:00) do dia LOCAL de [data], convertido para o instante UTC
 /// correspondente — mesmo critério de `PatrimonioRepositorySupabase` para
 /// comparar corretamente com uma coluna `timestamptz`.
-DateTime _inicioDoDiaLocalEmUtc(DateTime data) => DateTime(data.year, data.month, data.day).toUtc();
+DateTime _inicioDoDiaLocalEmUtc(DateTime data) =>
+    DateTime(data.year, data.month, data.day).toUtc();
 
 /// Início do dia LOCAL seguinte a [data] — limite EXCLUSIVO superior do
 /// intervalo (nunca `23:59:59.999`, que pode perder registros por
 /// precisão de subsegundo).
-DateTime _inicioDoDiaSeguinteLocalEmUtc(DateTime data) => DateTime(data.year, data.month, data.day + 1).toUtc();
+DateTime _inicioDoDiaSeguinteLocalEmUtc(DateTime data) =>
+    DateTime(data.year, data.month, data.day + 1).toUtc();
 
 class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
   MovimentacaoRepositorySupabase(this._client);
@@ -74,7 +76,8 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
           'responsavel_destino.ilike.$valor',
           'numero_documento.ilike.$valor',
           'numero_chamado.ilike.$valor',
-          if (idsPatrimonio.isNotEmpty) 'patrimonio_id.in.(${idsPatrimonio.join(',')})',
+          if (idsPatrimonio.isNotEmpty)
+            'patrimonio_id.in.(${idsPatrimonio.join(',')})',
         ];
         query = query.or(clausulas.join(','));
       }
@@ -90,16 +93,26 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
       }
 
       if (periodoDe != null) {
-        query = query.gte('data_movimentacao', _inicioDoDiaLocalEmUtc(periodoDe).toIso8601String());
+        query = query.gte(
+          'data_movimentacao',
+          _inicioDoDiaLocalEmUtc(periodoDe).toIso8601String(),
+        );
       }
       if (periodoAte != null) {
-        query = query.lt('data_movimentacao', _inicioDoDiaSeguinteLocalEmUtc(periodoAte).toIso8601String());
+        query = query.lt(
+          'data_movimentacao',
+          _inicioDoDiaSeguinteLocalEmUtc(periodoAte).toIso8601String(),
+        );
       }
 
       final ordenada = _aplicarOrdenacao(query, ordenarPor, ordenacaoDirecao);
-      final response = await ordenada.range(offset, offset + limit - 1).count(CountOption.exact);
+      final response = await ordenada
+          .range(offset, offset + limit - 1)
+          .count(CountOption.exact);
 
-      final itens = response.data.map(MovimentacaoListagemItem.fromJson).toList();
+      final itens = response.data
+          .map(MovimentacaoListagemItem.fromJson)
+          .toList();
       return MovimentacoesResultado(itens: itens, total: response.count);
     } on PostgrestException catch (e) {
       throw AppException('Falha ao listar movimentações', cause: e);
@@ -129,7 +142,9 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
     OrdenacaoDirecao direcao,
   ) {
     if (campo == null) {
-      return query.order('data_movimentacao', ascending: false).order('id', ascending: false);
+      return query
+          .order('data_movimentacao', ascending: false)
+          .order('id', ascending: false);
     }
 
     final ascending = direcao == OrdenacaoDirecao.asc;
@@ -138,13 +153,25 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
       case MovimentacaoOrdenacaoCampo.data:
         ordenada = query.order('data_movimentacao', ascending: ascending);
       case MovimentacaoOrdenacaoCampo.patrimonio:
-        ordenada = query.order('numero_patrimonio', ascending: ascending, referencedTable: 'patrimonios');
+        ordenada = query.order(
+          'numero_patrimonio',
+          ascending: ascending,
+          referencedTable: 'patrimonios',
+        );
       case MovimentacaoOrdenacaoCampo.tipo:
         ordenada = query.order('tipo', ascending: ascending);
       case MovimentacaoOrdenacaoCampo.origem:
-        ordenada = query.order('nome', ascending: ascending, referencedTable: 'setor_origem');
+        ordenada = query.order(
+          'nome',
+          ascending: ascending,
+          referencedTable: 'setor_origem',
+        );
       case MovimentacaoOrdenacaoCampo.destino:
-        ordenada = query.order('nome', ascending: ascending, referencedTable: 'setor_destino');
+        ordenada = query.order(
+          'nome',
+          ascending: ascending,
+          referencedTable: 'setor_destino',
+        );
     }
     return ordenada.order('id', ascending: ascending);
   }
@@ -153,12 +180,19 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
   /// (case-insensitive) — uma única consulta, nunca uma por linha da
   /// página.
   Future<List<String>> _idsPatrimoniosPorNumero(String termo) async {
-    final rows = await _client.from('patrimonios').select('id').ilike('numero_patrimonio', '%$termo%');
+    final rows = await _client
+        .from('patrimonios')
+        .select('id')
+        .ilike('numero_patrimonio', '%$termo%');
     return rows.map((row) => row['id'] as String).toList();
   }
 
   @override
-  Future<List<Movimentacao>> listarPorPatrimonio(String patrimonioId, {int limit = 20, int offset = 0}) async {
+  Future<List<Movimentacao>> listarPorPatrimonio(
+    String patrimonioId, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
     try {
       final rows = await _client
           .from('movimentacoes')
@@ -170,7 +204,10 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
 
       return rows.map(Movimentacao.fromJson).toList();
     } on PostgrestException catch (e) {
-      throw AppException('Falha ao listar movimentações do patrimônio', cause: e);
+      throw AppException(
+        'Falha ao listar movimentações do patrimônio',
+        cause: e,
+      );
     }
   }
 
@@ -186,7 +223,10 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
       // Pagina até esgotar o total real — nunca um limite fixo que possa
       // omitir linha relevante em silêncio.
       while (true) {
-        var query = _client.from('movimentacoes').select(_colunasListagem).eq('numero_documento', numeroDocumento);
+        var query = _client
+            .from('movimentacoes')
+            .select(_colunasListagem)
+            .eq('numero_documento', numeroDocumento);
 
         // AND, nunca OR: estreita o volume lido sem arriscar perder
         // ocorrência alguma do documento (patrimonioIds é só um filtro
@@ -210,7 +250,10 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
 
       return itens;
     } on PostgrestException catch (e) {
-      throw AppException('Falha ao buscar movimentações pelo número do documento', cause: e);
+      throw AppException(
+        'Falha ao buscar movimentações pelo número do documento',
+        cause: e,
+      );
     }
   }
 
@@ -237,7 +280,25 @@ class MovimentacaoRepositorySupabase implements MovimentacaoRepository {
 
       return rows.map(MovimentacaoHistoricoItem.fromJson).toList();
     } on PostgrestException catch (e) {
-      throw AppException('Falha ao carregar o histórico de movimentações do patrimônio', cause: e);
+      throw AppException(
+        'Falha ao carregar o histórico de movimentações do patrimônio',
+        cause: e,
+      );
+    }
+  }
+
+  @override
+  Future<MovimentacaoListagemItem?> buscarPorId(String id) async {
+    try {
+      final row = await _client
+          .from('movimentacoes')
+          .select(_colunasListagem)
+          .eq('id', id)
+          .maybeSingle();
+      if (row == null) return null;
+      return MovimentacaoListagemItem.fromJson(row);
+    } on PostgrestException catch (e) {
+      throw AppException('Falha ao carregar a movimentação', cause: e);
     }
   }
 
@@ -311,7 +372,8 @@ Map<String, Object?> buildRegistrarMovimentacaoParams({
     'p_observacao': nullIfBlank(observacao),
     'p_numero_documento': nullIfBlank(numeroDocumento),
     'p_numero_chamado': nullIfBlank(numeroChamado),
-    if (dataMovimentacao != null) 'p_data_movimentacao': dataMovimentacao.toIso8601String(),
+    if (dataMovimentacao != null)
+      'p_data_movimentacao': dataMovimentacao.toIso8601String(),
     'p_localizacao_destino_id': localizacaoDestinoId,
     'p_limpar_localizacao': limparLocalizacao,
   };

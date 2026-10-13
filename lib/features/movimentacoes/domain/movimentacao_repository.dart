@@ -47,6 +47,14 @@ abstract class MovimentacaoRepository {
     int offset = 0,
   });
 
+  /// Uma movimentação específica por id, com os mesmos dados/embeds de
+  /// [listar] — usada para abrir o detalhe completo a partir de um
+  /// deep-link (`/movimentacoes/:id`), sem repetir os campos de
+  /// `MovimentacaoListagemItem` numa consulta mais larga. `null` quando o
+  /// id não existe OU a RLS não deixa o usuário atual vê-la — nunca um
+  /// erro para "não encontrada".
+  Future<MovimentacaoListagemItem?> buscarPorId(String id);
+
   /// TODAS as movimentações cujo `numero_documento` é EXATAMENTE
   /// [numeroDocumento] — filtro aplicado no banco via `eq`, nunca a busca
   /// OR genérica de [listar] (que casaria

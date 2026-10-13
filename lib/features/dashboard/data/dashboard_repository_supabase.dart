@@ -2,48 +2,158 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/app_exception.dart';
-import '../../patrimonios/domain/patrimonio.dart';
+import '../domain/categoria_contagem.dart';
+import '../domain/dashboard_distribuicoes.dart';
 import '../domain/dashboard_repository.dart';
-import '../domain/dashboard_stats.dart';
 import '../domain/movimentacao_resumo.dart';
+
+/// Quantas categorias mostrar em "Patrimônios por tipo" e "Locais com mais
+/// patrimônios" — os setores (hoje poucos) aparecem todos, sem corte.
+const _topTipos = 8;
+const _topLocalizacoes = 5;
 
 class DashboardRepositorySupabase implements DashboardRepository {
   DashboardRepositorySupabase(this._client);
 
   final SupabaseClient _client;
 
-  Future<int> _count([String? status]) {
-    final query = _client.from('patrimonios').count(CountOption.exact);
-    return status == null ? query : query.eq('status', status);
+  @override
+  Future<int> contarPatrimonios() async {
+    try {
+      final response = await _client
+          .from('patrimonios')
+          .count(CountOption.exact);
+      return response;
+    } on PostgrestException catch (e) {
+      throw AppException('Falha ao contar patrimônios', cause: e);
+    }
   }
 
   @override
-  Future<DashboardStats> carregarEstatisticas() async {
+  Future<int> contarSetoresAtivos() async {
     try {
-      final resultados = await Future.wait([
-        _count(),
-        _count(PatrimonioStatus.disponivel.value),
-        _count(PatrimonioStatus.emUso.value),
-        _count(PatrimonioStatus.emprestado.value),
-        _count(PatrimonioStatus.emManutencao.value),
-        _count(PatrimonioStatus.baixado.value),
-      ]);
+      final response = await _client
+          .from('setores')
+          .count(CountOption.exact)
+          .eq('ativo', true);
+      return response;
+    } on PostgrestException catch (e) {
+      throw AppException('Falha ao contar setores', cause: e);
+    }
+  }
 
-      final total = resultados[0];
-      final baixados = resultados[5];
+  @override
+  Future<int> contarLocalizacoesAtivas() async {
+    try {
+      final response = await _client
+          .from('localizacoes')
+          .count(CountOption.exact)
+          .eq('ativo', true);
+      return response;
+    } on PostgrestException catch (e) {
+      throw AppException('Falha ao contar localizações', cause: e);
+    }
+  }
 
-      return DashboardStats(
-        total: total,
-        ativos: total - baixados,
-        disponiveis: resultados[1],
-        emUso: resultados[2],
-        emprestados: resultados[3],
-        emManutencao: resultados[4],
-        baixados: baixados,
+  @override
+  Future<int> contarTiposAtivos() async {
+    try {
+      final response = await _client
+          .from('tipos_patrimonio')
+          .count(CountOption.exact)
+          .eq('ativo', true);
+      return response;
+    } on PostgrestException catch (e) {
+      throw AppException('Falha ao contar tipos de patrimônio', cause: e);
+    }
+  }
+
+  @override
+  Future<int> contarMovimentacoesDesde(DateTime desde) async {
+    try {
+      final response = await _client
+          .from('movimentacoes')
+          .count(CountOption.exact)
+          .gte('data_movimentacao', desde.toUtc().toIso8601String());
+      return response;
+    } on PostgrestException catch (e) {
+      throw AppException('Falha ao contar movimentações recentes', cause: e);
+    }
+  }
+
+  @override
+  Future<DashboardDistribuicoes> carregarDistribuicoes() async {
+    try {
+      // UMA única consulta: só as colunas de agrupamento + o nome
+      // embutido de cada categoria (nunca `select('*')`, nunca uma
+      // consulta por setor/tipo/localização). O Postgrest não expõe
+      // `GROUP BY` sem uma view/RPC dedicada (fora do escopo desta
+      // etapa — ver relatório) — a agregação é feita aqui, em memória,
+      // sobre um volume hoje pequeno (~1 KB por patrimônio nestas 3
+      // colunas) e tratável mesmo com um crescimento de vários múltiplos.
+      final rows = await _client
+          .from('patrimonios')
+          .select(
+            'setor_atual_id, setores(nome, sigla), '
+            'tipo_id, tipos_patrimonio(nome), '
+            'localizacao_atual_id, localizacoes(nome)',
+          );
+
+      final porSetor = <String, _Contagem>{};
+      final porTipo = <String, _Contagem>{};
+      final porLocalizacao = <String, _Contagem>{};
+
+      for (final row in rows) {
+        final setorId = row['setor_atual_id'] as String?;
+        final setor = row['setores'] as Map<String, dynamic>?;
+        if (setorId != null && setor != null) {
+          final nome = (setor['sigla'] as String?) ?? (setor['nome'] as String);
+          porSetor.update(
+            setorId,
+            (c) => c.incrementado(),
+            ifAbsent: () => _Contagem(nome: nome, quantidade: 1),
+          );
+        }
+
+        final tipoId = row['tipo_id'] as String?;
+        final tipo = row['tipos_patrimonio'] as Map<String, dynamic>?;
+        if (tipoId != null && tipo != null) {
+          porTipo.update(
+            tipoId,
+            (c) => c.incrementado(),
+            ifAbsent: () =>
+                _Contagem(nome: tipo['nome'] as String, quantidade: 1),
+          );
+        }
+
+        final localizacaoId = row['localizacao_atual_id'] as String?;
+        final localizacao = row['localizacoes'] as Map<String, dynamic>?;
+        if (localizacaoId != null && localizacao != null) {
+          porLocalizacao.update(
+            localizacaoId,
+            (c) => c.incrementado(),
+            ifAbsent: () =>
+                _Contagem(nome: localizacao['nome'] as String, quantidade: 1),
+          );
+        }
+      }
+
+      final totalConsiderado = porSetor.values.fold(
+        0,
+        (soma, c) => soma + c.quantidade,
+      );
+
+      return DashboardDistribuicoes(
+        porSetor: _ordenado(porSetor),
+        porTipo: _ordenado(porTipo).take(_topTipos).toList(),
+        topLocalizacoes: _ordenado(
+          porLocalizacao,
+        ).take(_topLocalizacoes).toList(),
+        totalConsiderado: totalConsiderado,
       );
     } on PostgrestException catch (e) {
       throw AppException(
-        'Falha ao carregar estatísticas do dashboard',
+        'Falha ao carregar a distribuição de patrimônios',
         cause: e,
       );
     }
@@ -51,7 +161,7 @@ class DashboardRepositorySupabase implements DashboardRepository {
 
   @override
   Future<List<MovimentacaoResumo>> listarMovimentacoesRecentes({
-    int limit = 5,
+    int limit = 8,
   }) async {
     try {
       final rows = await _client
@@ -59,8 +169,9 @@ class DashboardRepositorySupabase implements DashboardRepository {
           .select(
             'id, tipo, data_movimentacao, '
             'patrimonios(numero_patrimonio, descricao), '
-            'origem:setores!origem_id(nome), '
-            'destino:setores!destino_id(nome)',
+            'origem:setores!origem_id(nome, sigla), '
+            'destino:setores!destino_id(nome, sigla), '
+            'autor:profiles!realizado_por(nome)',
           )
           .order('data_movimentacao', ascending: false)
           .order('criado_em', ascending: false)
@@ -68,12 +179,33 @@ class DashboardRepositorySupabase implements DashboardRepository {
 
       return rows.map(MovimentacaoResumo.fromJson).toList();
     } on PostgrestException catch (e) {
-      throw AppException(
-        'Falha ao carregar movimentações recentes',
-        cause: e,
-      );
+      throw AppException('Falha ao carregar movimentações recentes', cause: e);
     }
   }
+}
+
+class _Contagem {
+  const _Contagem({required this.nome, required this.quantidade});
+
+  final String nome;
+  final int quantidade;
+
+  _Contagem incrementado() => _Contagem(nome: nome, quantidade: quantidade + 1);
+}
+
+List<CategoriaContagem> _ordenado(Map<String, _Contagem> contagens) {
+  final itens =
+      contagens.entries
+          .map(
+            (e) => CategoriaContagem(
+              id: e.key,
+              nome: e.value.nome,
+              quantidade: e.value.quantidade,
+            ),
+          )
+          .toList()
+        ..sort((a, b) => b.quantidade.compareTo(a.quantidade));
+  return itens;
 }
 
 final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {

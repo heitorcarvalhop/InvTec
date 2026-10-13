@@ -36,14 +36,46 @@ import '../fake_patrimonio_repository.dart';
 import '../fake_tipo_patrimonio_repository.dart';
 
 final _tipos = [
-  TipoPatrimonio(id: 'tipo-notebook', nome: 'Notebook', ativo: true, criadoEm: DateTime(2026, 1, 1)),
-  TipoPatrimonio(id: 'tipo-software', nome: 'Software / Licença', ativo: true, criadoEm: DateTime(2026, 1, 1)),
-  TipoPatrimonio(id: 'tipo-mobiliario', nome: 'Mobiliário', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+  TipoPatrimonio(
+    id: 'tipo-notebook',
+    nome: 'Notebook',
+    ativo: true,
+    criadoEm: DateTime(2026, 1, 1),
+  ),
+  TipoPatrimonio(
+    id: 'tipo-software',
+    nome: 'Software / Licença',
+    ativo: true,
+    criadoEm: DateTime(2026, 1, 1),
+  ),
+  TipoPatrimonio(
+    id: 'tipo-mobiliario',
+    nome: 'Mobiliário',
+    ativo: true,
+    criadoEm: DateTime(2026, 1, 1),
+  ),
 ];
 final _setores = [
-  Setor(id: 'setor-getec', nome: 'GETEC', sigla: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1)),
-  Setor(id: 'setor-almoxarifado', nome: 'Almoxarifado', ativo: true, criadoEm: DateTime(2026, 1, 1)),
-  Setor(id: 'setor-ti', nome: 'TI', sigla: 'TI', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+  Setor(
+    id: 'setor-getec',
+    nome: 'GETEC',
+    sigla: 'GETEC',
+    ativo: true,
+    criadoEm: DateTime(2026, 1, 1),
+  ),
+  Setor(
+    id: 'setor-almoxarifado',
+    nome: 'Almoxarifado',
+    ativo: true,
+    criadoEm: DateTime(2026, 1, 1),
+  ),
+  Setor(
+    id: 'setor-ti',
+    nome: 'TI',
+    sigla: 'TI',
+    ativo: true,
+    criadoEm: DateTime(2026, 1, 1),
+  ),
 ];
 final _localizacoes = [
   Localizacao(
@@ -135,11 +167,18 @@ class _RepositorioComFalhaSeletiva implements PatrimonioRepository {
   Future<Patrimonio?> buscarPorId(String id) => _delegado.buscarPorId(id);
 
   @override
-  Future<PatrimonioDetalhe?> buscarDetalhePorId(String id) => _delegado.buscarDetalhePorId(id);
+  Future<PatrimonioDetalhe?> buscarDetalhePorId(String id) =>
+      _delegado.buscarDetalhePorId(id);
 
   @override
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       _delegado.buscarPorNumeroPatrimonio(numeroPatrimonio);
+
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
+    String prefixo, {
+    int limit = 6,
+  }) => _delegado.buscarPorPrefixoNumeroPatrimonio(prefixo, limit: limit);
 
   @override
   Future<PatrimoniosResultado> listar({
@@ -161,24 +200,26 @@ class _RepositorioComFalhaSeletiva implements PatrimonioRepository {
     DateTime? dataAquisicaoAte,
     PatrimonioOrdenacaoCampo? ordenarPor,
     OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
-  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(List<String> numeros) =>
-      _delegado.buscarPorNumerosPatrimonio(numeros);
+  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(
+    List<String> numeros,
+  ) => _delegado.buscarPorNumerosPatrimonio(numeros);
 
   @override
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) =>
       _delegado.buscarNumerosSerieExistentes(numerosSerie);
 
   @override
-  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) =>
-      _delegado.aplicarDecisaoComparacao(decisao);
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(
+    DecisaoItemParaExecutar decisao,
+  ) => _delegado.aplicarDecisaoComparacao(decisao);
 
   @override
-  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) =>
-      _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
+    String operacaoId,
+  ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
 }
 
 /// Repositório que só libera cada `cadastrar` quando o teste manda — usado
@@ -242,28 +283,34 @@ class _RepositorioComPortoes implements PatrimonioRepository {
     String? descricao,
     String? observacao,
     DateTime? dataAquisicao,
-  }) =>
-      _delegado.atualizar(
-        id: id,
-        numeroPatrimonio: numeroPatrimonio,
-        numeroSerie: numeroSerie,
-        tipoId: tipoId,
-        marca: marca,
-        modelo: modelo,
-        descricao: descricao,
-        observacao: observacao,
-        dataAquisicao: dataAquisicao,
-      );
+  }) => _delegado.atualizar(
+    id: id,
+    numeroPatrimonio: numeroPatrimonio,
+    numeroSerie: numeroSerie,
+    tipoId: tipoId,
+    marca: marca,
+    modelo: modelo,
+    descricao: descricao,
+    observacao: observacao,
+    dataAquisicao: dataAquisicao,
+  );
 
   @override
   Future<Patrimonio?> buscarPorId(String id) => _delegado.buscarPorId(id);
 
   @override
-  Future<PatrimonioDetalhe?> buscarDetalhePorId(String id) => _delegado.buscarDetalhePorId(id);
+  Future<PatrimonioDetalhe?> buscarDetalhePorId(String id) =>
+      _delegado.buscarDetalhePorId(id);
 
   @override
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       _delegado.buscarPorNumeroPatrimonio(numeroPatrimonio);
+
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
+    String prefixo, {
+    int limit = 6,
+  }) => _delegado.buscarPorPrefixoNumeroPatrimonio(prefixo, limit: limit);
 
   @override
   Future<PatrimoniosResultado> listar({
@@ -285,24 +332,26 @@ class _RepositorioComPortoes implements PatrimonioRepository {
     DateTime? dataAquisicaoAte,
     PatrimonioOrdenacaoCampo? ordenarPor,
     OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
-  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(List<String> numeros) =>
-      _delegado.buscarPorNumerosPatrimonio(numeros);
+  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(
+    List<String> numeros,
+  ) => _delegado.buscarPorNumerosPatrimonio(numeros);
 
   @override
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) =>
       _delegado.buscarNumerosSerieExistentes(numerosSerie);
 
   @override
-  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) =>
-      _delegado.aplicarDecisaoComparacao(decisao);
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(
+    DecisaoItemParaExecutar decisao,
+  ) => _delegado.aplicarDecisaoComparacao(decisao);
 
   @override
-  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) =>
-      _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
+    String operacaoId,
+  ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
 }
 
 ProviderContainer _criarContainer(
@@ -312,10 +361,15 @@ ProviderContainer _criarContainer(
   final container = ProviderContainer(
     overrides: [
       patrimonioRepositoryProvider.overrideWithValue(repositorio),
-      tipoPatrimonioRepositoryProvider.overrideWithValue(FakeTipoPatrimonioRepository(tipos: _tipos)),
-      setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: _setores)),
+      tipoPatrimonioRepositoryProvider.overrideWithValue(
+        FakeTipoPatrimonioRepository(tipos: _tipos),
+      ),
+      setorRepositoryProvider.overrideWithValue(
+        FakeSetorRepository(setores: _setores),
+      ),
       localizacaoRepositoryProvider.overrideWithValue(
-        repositorioLocalizacoes ?? FakeLocalizacaoRepository(localizacoes: _localizacoes),
+        repositorioLocalizacoes ??
+            FakeLocalizacaoRepository(localizacoes: _localizacoes),
       ),
       dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
     ],
@@ -348,193 +402,292 @@ Future<void> _avancarAteRevisao(
   controller.avancarParaPadroes();
   // 'setor-almoxarifado' (distinto do destino 'GETEC' usado nos testes) para
   // não colidir com a nova regra "origem e destino precisam ser diferentes".
-  controller.definirPadroes(padroes ?? const ImportDefaults(origemPadraoId: 'setor-almoxarifado'));
+  controller.definirPadroes(
+    padroes ?? const ImportDefaults(origemPadraoId: 'setor-almoxarifado'),
+  );
   await controller.analisar();
 }
 
 void main() {
   group('PatrimonioImportController — pipeline completo', () {
-    test('carrega CSV, mapeia, aplica padrões e classifica as linhas', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'carrega CSV, mapeia, aplica padrões e classifica as linhas',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n'
-          '00045872;Notebook;Dell;AAA1;GETEC\n'
-          '00045873;Notebook;Dell;AAA2;Setor Desconhecido\n';
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n'
+            '00045872;Notebook;Dell;AAA1;GETEC\n'
+            '00045873;Notebook;Dell;AAA2;Setor Desconhecido\n';
 
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      final state = container.read(patrimonioImportControllerProvider);
-      expect(state.step, ImportStep.revisar);
-      expect(state.linhas, hasLength(2));
+        final state = container.read(patrimonioImportControllerProvider);
+        expect(state.step, ImportStep.revisar);
+        expect(state.linhas, hasLength(2));
 
-      final pronta = state.linhas.firstWhere((l) => l.numeroPatrimonio == '00045872');
-      expect(pronta.status, ImportRowStatus.pronto);
+        final pronta = state.linhas.firstWhere(
+          (l) => l.numeroPatrimonio == '00045872',
+        );
+        expect(pronta.status, ImportRowStatus.pronto);
 
-      final comErro = state.linhas.firstWhere((l) => l.numeroPatrimonio == '00045873');
-      expect(comErro.status, ImportRowStatus.erro);
-    });
+        final comErro = state.linhas.firstWhere(
+          (l) => l.numeroPatrimonio == '00045873',
+        );
+        expect(comErro.status, ImportRowStatus.erro);
+      },
+    );
 
-    test('origem ausente e sem origem padrão bloqueia a linha com erro', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'origem ausente e sem origem padrão bloqueia a linha com erro',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebook;Dell;AAA1;GETEC\n';
-      // padrões explícitos, sem origemPadraoId — não usa o default do helper.
-      await _avancarAteRevisao(controller, bytes: _csv(csv), padroes: const ImportDefaults());
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebook;Dell;AAA1;GETEC\n';
+        // padrões explícitos, sem origemPadraoId — não usa o default do helper.
+        await _avancarAteRevisao(
+          controller,
+          bytes: _csv(csv),
+          padroes: const ImportDefaults(),
+        );
 
-      final linha = container.read(patrimonioImportControllerProvider).linhas.single;
-      expect(linha.status, ImportRowStatus.erro);
-      expect(
-        linha.issues.any((i) => i.message.contains('Nenhuma origem informada')),
-        isTrue,
-      );
-    });
+        final linha = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .single;
+        expect(linha.status, ImportRowStatus.erro);
+        expect(
+          linha.issues.any(
+            (i) => i.message.contains('Nenhuma origem informada'),
+          ),
+          isTrue,
+        );
+      },
+    );
 
-    test('linha classificada como erro nunca chega a repository.cadastrar', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'linha classificada como erro nunca chega a repository.cadastrar',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebook;Dell;AAA1;GETEC\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv), padroes: const ImportDefaults());
-      expect(container.read(patrimonioImportControllerProvider).linhas.single.status, ImportRowStatus.erro);
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebook;Dell;AAA1;GETEC\n';
+        await _avancarAteRevisao(
+          controller,
+          bytes: _csv(csv),
+          padroes: const ImportDefaults(),
+        );
+        expect(
+          container
+              .read(patrimonioImportControllerProvider)
+              .linhas
+              .single
+              .status,
+          ImportRowStatus.erro,
+        );
 
-      await controller.confirmarImportacao();
+        await controller.confirmarImportacao();
 
-      expect(repo.cadastrarCallCount, 0);
-    });
+        expect(repo.cadastrarCallCount, 0);
+      },
+    );
 
-    test('nunca importa automaticamente: revisar não dispara nenhuma gravação', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'nunca importa automaticamente: revisar não dispara nenhuma gravação',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebook;Dell;AAA1;GETEC\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebook;Dell;AAA1;GETEC\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      expect(repo.cadastrarCallCount, 0);
-    });
+        expect(repo.cadastrarCallCount, 0);
+      },
+    );
 
-    test('detecta patrimônio já existente e não sobrescreve setor/responsável sem decisão explícita', () async {
-      final existente = PatrimonioDetalhe(
-        patrimonio: Patrimonio(
-          id: 'existing-1',
-          numeroPatrimonio: '00000001',
-          tipoId: 'tipo-notebook',
-          status: PatrimonioStatus.disponivel,
-          setorAtualId: 'setor-getec',
-          dataCadastro: DateTime(2025, 1, 1),
-          atualizadoEm: DateTime(2025, 1, 1),
-        ),
-        tipoNome: 'Notebook',
-        setorNome: 'GETEC',
-      );
-      final repo = FakePatrimonioRepository(itens: [existente]);
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'detecta patrimônio já existente e não sobrescreve setor/responsável sem decisão explícita',
+      () async {
+        final existente = PatrimonioDetalhe(
+          patrimonio: Patrimonio(
+            id: 'existing-1',
+            numeroPatrimonio: '00000001',
+            tipoId: 'tipo-notebook',
+            status: PatrimonioStatus.disponivel,
+            setorAtualId: 'setor-getec',
+            dataCadastro: DateTime(2025, 1, 1),
+            atualizadoEm: DateTime(2025, 1, 1),
+          ),
+          tipoNome: 'Notebook',
+          setorNome: 'GETEC',
+        );
+        final repo = FakePatrimonioRepository(itens: [existente]);
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n00000001;Notebook;Dell Novo;ZZZ;GETEC\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n00000001;Notebook;Dell Novo;ZZZ;GETEC\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      final linha = container.read(patrimonioImportControllerProvider).linhas.single;
-      expect(linha.status, ImportRowStatus.existente);
+        final linha = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .single;
+        expect(linha.status, ImportRowStatus.existente);
 
-      controller.decidirExistente(linha, ImportExistingAction.atualizarMetadados);
-      expect(linha.status, ImportRowStatus.atualizar);
-    });
+        controller.decidirExistente(
+          linha,
+          ImportExistingAction.atualizarMetadados,
+        );
+        expect(linha.status, ImportRowStatus.atualizar);
+      },
+    );
   });
 
   group('PatrimonioImportController — decisões manuais', () {
-    test('aplicar sugestão de tipo resolve o erro e reclassifica como pronto', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'aplicar sugestão de tipo resolve o erro e reclassifica como pronto',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebok;Dell;AAA1;GETEC\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebok;Dell;AAA1;GETEC\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      final linha = container.read(patrimonioImportControllerProvider).linhas.single;
-      expect(linha.status, ImportRowStatus.erro);
-      expect(linha.tipoIdSugerido, 'tipo-notebook');
+        final linha = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .single;
+        expect(linha.status, ImportRowStatus.erro);
+        expect(linha.tipoIdSugerido, 'tipo-notebook');
 
-      controller.definirTipoDaLinha(linha, linha.tipoIdSugerido);
-      expect(linha.status, ImportRowStatus.pronto);
-    });
+        controller.definirTipoDaLinha(linha, linha.tipoIdSugerido);
+        expect(linha.status, ImportRowStatus.pronto);
+      },
+    );
 
-    test('duplicidade no arquivo: manter primeira ocorrência ignora as demais', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'duplicidade no arquivo: manter primeira ocorrência ignora as demais',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n'
-          '77777;Notebook;Dell;S1;GETEC\n'
-          '77777;Notebook;HP;S2;GETEC\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n'
+            '77777;Notebook;Dell;S1;GETEC\n'
+            '77777;Notebook;HP;S2;GETEC\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      final linhas = container.read(patrimonioImportControllerProvider).linhas;
-      expect(linhas.every((l) => l.status == ImportRowStatus.erro), isTrue);
+        final linhas = container
+            .read(patrimonioImportControllerProvider)
+            .linhas;
+        expect(linhas.every((l) => l.status == ImportRowStatus.erro), isTrue);
 
-      controller.manterPrimeiraOcorrencia('77777');
+        controller.manterPrimeiraOcorrencia('77777');
 
-      final atualizado = container.read(patrimonioImportControllerProvider).linhas;
-      final mantida = atualizado.firstWhere((l) => l.marca == 'Dell');
-      final ignorada = atualizado.firstWhere((l) => l.marca == 'HP');
-      expect(mantida.status, ImportRowStatus.pronto);
-      expect(ignorada.status, ImportRowStatus.ignorado);
-    });
+        final atualizado = container
+            .read(patrimonioImportControllerProvider)
+            .linhas;
+        final mantida = atualizado.firstWhere((l) => l.marca == 'Dell');
+        final ignorada = atualizado.firstWhere((l) => l.marca == 'HP');
+        expect(mantida.status, ImportRowStatus.pronto);
+        expect(ignorada.status, ImportRowStatus.ignorado);
+      },
+    );
 
-    test('ignorar manualmente a última linha de um grupo duplicado libera a primeira', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'ignorar manualmente a última linha de um grupo duplicado libera a primeira',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n'
-          '88888;Notebook;Dell;S1;GETEC\n'
-          '88888;Notebook;HP;S2;GETEC\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n'
+            '88888;Notebook;Dell;S1;GETEC\n'
+            '88888;Notebook;HP;S2;GETEC\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      final linhas = container.read(patrimonioImportControllerProvider).linhas;
-      final segunda = linhas.firstWhere((l) => l.marca == 'HP');
-      controller.alternarIgnorarLinha(segunda, true);
+        final linhas = container
+            .read(patrimonioImportControllerProvider)
+            .linhas;
+        final segunda = linhas.firstWhere((l) => l.marca == 'HP');
+        controller.alternarIgnorarLinha(segunda, true);
 
-      final primeira = container.read(patrimonioImportControllerProvider).linhas.firstWhere(
-            (l) => l.marca == 'Dell',
-          );
-      expect(primeira.duplicadoNoArquivo, isFalse);
-      expect(primeira.status, ImportRowStatus.pronto);
-      expect(segunda.status, ImportRowStatus.ignorado);
-    });
+        final primeira = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .firstWhere((l) => l.marca == 'Dell');
+        expect(primeira.duplicadoNoArquivo, isFalse);
+        expect(primeira.status, ImportRowStatus.pronto);
+        expect(segunda.status, ImportRowStatus.ignorado);
+      },
+    );
   });
 
   group('PatrimonioImportController — confirmarImportacao', () {
-    test('envia só linhas prontas/aviso/atualizar e nunca inclui "status" nos parâmetros', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'envia só linhas prontas/aviso/atualizar e nunca inclui "status" nos parâmetros',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n'
-          '00045872;Notebook;Dell;AAA1;GETEC\n'
-          '00045873;Notebook;Dell;AAA2;Setor Inexistente\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n'
+            '00045872;Notebook;Dell;AAA1;GETEC\n'
+            '00045873;Notebook;Dell;AAA2;Setor Inexistente\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      await controller.confirmarImportacao();
+        await controller.confirmarImportacao();
 
-      expect(repo.cadastrarCallCount, 1);
-      expect(repo.ultimoCadastro!.containsKey('status'), isFalse);
-      expect(container.read(patrimonioImportControllerProvider).step, ImportStep.resultado);
-    });
+        expect(repo.cadastrarCallCount, 1);
+        expect(repo.ultimoCadastro!.containsKey('status'), isFalse);
+        expect(
+          container.read(patrimonioImportControllerProvider).step,
+          ImportStep.resultado,
+        );
+      },
+    );
 
     test('processa em lotes de no máximo 5 gravações simultâneas', () async {
       final delegado = FakePatrimonioRepository();
@@ -553,7 +706,9 @@ void main() {
       final repo = _RepositorioContadorConcorrencia(delegado, gravar);
       final container = _criarContainer(repo);
       addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+      final controller = container.read(
+        patrimonioImportControllerProvider.notifier,
+      );
 
       final linhasCsv = List.generate(
         12,
@@ -569,69 +724,99 @@ void main() {
       expect(maximoObservado, greaterThan(1));
     });
 
-    test('falha parcial não interrompe as demais linhas; retry reenvia só as que falharam', () async {
-      final delegado = FakePatrimonioRepository();
-      final repo = _RepositorioComFalhaSeletiva(delegado)..numerosParaFalhar = {'20002'};
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'falha parcial não interrompe as demais linhas; retry reenvia só as que falharam',
+      () async {
+        final delegado = FakePatrimonioRepository();
+        final repo = _RepositorioComFalhaSeletiva(delegado)
+          ..numerosParaFalhar = {'20002'};
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n'
-          '20001;Notebook;Dell;S1;GETEC\n'
-          '20002;Notebook;Dell;S2;GETEC\n'
-          '20003;Notebook;Dell;S3;GETEC\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        const csv =
+            'Patrimônio;Tipo;Marca;Serial;Setor\n'
+            '20001;Notebook;Dell;S1;GETEC\n'
+            '20002;Notebook;Dell;S2;GETEC\n'
+            '20003;Notebook;Dell;S3;GETEC\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      await controller.confirmarImportacao();
+        await controller.confirmarImportacao();
 
-      final linhas = container.read(patrimonioImportControllerProvider).linhas;
-      expect(linhas.where((l) => l.resultado?.sucesso == true), hasLength(2));
-      expect(linhas.where((l) => l.resultado?.sucesso == false), hasLength(1));
-      expect(delegado.cadastrarCallCount, 2); // a que falhou não chegou a chamar o delegado
+        final linhas = container
+            .read(patrimonioImportControllerProvider)
+            .linhas;
+        expect(linhas.where((l) => l.resultado?.sucesso == true), hasLength(2));
+        expect(
+          linhas.where((l) => l.resultado?.sucesso == false),
+          hasLength(1),
+        );
+        expect(
+          delegado.cadastrarCallCount,
+          2,
+        ); // a que falhou não chegou a chamar o delegado
 
-      repo.numerosParaFalhar = {};
-      await controller.tentarNovamenteFalhas();
+        repo.numerosParaFalhar = {};
+        await controller.tentarNovamenteFalhas();
 
-      final linhasFinal = container.read(patrimonioImportControllerProvider).linhas;
-      expect(linhasFinal.every((l) => l.resultado?.sucesso == true), isTrue);
-      expect(delegado.cadastrarCallCount, 3);
-    });
+        final linhasFinal = container
+            .read(patrimonioImportControllerProvider)
+            .linhas;
+        expect(linhasFinal.every((l) => l.resultado?.sucesso == true), isTrue);
+        expect(delegado.cadastrarCallCount, 3);
+      },
+    );
 
-    test('cancelamento entre lotes preserva o que já foi importado e não processa o resto', () async {
-      final delegado = FakePatrimonioRepository();
-      final repo = _RepositorioComPortoes(delegado);
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'cancelamento entre lotes preserva o que já foi importado e não processa o resto',
+      () async {
+        final delegado = FakePatrimonioRepository();
+        final repo = _RepositorioComPortoes(delegado);
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      final linhasCsv = List.generate(
-        7,
-        (i) => '${3000 + i};Notebook;Dell;S$i;GETEC',
-      ).join('\n');
-      final csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n$linhasCsv\n';
-      await _avancarAteRevisao(controller, bytes: _csv(csv));
+        final linhasCsv = List.generate(
+          7,
+          (i) => '${3000 + i};Notebook;Dell;S$i;GETEC',
+        ).join('\n');
+        final csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n$linhasCsv\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
 
-      final futuro = controller.confirmarImportacao();
-      // espera o primeiro lote (5) ficar bloqueado nos portões
-      while (repo.portoesAbertos.length < 5) {
-        await Future<void>.delayed(const Duration(milliseconds: 1));
-      }
-      controller.solicitarCancelamento();
-      for (final portao in repo.portoesAbertos) {
-        portao.complete();
-      }
-      await futuro;
+        final futuro = controller.confirmarImportacao();
+        // espera o primeiro lote (5) ficar bloqueado nos portões
+        while (repo.portoesAbertos.length < 5) {
+          await Future<void>.delayed(const Duration(milliseconds: 1));
+        }
+        controller.solicitarCancelamento();
+        for (final portao in repo.portoesAbertos) {
+          portao.complete();
+        }
+        await futuro;
 
-      expect(delegado.cadastrarCallCount, 5);
-      expect(container.read(patrimonioImportControllerProvider).cancelamentoSolicitado, isTrue);
-      final linhas = container.read(patrimonioImportControllerProvider).linhas;
-      expect(linhas.where((l) => l.resultado != null), hasLength(5));
-      expect(linhas.where((l) => l.resultado == null), hasLength(2));
-    });
+        expect(delegado.cadastrarCallCount, 5);
+        expect(
+          container
+              .read(patrimonioImportControllerProvider)
+              .cancelamentoSolicitado,
+          isTrue,
+        );
+        final linhas = container
+            .read(patrimonioImportControllerProvider)
+            .linhas;
+        expect(linhas.where((l) => l.resultado != null), hasLength(5));
+        expect(linhas.where((l) => l.resultado == null), hasLength(2));
+      },
+    );
   });
 
   group('PatrimonioImportController — perfil GETEC', () {
-    const cabecalhoGetec = 'tombamento;tomb_anterior;descricao;localizacao;marca;n. serie';
+    const cabecalhoGetec =
+        'tombamento;tomb_anterior;descricao;localizacao;marca;n. serie';
     const csvGetec =
         '$cabecalhoGetec\n'
         '00012345;10;NOTEBOOK LENOVO E14;GETEC - UNIV ABREVIADO;LENOVO;10\n'
@@ -652,8 +837,13 @@ void main() {
       ProviderContainer container, {
       String csv = csvGetec,
     }) async {
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
-      await controller.carregarArquivo(nomeArquivo: 'getec.csv', bytes: _csv(csv));
+      final controller = container.read(
+        patrimonioImportControllerProvider.notifier,
+      );
+      await controller.carregarArquivo(
+        nomeArquivo: 'getec.csv',
+        bytes: _csv(csv),
+      );
       controller.confirmarCabecalho();
       return controller;
     }
@@ -663,7 +853,10 @@ void main() {
       String csv = csvGetec,
       Map<String, String> mapeamentoLocalizacoes = const {},
     }) async {
-      await controller.carregarArquivo(nomeArquivo: 'getec.csv', bytes: _csv(csv));
+      await controller.carregarArquivo(
+        nomeArquivo: 'getec.csv',
+        bytes: _csv(csv),
+      );
       controller.confirmarCabecalho();
       controller.ativarPerfilGetec();
       for (final entry in mapeamentoLocalizacoes.entries) {
@@ -673,140 +866,183 @@ void main() {
       await controller.analisar();
     }
 
-    test('detecta o perfil GETEC pelos cabeçalhos, sem aplicar mapeamento sozinho', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
+    test(
+      'detecta o perfil GETEC pelos cabeçalhos, sem aplicar mapeamento sozinho',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
 
-      await carregarAteMapeamentoGetec(container);
+        await carregarAteMapeamentoGetec(container);
 
-      final state = container.read(patrimonioImportControllerProvider);
-      expect(state.perfilDetectado, ImportProfileId.getecLegado);
-      expect(state.perfilAtivo, ImportProfileId.generico);
-      expect(state.mapeamento.colunaPorCampo, isEmpty);
-    });
+        final state = container.read(patrimonioImportControllerProvider);
+        expect(state.perfilDetectado, ImportProfileId.getecLegado);
+        expect(state.perfilAtivo, ImportProfileId.generico);
+        expect(state.mapeamento.colunaPorCampo, isEmpty);
+      },
+    );
 
-    test('ativarPerfilGetec aplica o mapeamento sugerido e o motivo padrão da GETEC', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
+    test(
+      'ativarPerfilGetec aplica o mapeamento sugerido e o motivo padrão da GETEC',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
 
-      final controller = await carregarAteMapeamentoGetec(container);
-      controller.ativarPerfilGetec();
+        final controller = await carregarAteMapeamentoGetec(container);
+        controller.ativarPerfilGetec();
 
-      final state = container.read(patrimonioImportControllerProvider);
-      expect(state.perfilAtivo, ImportProfileId.getecLegado);
-      expect(state.mapeamento.colunaDe(ImportColumnField.numeroPatrimonio), 0);
-      expect(state.mapeamento.colunaDe(ImportColumnField.tombamentoAnterior), 1);
-      expect(state.mapeamento.colunaDe(ImportColumnField.descricao), 2);
-      expect(state.mapeamento.colunaDe(ImportColumnField.localizacao), 3);
-      expect(state.mapeamento.colunaDe(ImportColumnField.marca), 4);
-      expect(state.mapeamento.colunaDe(ImportColumnField.numeroSerie), 5);
-      expect(state.padroes.motivoPadrao, GetecImportProfile.motivoPadraoSugerido);
-    });
+        final state = container.read(patrimonioImportControllerProvider);
+        expect(state.perfilAtivo, ImportProfileId.getecLegado);
+        expect(
+          state.mapeamento.colunaDe(ImportColumnField.numeroPatrimonio),
+          0,
+        );
+        expect(
+          state.mapeamento.colunaDe(ImportColumnField.tombamentoAnterior),
+          1,
+        );
+        expect(state.mapeamento.colunaDe(ImportColumnField.descricao), 2);
+        expect(state.mapeamento.colunaDe(ImportColumnField.localizacao), 3);
+        expect(state.mapeamento.colunaDe(ImportColumnField.marca), 4);
+        expect(state.mapeamento.colunaDe(ImportColumnField.numeroSerie), 5);
+        expect(
+          state.padroes.motivoPadrao,
+          GetecImportProfile.motivoPadraoSugerido,
+        );
+      },
+    );
 
-    test('ignorarPerfilSugerido mantém o comportamento genérico mesmo com cabeçalhos reconhecidos', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
+    test(
+      'ignorarPerfilSugerido mantém o comportamento genérico mesmo com cabeçalhos reconhecidos',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
 
-      final controller = await carregarAteMapeamentoGetec(container);
-      controller.ignorarPerfilSugerido();
+        final controller = await carregarAteMapeamentoGetec(container);
+        controller.ignorarPerfilSugerido();
 
-      final state = container.read(patrimonioImportControllerProvider);
-      expect(state.perfilAtivo, ImportProfileId.generico);
-      // sem alias genérico para "tombamento anterior"/"n. serie" com pontuação:
-      // o mapeamento automático genérico não preenche essas duas colunas.
-      expect(state.mapeamento.colunaDe(ImportColumnField.descricao), 2);
-    });
+        final state = container.read(patrimonioImportControllerProvider);
+        expect(state.perfilAtivo, ImportProfileId.generico);
+        // sem alias genérico para "tombamento anterior"/"n. serie" com pontuação:
+        // o mapeamento automático genérico não preenche essas duas colunas.
+        expect(state.mapeamento.colunaDe(ImportColumnField.descricao), 2);
+      },
+    );
 
-    test('avancarAposPadroes vai para resolverLocalizacoes só quando o perfil GETEC está ativo', () async {
-      final repoGenerico = FakePatrimonioRepository();
-      final containerGenerico = _criarContainer(repoGenerico);
-      addTearDown(containerGenerico.dispose);
-      final controllerGenerico = containerGenerico.read(patrimonioImportControllerProvider.notifier);
-      await _avancarAteRevisao(
-        controllerGenerico,
-        bytes: _csv('Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebook;Dell;AAA1;GETEC\n'),
-      );
-      expect(containerGenerico.read(patrimonioImportControllerProvider).step, ImportStep.revisar);
+    test(
+      'avancarAposPadroes vai para resolverLocalizacoes só quando o perfil GETEC está ativo',
+      () async {
+        final repoGenerico = FakePatrimonioRepository();
+        final containerGenerico = _criarContainer(repoGenerico);
+        addTearDown(containerGenerico.dispose);
+        final controllerGenerico = containerGenerico.read(
+          patrimonioImportControllerProvider.notifier,
+        );
+        await _avancarAteRevisao(
+          controllerGenerico,
+          bytes: _csv(
+            'Patrimônio;Tipo;Marca;Serial;Setor\n00045872;Notebook;Dell;AAA1;GETEC\n',
+          ),
+        );
+        expect(
+          containerGenerico.read(patrimonioImportControllerProvider).step,
+          ImportStep.revisar,
+        );
 
-      final repoGetec = FakePatrimonioRepository();
-      final containerGetec = _criarContainer(repoGetec);
-      addTearDown(containerGetec.dispose);
-      final controllerGetec = await carregarAteMapeamentoGetec(containerGetec);
-      controllerGetec.ativarPerfilGetec();
-      controllerGetec.avancarParaPadroes();
-      controllerGetec.definirPadroes(padroesGetec);
-      await controllerGetec.avancarAposPadroes();
+        final repoGetec = FakePatrimonioRepository();
+        final containerGetec = _criarContainer(repoGetec);
+        addTearDown(containerGetec.dispose);
+        final controllerGetec = await carregarAteMapeamentoGetec(
+          containerGetec,
+        );
+        controllerGetec.ativarPerfilGetec();
+        controllerGetec.avancarParaPadroes();
+        controllerGetec.definirPadroes(padroesGetec);
+        await controllerGetec.avancarAposPadroes();
 
-      expect(
-        containerGetec.read(patrimonioImportControllerProvider).step,
-        ImportStep.resolverLocalizacoes,
-      );
-    });
+        expect(
+          containerGetec.read(patrimonioImportControllerProvider).step,
+          ImportStep.resolverLocalizacoes,
+        );
+      },
+    );
 
-    test('regra do "10": serial e tombamento anterior iguais a "10" viram não informado', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'regra do "10": serial e tombamento anterior iguais a "10" viram não informado',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      await avancarAteRevisaoGetec(controller);
+        await avancarAteRevisaoGetec(controller);
 
-      final linha = container
-          .read(patrimonioImportControllerProvider)
-          .linhas
-          .firstWhere((l) => l.numeroPatrimonio == '00012345');
-      expect(linha.numeroSerie, isNull);
-      expect(linha.celulas[ImportColumnField.tombamentoAnterior], isNull);
-    });
+        final linha = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .firstWhere((l) => l.numeroPatrimonio == '00012345');
+        expect(linha.numeroSerie, isNull);
+        expect(linha.celulas[ImportColumnField.tombamentoAnterior], isNull);
+      },
+    );
 
-    test('tombamento anterior real é preservado em observação, sem duplicar ao atualizar', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'tombamento anterior real é preservado em observação, sem duplicar ao atualizar',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      await avancarAteRevisaoGetec(controller);
+        await avancarAteRevisaoGetec(controller);
 
-      final novo = container
-          .read(patrimonioImportControllerProvider)
-          .linhas
-          .firstWhere((l) => l.numeroPatrimonio == '00012346');
-      expect(novo.observacao, contains('Tombamento anterior: 0008593'));
+        final novo = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .firstWhere((l) => l.numeroPatrimonio == '00012346');
+        expect(novo.observacao, contains('Tombamento anterior: 0008593'));
 
-      // Mesmo tombamento anterior, mas o patrimônio já existe e a observação
-      // já tem a anotação — não deve duplicar (seção 5).
-      final existente = PatrimonioDetalhe(
-        patrimonio: Patrimonio(
-          id: 'existing-2',
-          numeroPatrimonio: '00012346',
-          tipoId: 'tipo-notebook',
-          status: PatrimonioStatus.disponivel,
-          setorAtualId: 'setor-getec',
-          observacao: 'Importado da base patrimonial GETEC.\nTombamento anterior: 0008593',
-          dataCadastro: DateTime(2025, 1, 1),
-          atualizadoEm: DateTime(2025, 1, 1),
-        ),
-        tipoNome: 'Notebook',
-        setorNome: 'GETEC',
-      );
-      final repo2 = FakePatrimonioRepository(itens: [existente]);
-      final container2 = _criarContainer(repo2);
-      addTearDown(container2.dispose);
-      final controller2 = container2.read(patrimonioImportControllerProvider.notifier);
-      await avancarAteRevisaoGetec(controller2);
+        // Mesmo tombamento anterior, mas o patrimônio já existe e a observação
+        // já tem a anotação — não deve duplicar (seção 5).
+        final existente = PatrimonioDetalhe(
+          patrimonio: Patrimonio(
+            id: 'existing-2',
+            numeroPatrimonio: '00012346',
+            tipoId: 'tipo-notebook',
+            status: PatrimonioStatus.disponivel,
+            setorAtualId: 'setor-getec',
+            observacao:
+                'Importado da base patrimonial GETEC.\nTombamento anterior: 0008593',
+            dataCadastro: DateTime(2025, 1, 1),
+            atualizadoEm: DateTime(2025, 1, 1),
+          ),
+          tipoNome: 'Notebook',
+          setorNome: 'GETEC',
+        );
+        final repo2 = FakePatrimonioRepository(itens: [existente]);
+        final container2 = _criarContainer(repo2);
+        addTearDown(container2.dispose);
+        final controller2 = container2.read(
+          patrimonioImportControllerProvider.notifier,
+        );
+        await avancarAteRevisaoGetec(controller2);
 
-      final atualizando = container2
-          .read(patrimonioImportControllerProvider)
-          .linhas
-          .firstWhere((l) => l.numeroPatrimonio == '00012346');
-      final ocorrencias = 'Tombamento anterior: 0008593'
-          .allMatches(atualizando.observacao ?? '')
-          .length;
-      expect(ocorrencias, 1);
-    });
+        final atualizando = container2
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .firstWhere((l) => l.numeroPatrimonio == '00012346');
+        final ocorrencias = 'Tombamento anterior: 0008593'
+            .allMatches(atualizando.observacao ?? '')
+            .length;
+        expect(ocorrencias, 1);
+      },
+    );
 
     test(
       'localização "BAIXAS LOCALIZADAS": não gera aviso de possível baixa, fica sem '
@@ -815,7 +1051,9 @@ void main() {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);
         addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
         await avancarAteRevisaoGetec(controller);
 
@@ -870,20 +1108,25 @@ void main() {
         ),
       ];
 
-      test('sem mapeamento manual: nota presente (comportamento já existente, preservado)', () async {
-        final repo = FakePatrimonioRepository();
-        final container = _criarContainer(repo);
-        addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
+      test(
+        'sem mapeamento manual: nota presente (comportamento já existente, preservado)',
+        () async {
+          final repo = FakePatrimonioRepository();
+          final container = _criarContainer(repo);
+          addTearDown(container.dispose);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
-        await avancarAteRevisaoGetec(controller);
+          await avancarAteRevisaoGetec(controller);
 
-        final linha = container
-            .read(patrimonioImportControllerProvider)
-            .linhas
-            .firstWhere((l) => l.numeroPatrimonio == '00012347');
-        expect(linha.observacao, contains(notaRecuperacao));
-      });
+          final linha = container
+              .read(patrimonioImportControllerProvider)
+              .linhas
+              .firstWhere((l) => l.numeroPatrimonio == '00012347');
+          expect(linha.observacao, contains(notaRecuperacao));
+        },
+      );
 
       test(
         'BUG CONFIRMADO (piloto real): mapeada manualmente para SITUAÇÃO/SITUADA - PA continua com a nota',
@@ -891,10 +1134,14 @@ void main() {
           final repo = FakePatrimonioRepository();
           final container = _criarContainer(
             repo,
-            repositorioLocalizacoes: FakeLocalizacaoRepository(localizacoes: localizacoesComSituacaoPa),
+            repositorioLocalizacoes: FakeLocalizacaoRepository(
+              localizacoes: localizacoesComSituacaoPa,
+            ),
           );
           addTearDown(container.dispose);
-          final controller = container.read(patrimonioImportControllerProvider.notifier);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
           await avancarAteRevisaoGetec(
             controller,
@@ -921,7 +1168,9 @@ void main() {
           final repo = FakePatrimonioRepository();
           final container = _criarContainer(repo);
           addTearDown(container.dispose);
-          final controller = container.read(patrimonioImportControllerProvider.notifier);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
           const csvComTombamento =
               '$cabecalhoGetec\n'
@@ -941,7 +1190,9 @@ void main() {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);
         addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
         const csvComTombamento =
             '$cabecalhoGetec\n'
@@ -953,15 +1204,100 @@ void main() {
             .read(patrimonioImportControllerProvider)
             .linhas
             .firstWhere((l) => l.numeroPatrimonio == '00099999');
-        expect('Tombamento anterior: 0859312'.allMatches(linha.observacao ?? '').length, 1);
+        expect(
+          'Tombamento anterior: 0859312'
+              .allMatches(linha.observacao ?? '')
+              .length,
+          1,
+        );
         expect(notaRecuperacao.allMatches(linha.observacao ?? '').length, 1);
       });
 
-      test('linha normal (não veio de BAIXAS LOCALIZADAS) nunca recebe a nota', () async {
+      test(
+        'linha normal (não veio de BAIXAS LOCALIZADAS) nunca recebe a nota',
+        () async {
+          final repo = FakePatrimonioRepository();
+          final container = _criarContainer(repo);
+          addTearDown(container.dispose);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
+
+          await avancarAteRevisaoGetec(controller);
+
+          final linha = container
+              .read(patrimonioImportControllerProvider)
+              .linhas
+              .firstWhere((l) => l.numeroPatrimonio == '00012348');
+          expect(linha.observacao ?? '', isNot(contains(notaRecuperacao)));
+        },
+      );
+    });
+
+    test(
+      'tipo é inferido pela descrição quando não há coluna de tipo mapeada',
+      () async {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);
         addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
+
+        await avancarAteRevisaoGetec(controller);
+
+        final notebook = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .firstWhere((l) => l.numeroPatrimonio == '00012345');
+        expect(notebook.tipoIdResolvido, 'tipo-notebook');
+        expect(notebook.tipoInferidoAutomaticamente, isTrue);
+
+        final licenca = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .firstWhere((l) => l.numeroPatrimonio == '00012346');
+        expect(licenca.tipoIdResolvido, 'tipo-software');
+      },
+    );
+
+    test(
+      'mapeamento manual de localização é aplicado à linha correspondente',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
+
+        await avancarAteRevisaoGetec(
+          controller,
+          mapeamentoLocalizacoes: {
+            'GETEC - UNIV ABREVIADO': 'loc-universitario',
+          },
+        );
+
+        final linha = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .firstWhere((l) => l.numeroPatrimonio == '00012345');
+        expect(linha.localizacaoIdResolvida, 'loc-universitario');
+        // gerência continua vindo do destino padrão fixo, nunca da coluna de
+        // localização (seção 30/31) — localização não é setor.
+        expect(linha.destinoIdResolvido, 'setor-getec');
+      },
+    );
+
+    test(
+      'localização que já bate com o nome cadastrado resolve sozinha, sem mapeamento manual',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
         await avancarAteRevisaoGetec(controller);
 
@@ -969,96 +1305,39 @@ void main() {
             .read(patrimonioImportControllerProvider)
             .linhas
             .firstWhere((l) => l.numeroPatrimonio == '00012348');
-        expect(linha.observacao ?? '', isNot(contains(notaRecuperacao)));
-      });
-    });
-
-    test('tipo é inferido pela descrição quando não há coluna de tipo mapeada', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
-
-      await avancarAteRevisaoGetec(controller);
-
-      final notebook = container
-          .read(patrimonioImportControllerProvider)
-          .linhas
-          .firstWhere((l) => l.numeroPatrimonio == '00012345');
-      expect(notebook.tipoIdResolvido, 'tipo-notebook');
-      expect(notebook.tipoInferidoAutomaticamente, isTrue);
-
-      final licenca = container
-          .read(patrimonioImportControllerProvider)
-          .linhas
-          .firstWhere((l) => l.numeroPatrimonio == '00012346');
-      expect(licenca.tipoIdResolvido, 'tipo-software');
-    });
-
-    test('mapeamento manual de localização é aplicado à linha correspondente', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
-
-      await avancarAteRevisaoGetec(
-        controller,
-        mapeamentoLocalizacoes: {'GETEC - UNIV ABREVIADO': 'loc-universitario'},
-      );
-
-      final linha = container
-          .read(patrimonioImportControllerProvider)
-          .linhas
-          .firstWhere((l) => l.numeroPatrimonio == '00012345');
-      expect(linha.localizacaoIdResolvida, 'loc-universitario');
-      // gerência continua vindo do destino padrão fixo, nunca da coluna de
-      // localização (seção 30/31) — localização não é setor.
-      expect(linha.destinoIdResolvido, 'setor-getec');
-    });
-
-    test('localização que já bate com o nome cadastrado resolve sozinha, sem mapeamento manual', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
-
-      await avancarAteRevisaoGetec(controller);
-
-      final linha = container
-          .read(patrimonioImportControllerProvider)
-          .linhas
-          .firstWhere((l) => l.numeroPatrimonio == '00012348');
-      expect(linha.localizacaoIdResolvida, 'loc-universitario');
-    });
-
-    test(
-      'localização sem decisão fica pendente e BLOQUEIA o envio '
-      '(nunca importa uma localização desconhecida sem decisão)',
-      () async {
-        final repo = FakePatrimonioRepository();
-        final container = _criarContainer(repo);
-        addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
-
-        await avancarAteRevisaoGetec(controller);
-
-        final linha = container
-            .read(patrimonioImportControllerProvider)
-            .linhas
-            .firstWhere((l) => l.numeroPatrimonio == '00012345');
-        expect(linha.localizacaoIdResolvida, isNull);
-        expect(linha.localizacaoPendente, isTrue);
-        expect(linha.localizacaoTexto, 'GETEC - UNIV ABREVIADO');
-        expect(linha.status, ImportRowStatus.erro);
-        expect(linha.seraEnviada, isFalse);
-        expect(
-          linha.issues.any(
-            (i) => i.severity == ImportIssueSeverity.erro && i.message.contains('ainda não foi resolvida'),
-          ),
-          isTrue,
-        );
+        expect(linha.localizacaoIdResolvida, 'loc-universitario');
       },
     );
+
+    test('localização sem decisão fica pendente e BLOQUEIA o envio '
+        '(nunca importa uma localização desconhecida sem decisão)', () async {
+      final repo = FakePatrimonioRepository();
+      final container = _criarContainer(repo);
+      addTearDown(container.dispose);
+      final controller = container.read(
+        patrimonioImportControllerProvider.notifier,
+      );
+
+      await avancarAteRevisaoGetec(controller);
+
+      final linha = container
+          .read(patrimonioImportControllerProvider)
+          .linhas
+          .firstWhere((l) => l.numeroPatrimonio == '00012345');
+      expect(linha.localizacaoIdResolvida, isNull);
+      expect(linha.localizacaoPendente, isTrue);
+      expect(linha.localizacaoTexto, 'GETEC - UNIV ABREVIADO');
+      expect(linha.status, ImportRowStatus.erro);
+      expect(linha.seraEnviada, isFalse);
+      expect(
+        linha.issues.any(
+          (i) =>
+              i.severity == ImportIssueSeverity.erro &&
+              i.message.contains('ainda não foi resolvida'),
+        ),
+        isTrue,
+      );
+    });
 
     test(
       'decisão explícita "importar sem localização" desbloqueia a linha e envia com localização null',
@@ -1066,12 +1345,20 @@ void main() {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);
         addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-        await controller.carregarArquivo(nomeArquivo: 'getec.csv', bytes: _csv(csvGetec));
+        await controller.carregarArquivo(
+          nomeArquivo: 'getec.csv',
+          bytes: _csv(csvGetec),
+        );
         controller.confirmarCabecalho();
         controller.ativarPerfilGetec();
-        controller.definirImportarSemLocalizacao('GETEC - UNIV ABREVIADO', true);
+        controller.definirImportarSemLocalizacao(
+          'GETEC - UNIV ABREVIADO',
+          true,
+        );
         controller.definirPadroes(padroesGetec);
         await controller.analisar();
 
@@ -1093,7 +1380,9 @@ void main() {
         final repo = FakePatrimonioRepository();
         final container = _criarContainer(repo);
         addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
         // Sem mapeamento: a linha fica bloqueada (mesma planilha do teste acima).
         await avancarAteRevisaoGetec(controller);
@@ -1106,7 +1395,10 @@ void main() {
 
         // Usuário mapeia manualmente o texto para uma localização existente
         // e reanalisa — mesmo fluxo real da tela de resolução de localizações.
-        controller.definirMapeamentoLocalizacao('GETEC - UNIV ABREVIADO', 'loc-universitario');
+        controller.definirMapeamentoLocalizacao(
+          'GETEC - UNIV ABREVIADO',
+          'loc-universitario',
+        );
         await controller.analisar();
 
         final resolvida = container
@@ -1120,30 +1412,41 @@ void main() {
       },
     );
 
-    test('origem histórica desconhecida não é erro na carga GETEC (sem setor fictício)', () async {
-      final repo = FakePatrimonioRepository();
-      final container = _criarContainer(repo);
-      addTearDown(container.dispose);
-      final controller = container.read(patrimonioImportControllerProvider.notifier);
+    test(
+      'origem histórica desconhecida não é erro na carga GETEC (sem setor fictício)',
+      () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
 
-      // Decide explicitamente "sem localização" para isolar este teste do
-      // bloqueio de localização pendente — o que se quer
-      // verificar aqui é exclusivamente o comportamento de origem.
-      await controller.carregarArquivo(nomeArquivo: 'getec.csv', bytes: _csv(csvGetec));
-      controller.confirmarCabecalho();
-      controller.ativarPerfilGetec();
-      controller.definirImportarSemLocalizacao('GETEC - UNIV ABREVIADO', true);
-      controller.definirPadroes(padroesGetec);
-      await controller.analisar();
+        // Decide explicitamente "sem localização" para isolar este teste do
+        // bloqueio de localização pendente — o que se quer
+        // verificar aqui é exclusivamente o comportamento de origem.
+        await controller.carregarArquivo(
+          nomeArquivo: 'getec.csv',
+          bytes: _csv(csvGetec),
+        );
+        controller.confirmarCabecalho();
+        controller.ativarPerfilGetec();
+        controller.definirImportarSemLocalizacao(
+          'GETEC - UNIV ABREVIADO',
+          true,
+        );
+        controller.definirPadroes(padroesGetec);
+        await controller.analisar();
 
-      final linha = container
-          .read(patrimonioImportControllerProvider)
-          .linhas
-          .firstWhere((l) => l.numeroPatrimonio == '00012345');
-      expect(linha.origemIdResolvido, isNull);
-      expect(linha.issues.any((i) => i.message.contains('origem')), isFalse);
-      expect(linha.status, isNot(ImportRowStatus.erro));
-    });
+        final linha = container
+            .read(patrimonioImportControllerProvider)
+            .linhas
+            .firstWhere((l) => l.numeroPatrimonio == '00012345');
+        expect(linha.origemIdResolvido, isNull);
+        expect(linha.issues.any((i) => i.message.contains('origem')), isFalse);
+        expect(linha.status, isNot(ImportRowStatus.erro));
+      },
+    );
 
     group('mapeamento oficial de localizações da GETEC', () {
       // Localizações ativas carregadas do Supabase para este grupo: cobre um
@@ -1178,83 +1481,114 @@ void main() {
           '90000006;;NOTEBOOK LENOVO E14;GETEC - CANIDÉ;;SN906\n'
           '90000007;;NOTEBOOK LENOVO E14;LOCAL COMPLETAMENTE DESCONHECIDO;;SN907\n';
 
-      test('"GETEC - UNIVERSITÁRIO" resolve normalmente contra a lista carregada', () async {
-        final repo = FakePatrimonioRepository();
-        final container = _criarContainer(
-          repo,
-          repositorioLocalizacoes: FakeLocalizacaoRepository(localizacoes: localizacoesPrompt89),
-        );
-        addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
-
-        await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
-
-        final linha = container
-            .read(patrimonioImportControllerProvider)
-            .linhas
-            .firstWhere((l) => l.numeroPatrimonio == '90000001');
-        expect(linha.localizacaoIdResolvida, 'loc-universitario');
-        expect(linha.localizacaoPendente, isFalse);
-        expect(linha.localizacaoOficialAusente, isFalse);
-        expect(linha.localizacaoSemLocalizacaoPorRegra, isFalse);
-        expect(linha.status, isNot(ImportRowStatus.erro));
-      });
-
-      test('"SITUAÇÃO - PA" (forma antiga da planilha) resolve para a localização "SITUAÇÃO/SITUADA - PA"', () async {
-        final repo = FakePatrimonioRepository();
-        final container = _criarContainer(
-          repo,
-          repositorioLocalizacoes: FakeLocalizacaoRepository(localizacoes: localizacoesPrompt89),
-        );
-        addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
-
-        await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
-
-        final linha = container
-            .read(patrimonioImportControllerProvider)
-            .linhas
-            .firstWhere((l) => l.numeroPatrimonio == '90000002');
-        expect(linha.localizacaoIdResolvida, 'loc-situacao-pa');
-        expect(linha.localizacaoTexto, 'SITUAÇÃO - PA');
-        expect(linha.localizacaoPendente, isFalse);
-        expect(linha.localizacaoOficialAusente, isFalse);
-      });
-
       test(
-        '"INTANGÍVEIS"/"TI - SOFTWARE"/"BAIXAS LOCALIZADAS" ficam sem localização por regra '
-        'conhecida — nunca pendência, nunca erro',
+        '"GETEC - UNIVERSITÁRIO" resolve normalmente contra a lista carregada',
         () async {
           final repo = FakePatrimonioRepository();
           final container = _criarContainer(
             repo,
-            repositorioLocalizacoes: FakeLocalizacaoRepository(localizacoes: localizacoesPrompt89),
+            repositorioLocalizacoes: FakeLocalizacaoRepository(
+              localizacoes: localizacoesPrompt89,
+            ),
           );
           addTearDown(container.dispose);
-          final controller = container.read(patrimonioImportControllerProvider.notifier);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
           await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
 
-          final linhas = container.read(patrimonioImportControllerProvider).linhas;
-          for (final numero in ['90000003', '90000004', '90000005']) {
-            final linha = linhas.firstWhere((l) => l.numeroPatrimonio == numero);
-            expect(linha.localizacaoIdResolvida, isNull, reason: 'linha $numero');
-            expect(linha.localizacaoSemLocalizacaoPorRegra, isTrue, reason: 'linha $numero');
-            expect(linha.localizacaoPendente, isFalse, reason: 'linha $numero');
-            expect(linha.localizacaoOficialAusente, isFalse, reason: 'linha $numero');
-            expect(
-              linha.issues.any((i) => i.message.contains('ainda não foi resolvida')),
-              isFalse,
-              reason: 'linha $numero não deve ter aviso de pendência de localização',
-            );
-            expect(
-              linha.issues.any((i) => i.message.contains('não está cadastrada/ativa')),
-              isFalse,
-              reason: 'linha $numero não deve ter erro de localização oficial ausente',
-            );
-          }
+          final linha = container
+              .read(patrimonioImportControllerProvider)
+              .linhas
+              .firstWhere((l) => l.numeroPatrimonio == '90000001');
+          expect(linha.localizacaoIdResolvida, 'loc-universitario');
+          expect(linha.localizacaoPendente, isFalse);
+          expect(linha.localizacaoOficialAusente, isFalse);
+          expect(linha.localizacaoSemLocalizacaoPorRegra, isFalse);
+          expect(linha.status, isNot(ImportRowStatus.erro));
         },
       );
+
+      test(
+        '"SITUAÇÃO - PA" (forma antiga da planilha) resolve para a localização "SITUAÇÃO/SITUADA - PA"',
+        () async {
+          final repo = FakePatrimonioRepository();
+          final container = _criarContainer(
+            repo,
+            repositorioLocalizacoes: FakeLocalizacaoRepository(
+              localizacoes: localizacoesPrompt89,
+            ),
+          );
+          addTearDown(container.dispose);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
+
+          await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
+
+          final linha = container
+              .read(patrimonioImportControllerProvider)
+              .linhas
+              .firstWhere((l) => l.numeroPatrimonio == '90000002');
+          expect(linha.localizacaoIdResolvida, 'loc-situacao-pa');
+          expect(linha.localizacaoTexto, 'SITUAÇÃO - PA');
+          expect(linha.localizacaoPendente, isFalse);
+          expect(linha.localizacaoOficialAusente, isFalse);
+        },
+      );
+
+      test('"INTANGÍVEIS"/"TI - SOFTWARE"/"BAIXAS LOCALIZADAS" ficam sem localização por regra '
+          'conhecida — nunca pendência, nunca erro', () async {
+        final repo = FakePatrimonioRepository();
+        final container = _criarContainer(
+          repo,
+          repositorioLocalizacoes: FakeLocalizacaoRepository(
+            localizacoes: localizacoesPrompt89,
+          ),
+        );
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
+
+        await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
+
+        final linhas = container
+            .read(patrimonioImportControllerProvider)
+            .linhas;
+        for (final numero in ['90000003', '90000004', '90000005']) {
+          final linha = linhas.firstWhere((l) => l.numeroPatrimonio == numero);
+          expect(linha.localizacaoIdResolvida, isNull, reason: 'linha $numero');
+          expect(
+            linha.localizacaoSemLocalizacaoPorRegra,
+            isTrue,
+            reason: 'linha $numero',
+          );
+          expect(linha.localizacaoPendente, isFalse, reason: 'linha $numero');
+          expect(
+            linha.localizacaoOficialAusente,
+            isFalse,
+            reason: 'linha $numero',
+          );
+          expect(
+            linha.issues.any(
+              (i) => i.message.contains('ainda não foi resolvida'),
+            ),
+            isFalse,
+            reason:
+                'linha $numero não deve ter aviso de pendência de localização',
+          );
+          expect(
+            linha.issues.any(
+              (i) => i.message.contains('não está cadastrada/ativa'),
+            ),
+            isFalse,
+            reason:
+                'linha $numero não deve ter erro de localização oficial ausente',
+          );
+        }
+      });
 
       test(
         'nome oficial conhecido mas ausente entre as localizações ativas carregadas gera '
@@ -1263,10 +1597,14 @@ void main() {
           final repo = FakePatrimonioRepository();
           final container = _criarContainer(
             repo,
-            repositorioLocalizacoes: FakeLocalizacaoRepository(localizacoes: localizacoesPrompt89),
+            repositorioLocalizacoes: FakeLocalizacaoRepository(
+              localizacoes: localizacoesPrompt89,
+            ),
           );
           addTearDown(container.dispose);
-          final controller = container.read(patrimonioImportControllerProvider.notifier);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
           await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
 
@@ -1281,7 +1619,9 @@ void main() {
           expect(linha.status, ImportRowStatus.erro);
           expect(
             linha.issues.any(
-              (i) => i.severity == ImportIssueSeverity.erro && i.message.contains('GETEC - CANIDÉ'),
+              (i) =>
+                  i.severity == ImportIssueSeverity.erro &&
+                  i.message.contains('GETEC - CANIDÉ'),
             ),
             isTrue,
           );
@@ -1298,10 +1638,14 @@ void main() {
           final repo = FakePatrimonioRepository();
           final container = _criarContainer(
             repo,
-            repositorioLocalizacoes: FakeLocalizacaoRepository(localizacoes: localizacoesPrompt89),
+            repositorioLocalizacoes: FakeLocalizacaoRepository(
+              localizacoes: localizacoesPrompt89,
+            ),
           );
           addTearDown(container.dispose);
-          final controller = container.read(patrimonioImportControllerProvider.notifier);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
           await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
 
@@ -1322,18 +1666,31 @@ void main() {
         },
       );
 
-      test('resolução de localizações carrega a lista do Supabase em lote UMA única vez (proibido N+1)', () async {
-        final repo = FakePatrimonioRepository();
-        final repoLocalizacoes = FakeLocalizacaoRepository(localizacoes: localizacoesPrompt89);
-        final container = _criarContainer(repo, repositorioLocalizacoes: repoLocalizacoes);
-        addTearDown(container.dispose);
-        final controller = container.read(patrimonioImportControllerProvider.notifier);
+      test(
+        'resolução de localizações carrega a lista do Supabase em lote UMA única vez (proibido N+1)',
+        () async {
+          final repo = FakePatrimonioRepository();
+          final repoLocalizacoes = FakeLocalizacaoRepository(
+            localizacoes: localizacoesPrompt89,
+          );
+          final container = _criarContainer(
+            repo,
+            repositorioLocalizacoes: repoLocalizacoes,
+          );
+          addTearDown(container.dispose);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
-        await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
+          await avancarAteRevisaoGetec(controller, csv: csvPrompt89);
 
-        expect(container.read(patrimonioImportControllerProvider).linhas, hasLength(7));
-        expect(repoLocalizacoes.listarPorSetorCallCount, 1);
-      });
+          expect(
+            container.read(patrimonioImportControllerProvider).linhas,
+            hasLength(7),
+          );
+          expect(repoLocalizacoes.listarPorSetorCallCount, 1);
+        },
+      );
     });
 
     group('preflight real (detecção em lote / zero escrita)', () {
@@ -1348,7 +1705,8 @@ void main() {
               status: PatrimonioStatus.disponivel,
               setorAtualId: 'setor-getec',
               localizacaoAtualId: 'loc-universitario',
-              descricao: 'NOTEBOOK LENOVO E14 (já cadastrado antes desta carga)',
+              descricao:
+                  'NOTEBOOK LENOVO E14 (já cadastrado antes desta carga)',
               dataCadastro: DateTime(2025, 1, 1),
               atualizadoEm: DateTime(2025, 1, 1),
             ),
@@ -1359,7 +1717,9 @@ void main() {
           final repo = FakePatrimonioRepository(itens: [existente]);
           final container = _criarContainer(repo);
           addTearDown(container.dispose);
-          final controller = container.read(patrimonioImportControllerProvider.notifier);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
           await avancarAteRevisaoGetec(controller);
 
@@ -1383,11 +1743,16 @@ void main() {
           final repo = FakePatrimonioRepository();
           final container = _criarContainer(repo);
           addTearDown(container.dispose);
-          final controller = container.read(patrimonioImportControllerProvider.notifier);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
           await avancarAteRevisaoGetec(controller);
 
-          expect(container.read(patrimonioImportControllerProvider).linhas, hasLength(4));
+          expect(
+            container.read(patrimonioImportControllerProvider).linhas,
+            hasLength(4),
+          );
           expect(repo.buscarPorNumerosPatrimonioCallCount, 1);
           expect(repo.buscarNumerosSerieExistentesCallCount, 1);
         },
@@ -1398,15 +1763,25 @@ void main() {
         'em nenhum repositório',
         () async {
           final repo = FakePatrimonioRepository();
-          final repoLocalizacoes = FakeLocalizacaoRepository(localizacoes: _localizacoes);
-          final container = _criarContainer(repo, repositorioLocalizacoes: repoLocalizacoes);
+          final repoLocalizacoes = FakeLocalizacaoRepository(
+            localizacoes: _localizacoes,
+          );
+          final container = _criarContainer(
+            repo,
+            repositorioLocalizacoes: repoLocalizacoes,
+          );
           addTearDown(container.dispose);
-          final controller = container.read(patrimonioImportControllerProvider.notifier);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
 
           await avancarAteRevisaoGetec(controller);
           // reclassificações adicionais (mapear localização manualmente,
           // decidir "sem localização") continuam sem escrever nada:
-          controller.definirMapeamentoLocalizacao('GETEC - UNIV ABREVIADO', 'loc-universitario');
+          controller.definirMapeamentoLocalizacao(
+            'GETEC - UNIV ABREVIADO',
+            'loc-universitario',
+          );
           await controller.analisar();
 
           expect(repo.cadastrarCallCount, 0);
@@ -1430,7 +1805,9 @@ void main() {
           controller.ativarPerfilGetec();
           controller.avancarParaPadroes();
           // define só a data padrão — nenhum destinoPadraoId manual.
-          controller.definirPadroes(ImportDefaults(dataPadrao: DateTime(2026, 1, 1)));
+          controller.definirPadroes(
+            ImportDefaults(dataPadrao: DateTime(2026, 1, 1)),
+          );
 
           await controller.avancarAposPadroes();
 
@@ -1451,13 +1828,20 @@ void main() {
           final controller = await carregarAteMapeamentoGetec(container);
           controller.ativarPerfilGetec();
           controller.avancarParaPadroes();
-          controller.definirPadroes(ImportDefaults(dataPadrao: DateTime(2026, 1, 1)));
+          controller.definirPadroes(
+            ImportDefaults(dataPadrao: DateTime(2026, 1, 1)),
+          );
           await controller.avancarAposPadroes();
           await controller.analisar();
 
-          final linhas = container.read(patrimonioImportControllerProvider).linhas;
+          final linhas = container
+              .read(patrimonioImportControllerProvider)
+              .linhas;
           expect(linhas, isNotEmpty);
-          expect(linhas.every((l) => l.destinoIdResolvido == 'setor-getec'), isTrue);
+          expect(
+            linhas.every((l) => l.destinoIdResolvido == 'setor-getec'),
+            isTrue,
+          );
 
           await controller.confirmarImportacao();
           expect(repo.ultimoCadastro!['destinoId'], 'setor-getec');
@@ -1472,16 +1856,28 @@ void main() {
           final container = ProviderContainer(
             overrides: [
               patrimonioRepositoryProvider.overrideWithValue(repo),
-              tipoPatrimonioRepositoryProvider.overrideWithValue(FakeTipoPatrimonioRepository(tipos: _tipos)),
+              tipoPatrimonioRepositoryProvider.overrideWithValue(
+                FakeTipoPatrimonioRepository(tipos: _tipos),
+              ),
               setorRepositoryProvider.overrideWithValue(
                 FakeSetorRepository(
                   setores: [
-                    Setor(id: 'outro', nome: 'Outro Setor', sigla: 'OUTRO', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+                    Setor(
+                      id: 'outro',
+                      nome: 'Outro Setor',
+                      sigla: 'OUTRO',
+                      ativo: true,
+                      criadoEm: DateTime(2026, 1, 1),
+                    ),
                   ],
                 ),
               ),
-              localizacaoRepositoryProvider.overrideWithValue(FakeLocalizacaoRepository(localizacoes: _localizacoes)),
-              dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+              localizacaoRepositoryProvider.overrideWithValue(
+                FakeLocalizacaoRepository(localizacoes: _localizacoes),
+              ),
+              dashboardRepositoryProvider.overrideWithValue(
+                FakeDashboardRepository(),
+              ),
             ],
           );
           container.listen(patrimonioImportControllerProvider, (_, _) {});
@@ -1489,7 +1885,9 @@ void main() {
           final controller = await carregarAteMapeamentoGetec(container);
           controller.ativarPerfilGetec();
           controller.avancarParaPadroes();
-          controller.definirPadroes(ImportDefaults(dataPadrao: DateTime(2026, 1, 1)));
+          controller.definirPadroes(
+            ImportDefaults(dataPadrao: DateTime(2026, 1, 1)),
+          );
 
           await controller.avancarAposPadroes();
 
@@ -1509,19 +1907,31 @@ void main() {
           final container = ProviderContainer(
             overrides: [
               patrimonioRepositoryProvider.overrideWithValue(repo),
-              tipoPatrimonioRepositoryProvider.overrideWithValue(FakeTipoPatrimonioRepository(tipos: _tipos)),
+              tipoPatrimonioRepositoryProvider.overrideWithValue(
+                FakeTipoPatrimonioRepository(tipos: _tipos),
+              ),
               // setoresAtivosParaPatrimonioProvider já filtra por ativo, então
               // uma GETEC inativa nunca chega até a lista de "ativos" — o
               // resultado observável é o mesmo de "ausente".
               setorRepositoryProvider.overrideWithValue(
                 FakeSetorRepository(
                   setores: [
-                    Setor(id: 'setor-getec', nome: 'GETEC', sigla: 'GETEC', ativo: false, criadoEm: DateTime(2026, 1, 1)),
+                    Setor(
+                      id: 'setor-getec',
+                      nome: 'GETEC',
+                      sigla: 'GETEC',
+                      ativo: false,
+                      criadoEm: DateTime(2026, 1, 1),
+                    ),
                   ],
                 ),
               ),
-              localizacaoRepositoryProvider.overrideWithValue(FakeLocalizacaoRepository(localizacoes: _localizacoes)),
-              dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+              localizacaoRepositoryProvider.overrideWithValue(
+                FakeLocalizacaoRepository(localizacoes: _localizacoes),
+              ),
+              dashboardRepositoryProvider.overrideWithValue(
+                FakeDashboardRepository(),
+              ),
             ],
           );
           container.listen(patrimonioImportControllerProvider, (_, _) {});
@@ -1529,7 +1939,9 @@ void main() {
           final controller = await carregarAteMapeamentoGetec(container);
           controller.ativarPerfilGetec();
           controller.avancarParaPadroes();
-          controller.definirPadroes(ImportDefaults(dataPadrao: DateTime(2026, 1, 1)));
+          controller.definirPadroes(
+            ImportDefaults(dataPadrao: DateTime(2026, 1, 1)),
+          );
 
           await controller.avancarAposPadroes();
 
@@ -1600,28 +2012,34 @@ class _RepositorioContadorConcorrencia implements PatrimonioRepository {
     String? descricao,
     String? observacao,
     DateTime? dataAquisicao,
-  }) =>
-      _delegado.atualizar(
-        id: id,
-        numeroPatrimonio: numeroPatrimonio,
-        numeroSerie: numeroSerie,
-        tipoId: tipoId,
-        marca: marca,
-        modelo: modelo,
-        descricao: descricao,
-        observacao: observacao,
-        dataAquisicao: dataAquisicao,
-      );
+  }) => _delegado.atualizar(
+    id: id,
+    numeroPatrimonio: numeroPatrimonio,
+    numeroSerie: numeroSerie,
+    tipoId: tipoId,
+    marca: marca,
+    modelo: modelo,
+    descricao: descricao,
+    observacao: observacao,
+    dataAquisicao: dataAquisicao,
+  );
 
   @override
   Future<Patrimonio?> buscarPorId(String id) => _delegado.buscarPorId(id);
 
   @override
-  Future<PatrimonioDetalhe?> buscarDetalhePorId(String id) => _delegado.buscarDetalhePorId(id);
+  Future<PatrimonioDetalhe?> buscarDetalhePorId(String id) =>
+      _delegado.buscarDetalhePorId(id);
 
   @override
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       _delegado.buscarPorNumeroPatrimonio(numeroPatrimonio);
+
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
+    String prefixo, {
+    int limit = 6,
+  }) => _delegado.buscarPorPrefixoNumeroPatrimonio(prefixo, limit: limit);
 
   @override
   Future<PatrimoniosResultado> listar({
@@ -1643,22 +2061,24 @@ class _RepositorioContadorConcorrencia implements PatrimonioRepository {
     DateTime? dataAquisicaoAte,
     PatrimonioOrdenacaoCampo? ordenarPor,
     OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
-  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(List<String> numeros) =>
-      _delegado.buscarPorNumerosPatrimonio(numeros);
+  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(
+    List<String> numeros,
+  ) => _delegado.buscarPorNumerosPatrimonio(numeros);
 
   @override
   Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) =>
       _delegado.buscarNumerosSerieExistentes(numerosSerie);
 
   @override
-  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) =>
-      _delegado.aplicarDecisaoComparacao(decisao);
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(
+    DecisaoItemParaExecutar decisao,
+  ) => _delegado.aplicarDecisaoComparacao(decisao);
 
   @override
-  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) =>
-      _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
+    String operacaoId,
+  ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
 }

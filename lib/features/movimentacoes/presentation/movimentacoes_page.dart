@@ -17,6 +17,7 @@ import '../../setores/domain/setor.dart';
 import '../domain/movimentacao.dart';
 import '../domain/movimentacao_listagem_item.dart';
 import '../domain/movimentacao_ordenacao.dart';
+import 'movimentacao_detalhe_provider.dart';
 import 'movimentacoes_controller.dart';
 import 'movimentacoes_filtro.dart';
 import 'movimentacoes_reference_data.dart';
@@ -34,7 +35,23 @@ import '../sei/presentation/widgets/sei_pendencias_section.dart';
 /// excluir aqui, só consultar o histórico já registrado pelas telas de
 /// patrimônio.
 class MovimentacoesPage extends ConsumerStatefulWidget {
-  const MovimentacoesPage({super.key});
+  const MovimentacoesPage({super.key, this.movimentacaoId, this.acao});
+
+  /// Presente só quando a rota é `/movimentacoes/:id` (deep-link vindo de
+  /// "Ver movimentação completa" no Dashboard, ou reabertura direta por
+  /// URL) — dispara UMA busca por id (nunca no carregamento normal da
+  /// listagem) e abre [showMovimentacaoDetailDialog] automaticamente
+  /// quando resolve.
+  final String? movimentacaoId;
+
+  /// Presente só quando a rota é `/movimentacoes?acao=...` (ações rápidas
+  /// do Dashboard): `'nova'` abre [showNovaMovimentacaoDialog] (exige
+  /// `movimentacao.create`); `'importar-sei'` troca para a aba Pendências
+  /// e abre [showImportarSeiDialog] (exige `sei.manage`). Qualquer outro
+  /// valor é ignorado — nunca quebra a tela por uma URL inesperada. Cada
+  /// ação dispara UMA única vez por instância da página (ver
+  /// [_acaoTratada]), nunca de novo em resize/tema/rebuild.
+  final String? acao;
 
   @override
   ConsumerState<MovimentacoesPage> createState() => _MovimentacoesPageState();
@@ -61,6 +78,17 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
   // nunca no primeiro build da tela.
   bool _pendenciasVisitada = false;
 
+  /// Id já tratado (diálogo aberto OU aviso de erro mostrado) nesta
+  /// instância da página — evita reabrir o diálogo a cada rebuild
+  /// enquanto o usuário navega a listagem normalmente.
+  String? _idTratado;
+
+  /// `true` depois que [MovimentacoesPage.acao] já foi processada (ou
+  /// recusada por falta de permissão) uma vez nesta instância da página —
+  /// nunca reabre o diálogo correspondente em resize, troca de tema,
+  /// rebuild, ou ao fechar outro diálogo.
+  bool _acaoTratada = false;
+
   @override
   void initState() {
     super.initState();
@@ -81,14 +109,64 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
     ref.read(movimentacoesControllerProvider.notifier).limparFiltros();
   }
 
-  void _visualizar(MovimentacaoListagemItem item) => showMovimentacaoDetailDialog(context, item);
+  void _visualizar(MovimentacaoListagemItem item) =>
+      showMovimentacaoDetailDialog(context, item);
+
+  /// Reage ao resultado de [movimentacaoPorIdProvider] para
+  /// [MovimentacoesPage.movimentacaoId]: abre o mesmo
+  /// [showMovimentacaoDetailDialog] usado pela listagem quando a
+  /// movimentação é encontrada, ou mostra um aviso local quando não
+  /// (id inválido, removido, ou a RLS nega) — nunca quebra o resto da
+  /// tela. Agendado via `addPostFrameCallback` porque é disparado durante
+  /// `build` (um `showDialog` ali causaria "setState during build").
+  void _tratarMovimentacaoPorId(MovimentacaoListagemItem? item) {
+    final id = widget.movimentacaoId;
+    if (id == null || _idTratado == id) return;
+    _idTratado = id;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (item == null) {
+        _mostrarErroMovimentacaoNaoEncontrada(id);
+        return;
+      }
+      showMovimentacaoDetailDialog(context, item);
+    });
+  }
+
+  void _mostrarErroMovimentacaoNaoEncontrada(String id) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..clearMaterialBanners()
+      ..showMaterialBanner(
+        MaterialBanner(
+          content: const Text('Não foi possível carregar esta movimentação.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                messenger.clearMaterialBanners();
+                setState(() => _idTratado = null);
+                ref.invalidate(movimentacaoPorIdProvider(id));
+              },
+              child: const Text('Tentar novamente'),
+            ),
+            TextButton(
+              onPressed: messenger.clearMaterialBanners,
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      );
+  }
 
   Future<void> _novaMovimentacao() async {
     final sucesso = await showNovaMovimentacaoDialog(context);
     if (sucesso == true && mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Movimentação registrada com sucesso.')));
+        ..showSnackBar(
+          const SnackBar(content: Text('Movimentação registrada com sucesso.')),
+        );
     }
   }
 
@@ -101,7 +179,11 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('Solicitação salva como pendência. Nenhuma movimentação foi registrada.')),
+          const SnackBar(
+            content: Text(
+              'Solicitação salva como pendência. Nenhuma movimentação foi registrada.',
+            ),
+          ),
         );
       setState(() => _aba = _MovimentacoesAba.pendencias);
     }
@@ -111,6 +193,38 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
     setState(() {
       _aba = aba;
       if (aba == _MovimentacoesAba.pendencias) _pendenciasVisitada = true;
+    });
+  }
+
+  /// Processa [MovimentacoesPage.acao] uma única vez (ver [_acaoTratada]).
+  /// [podeRegistrarMovimentacao]/[podeGerenciarSei] vêm do `build` (onde a
+  /// permissão efetiva já foi lida via `ref.hasPermission`) — sem
+  /// permissão, a ação correspondente simplesmente não dispara, igual a
+  /// não mostrar o botão no Dashboard (seção 10 do pedido). Agendado via
+  /// `addPostFrameCallback` porque é chamado durante `build` (abrir um
+  /// diálogo ali causaria "setState during build").
+  void _tratarAcaoInicial({
+    required bool podeRegistrarMovimentacao,
+    required bool podeGerenciarSei,
+  }) {
+    final acao = widget.acao;
+    if (acao == null || _acaoTratada) return;
+    _acaoTratada = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      switch (acao) {
+        case 'nova':
+          if (podeRegistrarMovimentacao) _novaMovimentacao();
+        case 'importar-sei':
+          if (podeGerenciarSei) {
+            setState(() {
+              _aba = _MovimentacoesAba.pendencias;
+              _pendenciasVisitada = true;
+            });
+            _importarDocumentoSei();
+          }
+      }
     });
   }
 
@@ -126,6 +240,32 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
     final stateAsync = ref.watch(movimentacoesControllerProvider);
     final termoBusca = _searchController.text.trim();
 
+    final movimentacaoId = widget.movimentacaoId;
+    if (movimentacaoId != null) {
+      ref.listen<AsyncValue<MovimentacaoListagemItem?>>(
+        movimentacaoPorIdProvider(movimentacaoId),
+        (previous, next) => next.whenOrNull(
+          data: _tratarMovimentacaoPorId,
+          error: (error, stackTrace) => _tratarMovimentacaoPorId(null),
+        ),
+      );
+    }
+
+    // Só processa `acao` quando a permissão efetiva JÁ resolveu (nunca no
+    // primeiro build, enquanto `ref.hasPermission` ainda devolve `false`
+    // por estar carregando) — senão uma ação legítima seria descartada
+    // silenciosamente por uma falsa negativa de permissão ainda em voo.
+    ref
+        .watch(currentPermissionsControllerProvider)
+        .whenOrNull(
+          data: (permissoes) => _tratarAcaoInicial(
+            podeRegistrarMovimentacao: permissoes.hasPermission(
+              'movimentacao.create',
+            ),
+            podeGerenciarSei: permissoes.hasPermission('sei.manage'),
+          ),
+        );
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: ConstrainedBox(
@@ -135,7 +275,8 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
           children: [
             InvTecPageHeader(
               title: 'Movimentações',
-              subtitle: 'Consulte e acompanhe o histórico de movimentações patrimoniais.',
+              subtitle:
+                  'Consulte e acompanhe o histórico de movimentações patrimoniais.',
               compact: context.screenSize == ScreenSize.mobile,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -156,7 +297,8 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                 ),
               ],
               selected: {_aba},
-              onSelectionChanged: (selecionados) => _selecionarAba(selecionados.first),
+              onSelectionChanged: (selecionados) =>
+                  _selecionarAba(selecionados.first),
             ),
             const SizedBox(height: AppSpacing.md),
             if (_aba == _MovimentacoesAba.historico) ...[
@@ -168,15 +310,20 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                 data: (state) => _HistoricoControles(
                   filtro: state.filtro,
                   searchController: _searchController,
-                  onSearchChanged: (value) => ref.read(movimentacoesControllerProvider.notifier).buscar(value),
+                  onSearchChanged: (value) => ref
+                      .read(movimentacoesControllerProvider.notifier)
+                      .buscar(value),
                   filtrosExpandidos: _filtrosExpandidos,
-                  onFiltrosPressed: () => setState(() => _filtrosExpandidos = !_filtrosExpandidos),
+                  onFiltrosPressed: () =>
+                      setState(() => _filtrosExpandidos = !_filtrosExpandidos),
                   onLimparFiltros: _limparFiltros,
                   podeRegistrarMovimentacao: podeRegistrarMovimentacao,
                   podeGerenciarSei: podeGerenciarSei,
                   onNovaMovimentacao: _novaMovimentacao,
                   onImportarDocumentoSei: _importarDocumentoSei,
-                  onOrdenarPor: (campo) => ref.read(movimentacoesControllerProvider.notifier).ordenarPor(campo),
+                  onOrdenarPor: (campo) => ref
+                      .read(movimentacoesControllerProvider.notifier)
+                      .ordenarPor(campo),
                 ),
                 orElse: () => const SizedBox.shrink(),
               ),
@@ -186,29 +333,39 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                   final itens = state.resultado.itens;
                   if (itens.isEmpty) {
                     return _EmptyList(
-                      temFiltroOuBusca: state.filtro.temFiltroAtivo || termoBusca.isNotEmpty,
+                      temFiltroOuBusca:
+                          state.filtro.temFiltroAtivo || termoBusca.isNotEmpty,
                       termoBusca: termoBusca,
                     );
                   }
 
-                  final viewModeAsync = ref.watch(movimentacoesViewModeControllerProvider);
+                  final viewModeAsync = ref.watch(
+                    movimentacoesViewModeControllerProvider,
+                  );
                   final viewMode = viewModeAsync.value ?? ListViewMode.list;
                   // Mobile SEMPRE usa a lista compacta de 1 coluna,
                   // independente da preferência de Lista/Cards salva — o
                   // grid de cards (pensado para tablet/desktop) nunca cabe
                   // bem numa tela de celular.
                   final conteudo = context.screenSize == ScreenSize.mobile
-                      ? MovimentacoesMobileList(itens: itens, onVisualizar: _visualizar)
+                      ? MovimentacoesMobileList(
+                          itens: itens,
+                          onVisualizar: _visualizar,
+                        )
                       : viewMode == ListViewMode.list
                       ? MovimentacoesDesktopTable(
                           itens: itens,
                           onVisualizar: _visualizar,
                           ordenarPor: state.filtro.ordenarPor,
                           ordenacaoDirecao: state.filtro.ordenacaoDirecao,
-                          onOrdenarPor: (campo) =>
-                              ref.read(movimentacoesControllerProvider.notifier).ordenarPor(campo),
+                          onOrdenarPor: (campo) => ref
+                              .read(movimentacoesControllerProvider.notifier)
+                              .ordenarPor(campo),
                         )
-                      : MovimentacaoCardsGrid(itens: itens, onVisualizar: _visualizar);
+                      : MovimentacaoCardsGrid(
+                          itens: itens,
+                          onVisualizar: _visualizar,
+                        );
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,10 +377,14 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                         totalPaginas: state.totalPaginas,
                         totalItens: state.resultado.total,
                         tamanhoPagina: state.filtro.tamanhoPagina,
-                        tamanhosPaginaPermitidos: movimentacoesTamanhosPaginaPermitidos,
-                        onChanged: (pagina) => ref.read(movimentacoesControllerProvider.notifier).irParaPagina(pagina),
-                        onTamanhoPaginaChanged: (tamanho) =>
-                            ref.read(movimentacoesControllerProvider.notifier).definirTamanhoPagina(tamanho),
+                        tamanhosPaginaPermitidos:
+                            movimentacoesTamanhosPaginaPermitidos,
+                        onChanged: (pagina) => ref
+                            .read(movimentacoesControllerProvider.notifier)
+                            .irParaPagina(pagina),
+                        onTamanhoPaginaChanged: (tamanho) => ref
+                            .read(movimentacoesControllerProvider.notifier)
+                            .definirTamanhoPagina(tamanho),
                       ),
                     ],
                   );
@@ -235,9 +396,12 @@ class _MovimentacoesPageState extends ConsumerState<MovimentacoesPage> {
                 error: (error, stackTrace) => Center(
                   child: EmptyState(
                     icon: Icons.error_outline,
-                    message: 'Não foi possível acessar as movimentações. Tente novamente.',
+                    message:
+                        'Não foi possível acessar as movimentações. Tente novamente.',
                     actionLabel: 'Tentar novamente',
-                    onAction: () => ref.read(movimentacoesControllerProvider.notifier).recarregar(),
+                    onAction: () => ref
+                        .read(movimentacoesControllerProvider.notifier)
+                        .recarregar(),
                   ),
                 ),
               ),
@@ -300,23 +464,35 @@ class _HistoricoControles extends ConsumerWidget {
       children: [
         ListPageToolbar(
           searchController: searchController,
-          searchHint: 'Buscar por patrimônio, equipamento, documento, chamado, responsável...',
+          searchHint:
+              'Buscar por patrimônio, equipamento, documento, chamado, responsável...',
           onSearchChanged: onSearchChanged,
           filterCount: _contarFiltrosAtivos(filtro),
           onFiltersPressed: onFiltrosPressed,
           viewMode: viewMode,
-          onViewModeChanged: (modo) => ref.read(movimentacoesViewModeControllerProvider.notifier).definir(modo),
-          primaryActionLabel: podeRegistrarMovimentacao ? 'Nova movimentação' : null,
+          onViewModeChanged: (modo) => ref
+              .read(movimentacoesViewModeControllerProvider.notifier)
+              .definir(modo),
+          primaryActionLabel: podeRegistrarMovimentacao
+              ? 'Nova movimentação'
+              : null,
           primaryActionIcon: podeRegistrarMovimentacao ? Icons.add : null,
-          onPrimaryAction: podeRegistrarMovimentacao ? onNovaMovimentacao : null,
-          secondaryActions: botaoImportarSei != null ? [botaoImportarSei] : const [],
+          onPrimaryAction: podeRegistrarMovimentacao
+              ? onNovaMovimentacao
+              : null,
+          secondaryActions: botaoImportarSei != null
+              ? [botaoImportarSei]
+              : const [],
         ),
         if (filtrosExpandidos) ...[
           const SizedBox(height: AppSpacing.md),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
-              child: MovimentacoesFilters(filtro: filtro, onLimparFiltros: onLimparFiltros),
+              child: MovimentacoesFilters(
+                filtro: filtro,
+                onLimparFiltros: onLimparFiltros,
+              ),
             ),
           ),
         ],
@@ -329,7 +505,11 @@ class _HistoricoControles extends ConsumerWidget {
           runSpacing: AppSpacing.xs,
           children: [
             _OrdenarPorControl(filtro: filtro, onOrdenarPor: onOrdenarPor),
-            if (filtro.temFiltroAtivo) _ActiveFilterChipsRow(filtro: filtro, setores: setoresAsync.value),
+            if (filtro.temFiltroAtivo)
+              _ActiveFilterChipsRow(
+                filtro: filtro,
+                setores: setoresAsync.value,
+              ),
           ],
         ),
       ],
@@ -363,7 +543,10 @@ class _ActiveFilterChipsRow extends ConsumerWidget {
 
     if (filtro.tipo != null) {
       chips.add(
-        ActiveFilterChip(label: 'Tipo: ${filtro.tipo!.label}', onRemove: () => notifier.filtrarPorTipo(null)),
+        ActiveFilterChip(
+          label: 'Tipo: ${filtro.tipo!.label}',
+          onRemove: () => notifier.filtrarPorTipo(null),
+        ),
       );
     }
     if (filtro.setorId != null) {
@@ -378,7 +561,8 @@ class _ActiveFilterChipsRow extends ConsumerWidget {
     if (filtro.periodoDe != null || filtro.periodoAte != null) {
       chips.add(
         ActiveFilterChip(
-          label: 'Período: ${_rotuloPeriodo(filtro.periodoDe, filtro.periodoAte)}',
+          label:
+              'Período: ${_rotuloPeriodo(filtro.periodoDe, filtro.periodoAte)}',
           onRemove: () => notifier.definirPeriodo(null, null),
         ),
       );
@@ -387,7 +571,11 @@ class _ActiveFilterChipsRow extends ConsumerWidget {
     if (chips.isEmpty) return const SizedBox.shrink();
     // Sem `Padding` própria: quem posiciona este bloco é o `Wrap` externo
     // que o combina com "Ordenar por" (mesma linha, quando cabe).
-    return Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: chips);
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: chips,
+    );
   }
 }
 
@@ -400,7 +588,9 @@ Setor? _encontrarSetor(List<Setor>? setores, String? id) {
 }
 
 String _rotuloPeriodo(DateTime? de, DateTime? ate) {
-  if (de != null && ate != null) return '${_formatarDataCurta(de)} – ${_formatarDataCurta(ate)}';
+  if (de != null && ate != null) {
+    return '${_formatarDataCurta(de)} – ${_formatarDataCurta(ate)}';
+  }
   if (de != null) return 'A partir de ${_formatarDataCurta(de)}';
   return 'Até ${_formatarDataCurta(ate!)}';
 }
@@ -426,7 +616,9 @@ class _OrdenarPorControl extends StatelessWidget {
     // aqui exibida já como "Data" + seta decrescente, para o controle
     // nunca aparecer "em branco".
     final campoAtual = filtro.ordenarPor ?? MovimentacaoOrdenacaoCampo.data;
-    final direcaoAtual = filtro.ordenarPor == null ? OrdenacaoDirecao.desc : filtro.ordenacaoDirecao;
+    final direcaoAtual = filtro.ordenarPor == null
+        ? OrdenacaoDirecao.desc
+        : filtro.ordenacaoDirecao;
     final ascendente = direcaoAtual == OrdenacaoDirecao.asc;
 
     return Wrap(
@@ -477,7 +669,10 @@ class _EmptyList extends StatelessWidget {
     }
 
     return const Card(
-      child: EmptyState(icon: Icons.swap_horiz_outlined, message: 'Nenhuma movimentação registrada ainda.'),
+      child: EmptyState(
+        icon: Icons.swap_horiz_outlined,
+        message: 'Nenhuma movimentação registrada ainda.',
+      ),
     );
   }
 }

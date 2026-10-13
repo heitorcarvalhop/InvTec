@@ -62,8 +62,11 @@ class _RepositorioTravado implements MovimentacaoRepository {
   }
 
   @override
-  Future<List<Movimentacao>> listarPorPatrimonio(String patrimonioId, {int limit = 20, int offset = 0}) async =>
-      const [];
+  Future<List<Movimentacao>> listarPorPatrimonio(
+    String patrimonioId, {
+    int limit = 20,
+    int offset = 0,
+  }) async => const [];
 
   @override
   Future<List<MovimentacaoHistoricoItem>> listarHistoricoPorPatrimonio(
@@ -94,6 +97,10 @@ class _RepositorioTravado implements MovimentacaoRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<MovimentacaoListagemItem?> buscarPorId(String id) =>
+      Completer<MovimentacaoListagemItem?>().future;
 }
 
 MovimentacaoListagemItem _item(
@@ -145,21 +152,32 @@ Future<void> _pumpMovimentacoesPage(
   List<Setor>? setores,
   ThemeData? theme,
   ProfilePerfil perfil = ProfilePerfil.admin,
+  String? movimentacaoId,
+  String? acao,
 }) async {
-  final fakeAuth = FakeAuthRepository(initialUserId: 'fake-user-id', profileResolver: (_) => _profile(perfil));
+  final fakeAuth = FakeAuthRepository(
+    initialUserId: 'fake-user-id',
+    profileResolver: (_) => _profile(perfil),
+  );
   addTearDown(fakeAuth.dispose);
 
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
-        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(perfil)),
+        permissionsRepositoryProvider.overrideWithValue(
+          FakePermissionsRepository.paraPerfil(perfil),
+        ),
         movimentacaoRepositoryProvider.overrideWithValue(movimentacaoRepo),
-        setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: setores)),
+        setorRepositoryProvider.overrideWithValue(
+          FakeSetorRepository(setores: setores),
+        ),
       ],
       child: MaterialApp(
         theme: theme,
-        home: const Scaffold(body: MovimentacoesPage()),
+        home: Scaffold(
+          body: MovimentacoesPage(movimentacaoId: movimentacaoId, acao: acao),
+        ),
       ),
     ),
   );
@@ -177,22 +195,44 @@ Future<void> _abrirFiltros(WidgetTester tester) async {
 void main() {
   group('listagem geral de movimentações', () {
     testWidgets('cabeçalho da tela', (tester) async {
-      await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository());
+      await _pumpMovimentacoesPage(
+        tester,
+        movimentacaoRepo: FakeMovimentacaoRepository(),
+      );
 
       expect(find.text('Movimentações'), findsOneWidget);
-      expect(find.text('Consulte e acompanhe o histórico de movimentações patrimoniais.'), findsOneWidget);
+      expect(
+        find.text(
+          'Consulte e acompanhe o histórico de movimentações patrimoniais.',
+        ),
+        findsOneWidget,
+      );
     });
   });
 
   group('botão Nova movimentação (controle de permissão)', () {
     testWidgets('aparece para ADMIN/GESTOR/OPERADOR', (tester) async {
-      for (final perfil in [ProfilePerfil.admin, ProfilePerfil.gestor, ProfilePerfil.operador]) {
-        await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository(), perfil: perfil);
-        expect(find.text('Nova movimentação'), findsOneWidget, reason: 'perfil: $perfil');
+      for (final perfil in [
+        ProfilePerfil.admin,
+        ProfilePerfil.gestor,
+        ProfilePerfil.operador,
+      ]) {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          perfil: perfil,
+        );
+        expect(
+          find.text('Nova movimentação'),
+          findsOneWidget,
+          reason: 'perfil: $perfil',
+        );
       }
     });
 
-    testWidgets('some para CONSULTA — nunca recebe ação de escrita', (tester) async {
+    testWidgets('some para CONSULTA — nunca recebe ação de escrita', (
+      tester,
+    ) async {
       await _pumpMovimentacoesPage(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(),
@@ -201,51 +241,160 @@ void main() {
       expect(find.text('Nova movimentação'), findsNothing);
     });
 
-    testWidgets('clicar em Nova movimentação abre o wizard no passo Patrimônio', (tester) async {
-      await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository());
+    testWidgets(
+      'clicar em Nova movimentação abre o wizard no passo Patrimônio',
+      (tester) async {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+        );
 
-      await tester.tap(find.text('Nova movimentação'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Nova movimentação'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Passo 1 de 4 · Patrimônio'), findsOneWidget);
-      expect(find.text('Selecione o patrimônio'), findsOneWidget);
-    });
+        expect(find.text('Passo 1 de 4 · Patrimônio'), findsOneWidget);
+        expect(find.text('Selecione o patrimônio'), findsOneWidget);
+      },
+    );
   });
 
   group('botão Importar documento SEI (controle de permissão)', () {
     testWidgets('aparece para ADMIN/GESTOR/OPERADOR', (tester) async {
-      for (final perfil in [ProfilePerfil.admin, ProfilePerfil.gestor, ProfilePerfil.operador]) {
-        await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository(), perfil: perfil);
-        expect(find.text('Importar documento SEI'), findsOneWidget, reason: 'perfil: $perfil');
+      for (final perfil in [
+        ProfilePerfil.admin,
+        ProfilePerfil.gestor,
+        ProfilePerfil.operador,
+      ]) {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          perfil: perfil,
+        );
+        expect(
+          find.text('Importar documento SEI'),
+          findsOneWidget,
+          reason: 'perfil: $perfil',
+        );
       }
     });
 
-    testWidgets('some para CONSULTA — nesta versão nenhum perfil registra movimentação pelo importador', (
+    testWidgets(
+      'some para CONSULTA — nesta versão nenhum perfil registra movimentação pelo importador',
+      (tester) async {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          perfil: ProfilePerfil.consulta,
+        );
+        expect(find.text('Importar documento SEI'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'clicar em Importar documento SEI abre o assistente no passo de seleção de arquivo',
+      (tester) async {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+        );
+
+        await tester.tap(find.text('Importar documento SEI'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Selecionar PDF'), findsOneWidget);
+        expect(
+          find.textContaining('nenhuma movimentação é registrada aqui'),
+          findsOneWidget,
+          reason: 'o diálogo precisa deixar claro que esta etapa é só leitura',
+        );
+        // Nunca "Executar movimentações" (seção 1) — nem em nenhum outro
+        // texto do diálogo enquanto ainda não há resultado de análise.
+        expect(find.text('Executar movimentações'), findsNothing);
+      },
+    );
+  });
+
+  group('ação inicial via query parameter (acao)', () {
+    testWidgets(
+      'acao=nova abre o wizard de Nova movimentação automaticamente',
+      (tester) async {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          acao: 'nova',
+        );
+
+        expect(find.text('Passo 1 de 4 · Patrimônio'), findsOneWidget);
+      },
+    );
+
+    testWidgets('acao=nova sem movimentacao.create: não abre o wizard', (
       tester,
     ) async {
       await _pumpMovimentacoesPage(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(),
         perfil: ProfilePerfil.consulta,
+        acao: 'nova',
       );
-      expect(find.text('Importar documento SEI'), findsNothing);
+
+      expect(find.text('Passo 1 de 4 · Patrimônio'), findsNothing);
+      // O resto da tela continua funcionando normalmente.
+      expect(find.text('Movimentações'), findsOneWidget);
     });
 
-    testWidgets('clicar em Importar documento SEI abre o assistente no passo de seleção de arquivo', (tester) async {
-      await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository());
-
-      await tester.tap(find.text('Importar documento SEI'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Selecionar PDF'), findsOneWidget);
-      expect(
-        find.textContaining('nenhuma movimentação é registrada aqui'),
-        findsOneWidget,
-        reason: 'o diálogo precisa deixar claro que esta etapa é só leitura',
+    testWidgets('acao=nova não reabre o wizard a cada rebuild', (tester) async {
+      await _pumpMovimentacoesPage(
+        tester,
+        movimentacaoRepo: FakeMovimentacaoRepository(),
+        acao: 'nova',
       );
-      // Nunca "Executar movimentações" (seção 1) — nem em nenhum outro
-      // texto do diálogo enquanto ainda não há resultado de análise.
-      expect(find.text('Executar movimentações'), findsNothing);
+      expect(find.text('Passo 1 de 4 · Patrimônio'), findsOneWidget);
+
+      // Fecha o wizard e força um rebuild (resize) — não deve reabrir.
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Passo 1 de 4 · Patrimônio'), findsNothing);
+
+      await tester.binding.setSurfaceSize(const Size(1000, 800));
+      await tester.pumpAndSettle();
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      expect(find.text('Passo 1 de 4 · Patrimônio'), findsNothing);
+    });
+
+    testWidgets(
+      'acao=importar-sei troca para a aba Pendências e abre o assistente',
+      (tester) async {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          acao: 'importar-sei',
+        );
+
+        expect(find.text('Selecionar PDF'), findsOneWidget);
+
+        // Fecha o assistente pelo ícone "Fechar": a aba continua em
+        // Pendências (comportamento já existente de "Importar documento
+        // SEI" quando salva/cancela).
+        await tester.tap(find.byTooltip('Fechar'));
+        await tester.pumpAndSettle();
+        expect(find.text('Pendências / Documentos SEI'), findsOneWidget);
+      },
+    );
+
+    testWidgets('acao=importar-sei sem sei.manage: não abre o assistente', (
+      tester,
+    ) async {
+      await _pumpMovimentacoesPage(
+        tester,
+        movimentacaoRepo: FakeMovimentacaoRepository(),
+        perfil: ProfilePerfil.consulta,
+        acao: 'importar-sei',
+      );
+
+      expect(find.text('Selecionar PDF'), findsNothing);
+      expect(find.text('Movimentações'), findsOneWidget);
     });
   });
 
@@ -255,8 +404,16 @@ void main() {
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(
           itens: [
-            _item('1', patrimonioNumero: '00045872', tipo: MovimentacaoTipo.entrada),
-            _item('2', patrimonioNumero: '00099999', tipo: MovimentacaoTipo.baixa),
+            _item(
+              '1',
+              patrimonioNumero: '00045872',
+              tipo: MovimentacaoTipo.entrada,
+            ),
+            _item(
+              '2',
+              patrimonioNumero: '00099999',
+              tipo: MovimentacaoTipo.baixa,
+            ),
           ],
         ),
       );
@@ -268,29 +425,45 @@ void main() {
     });
 
     testWidgets('estado vazio (sem movimentações cadastradas)', (tester) async {
-      await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository());
-
-      expect(find.text('Nenhuma movimentação registrada ainda.'), findsOneWidget);
-    });
-
-    testWidgets('busca sem resultado mostra mensagem com o termo pesquisado', (tester) async {
       await _pumpMovimentacoesPage(
         tester,
-        movimentacaoRepo: FakeMovimentacaoRepository(itens: [_item('1', patrimonioNumero: '100')]),
+        movimentacaoRepo: FakeMovimentacaoRepository(),
+      );
+
+      expect(
+        find.text('Nenhuma movimentação registrada ainda.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('busca sem resultado mostra mensagem com o termo pesquisado', (
+      tester,
+    ) async {
+      await _pumpMovimentacoesPage(
+        tester,
+        movimentacaoRepo: FakeMovimentacaoRepository(
+          itens: [_item('1', patrimonioNumero: '100')],
+        ),
       );
 
       await tester.enterText(find.byType(TextField).first, 'inexistente');
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
-      expect(find.text('Nenhuma movimentação encontrada para "inexistente".'), findsOneWidget);
+      expect(
+        find.text('Nenhuma movimentação encontrada para "inexistente".'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('busca filtra a listagem', (tester) async {
       await _pumpMovimentacoesPage(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(
-          itens: [_item('1', patrimonioNumero: '100'), _item('2', patrimonioNumero: '200')],
+          itens: [
+            _item('1', patrimonioNumero: '100'),
+            _item('2', patrimonioNumero: '200'),
+          ],
         ),
       );
 
@@ -301,7 +474,10 @@ void main() {
       // `find.text` também casa com o próprio campo de busca (que agora
       // contém "200") — escopado à tabela para não colidir com ele.
       expect(
-        find.descendant(of: find.byType(MovimentacoesDesktopTable), matching: find.text('200')),
+        find.descendant(
+          of: find.byType(MovimentacoesDesktopTable),
+          matching: find.text('200'),
+        ),
         findsOneWidget,
       );
       expect(find.text('100'), findsNothing);
@@ -311,12 +487,25 @@ void main() {
       await _pumpMovimentacoesPage(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(),
-        setores: [Setor(id: 'setor-1', nome: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1))],
+        setores: [
+          Setor(
+            id: 'setor-1',
+            nome: 'GETEC',
+            ativo: true,
+            criadoEm: DateTime(2026, 1, 1),
+          ),
+        ],
       );
       await _abrirFiltros(tester);
 
-      expect(find.widgetWithText(DropdownButtonFormField<MovimentacaoTipo?>, 'Tipo'), findsOneWidget);
-      expect(find.widgetWithText(DropdownButtonFormField<String?>, 'Setor'), findsOneWidget);
+      expect(
+        find.widgetWithText(DropdownButtonFormField<MovimentacaoTipo?>, 'Tipo'),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(DropdownButtonFormField<String?>, 'Setor'),
+        findsOneWidget,
+      );
       expect(find.text('Período'), findsOneWidget);
     });
 
@@ -332,7 +521,10 @@ void main() {
       );
       await _abrirFiltros(tester);
 
-      final campoTipo = find.widgetWithText(DropdownButtonFormField<MovimentacaoTipo?>, 'Tipo');
+      final campoTipo = find.widgetWithText(
+        DropdownButtonFormField<MovimentacaoTipo?>,
+        'Tipo',
+      );
       await tester.ensureVisible(campoTipo);
       await tester.pumpAndSettle();
       await tester.tap(campoTipo);
@@ -347,25 +539,37 @@ void main() {
       expect(find.text('100'), findsNothing);
     });
 
-    testWidgets('paginação: resumo e itens por página aparecem com mais de uma página', (tester) async {
-      final itens = List.generate(
-        30,
-        (i) => _item('$i', patrimonioNumero: 'P$i', dataMovimentacao: DateTime(2026, 1, 1).subtract(Duration(days: i))),
-      );
-      await _pumpMovimentacoesPage(tester, movimentacaoRepo: FakeMovimentacaoRepository(itens: itens));
+    testWidgets(
+      'paginação: resumo e itens por página aparecem com mais de uma página',
+      (tester) async {
+        final itens = List.generate(
+          30,
+          (i) => _item(
+            '$i',
+            patrimonioNumero: 'P$i',
+            dataMovimentacao: DateTime(2026, 1, 1).subtract(Duration(days: i)),
+          ),
+        );
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(itens: itens),
+        );
 
-      expect(find.textContaining('Mostrando 1–25 de 30'), findsOneWidget);
+        expect(find.textContaining('Mostrando 1–25 de 30'), findsOneWidget);
 
-      final botaoPagina2 = find.byKey(const ValueKey('pagination-page-2'));
-      await tester.ensureVisible(botaoPagina2);
-      await tester.pumpAndSettle();
-      await tester.tap(botaoPagina2);
-      await tester.pumpAndSettle();
+        final botaoPagina2 = find.byKey(const ValueKey('pagination-page-2'));
+        await tester.ensureVisible(botaoPagina2);
+        await tester.pumpAndSettle();
+        await tester.tap(botaoPagina2);
+        await tester.pumpAndSettle();
 
-      expect(find.text('P29'), findsOneWidget);
-    });
+        expect(find.text('P29'), findsOneWidget);
+      },
+    );
 
-    testWidgets('estado de carregamento mostra indicador de progresso', (tester) async {
+    testWidgets('estado de carregamento mostra indicador de progresso', (
+      tester,
+    ) async {
       final fakeAuth = FakeAuthRepository(
         initialUserId: 'fake-user-id',
         profileResolver: (_) => _profile(ProfilePerfil.admin),
@@ -376,8 +580,12 @@ void main() {
         ProviderScope(
           overrides: [
             authRepositoryProvider.overrideWithValue(fakeAuth),
-            permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
-            movimentacaoRepositoryProvider.overrideWithValue(_RepositorioTravado()),
+            permissionsRepositoryProvider.overrideWithValue(
+              FakePermissionsRepository.paraPerfil(ProfilePerfil.admin),
+            ),
+            movimentacaoRepositoryProvider.overrideWithValue(
+              _RepositorioTravado(),
+            ),
             setorRepositoryProvider.overrideWithValue(FakeSetorRepository()),
           ],
           child: const MaterialApp(home: Scaffold(body: MovimentacoesPage())),
@@ -388,64 +596,95 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('estado de erro mostra mensagem e ação de tentar novamente', (tester) async {
+    testWidgets('estado de erro mostra mensagem e ação de tentar novamente', (
+      tester,
+    ) async {
       await _pumpMovimentacoesPage(
         tester,
-        movimentacaoRepo: FakeMovimentacaoRepository(erro: AppException('Falha ao listar movimentações')),
+        movimentacaoRepo: FakeMovimentacaoRepository(
+          erro: AppException('Falha ao listar movimentações'),
+        ),
       );
 
-      expect(find.text('Não foi possível acessar as movimentações. Tente novamente.'), findsOneWidget);
-      expect(find.widgetWithText(OutlinedButton, 'Tentar novamente'), findsOneWidget);
+      expect(
+        find.text(
+          'Não foi possível acessar as movimentações. Tente novamente.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(OutlinedButton, 'Tentar novamente'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('visualizar abre o detalhe somente leitura com os campos existentes', (tester) async {
+    testWidgets(
+      'visualizar abre o detalhe somente leitura com os campos existentes',
+      (tester) async {
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(
+            itens: [
+              _item(
+                '1',
+                patrimonioNumero: '00045872',
+                patrimonioTipoNome: 'Notebook',
+                tipo: MovimentacaoTipo.entrada,
+                setorDestinoNome: 'Gerência de Tecnologia',
+                localizacaoDestinoNome: 'GETEC - UNIVERSITÁRIO',
+                responsavelDestino: 'João Silva',
+                autorNome: 'Heitor Pereira',
+                motivo: 'Cadastro inicial',
+              ),
+            ],
+          ),
+        );
+
+        final botaoVisualizar = find.byIcon(Icons.visibility_outlined);
+        await tester.ensureVisible(botaoVisualizar);
+        await tester.pumpAndSettle();
+        await tester.tap(botaoVisualizar);
+        await tester.pumpAndSettle();
+
+        final dialog = find.byType(Dialog);
+        Finder emDialog(String texto) =>
+            find.descendant(of: dialog, matching: find.text(texto));
+
+        expect(emDialog('00045872'), findsOneWidget);
+        expect(emDialog('Notebook'), findsOneWidget);
+        expect(emDialog('Gerência de Tecnologia'), findsOneWidget);
+        expect(emDialog('GETEC - UNIVERSITÁRIO'), findsOneWidget);
+        expect(emDialog('João Silva'), findsOneWidget);
+        expect(emDialog('Heitor Pereira'), findsOneWidget);
+        expect(emDialog('Cadastro inicial'), findsOneWidget);
+        // Sem número de documento/chamado neste item: o rótulo não aparece.
+        expect(emDialog('Documento'), findsNothing);
+        expect(emDialog('Chamado'), findsNothing);
+        // Somente leitura: sem botão de editar dentro do detalhe.
+        expect(
+          find.descendant(
+            of: dialog,
+            matching: find.byIcon(Icons.edit_outlined),
+          ),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets('detalhe mostra documento e chamado quando existem', (
+      tester,
+    ) async {
       await _pumpMovimentacoesPage(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(
           itens: [
             _item(
               '1',
-              patrimonioNumero: '00045872',
-              patrimonioTipoNome: 'Notebook',
-              tipo: MovimentacaoTipo.entrada,
-              setorDestinoNome: 'Gerência de Tecnologia',
-              localizacaoDestinoNome: 'GETEC - UNIVERSITÁRIO',
-              responsavelDestino: 'João Silva',
-              autorNome: 'Heitor Pereira',
-              motivo: 'Cadastro inicial',
+              patrimonioNumero: '100',
+              numeroDocumento: 'DOC-1',
+              numeroChamado: 'CHAM-2',
             ),
           ],
-        ),
-      );
-
-      final botaoVisualizar = find.byIcon(Icons.visibility_outlined);
-      await tester.ensureVisible(botaoVisualizar);
-      await tester.pumpAndSettle();
-      await tester.tap(botaoVisualizar);
-      await tester.pumpAndSettle();
-
-      final dialog = find.byType(Dialog);
-      Finder emDialog(String texto) => find.descendant(of: dialog, matching: find.text(texto));
-
-      expect(emDialog('00045872'), findsOneWidget);
-      expect(emDialog('Notebook'), findsOneWidget);
-      expect(emDialog('Gerência de Tecnologia'), findsOneWidget);
-      expect(emDialog('GETEC - UNIVERSITÁRIO'), findsOneWidget);
-      expect(emDialog('João Silva'), findsOneWidget);
-      expect(emDialog('Heitor Pereira'), findsOneWidget);
-      expect(emDialog('Cadastro inicial'), findsOneWidget);
-      // Sem número de documento/chamado neste item: o rótulo não aparece.
-      expect(emDialog('Documento'), findsNothing);
-      expect(emDialog('Chamado'), findsNothing);
-      // Somente leitura: sem botão de editar dentro do detalhe.
-      expect(find.descendant(of: dialog, matching: find.byIcon(Icons.edit_outlined)), findsNothing);
-    });
-
-    testWidgets('detalhe mostra documento e chamado quando existem', (tester) async {
-      await _pumpMovimentacoesPage(
-        tester,
-        movimentacaoRepo: FakeMovimentacaoRepository(
-          itens: [_item('1', patrimonioNumero: '100', numeroDocumento: 'DOC-1', numeroChamado: 'CHAM-2')],
         ),
       );
 
@@ -465,7 +704,13 @@ void main() {
       await _pumpMovimentacoesPage(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(
-          itens: [_item('1', patrimonioNumero: '100', observacao: 'Equipamento com risco na tela')],
+          itens: [
+            _item(
+              '1',
+              patrimonioNumero: '100',
+              observacao: 'Equipamento com risco na tela',
+            ),
+          ],
         ),
       );
 
@@ -487,7 +732,9 @@ void main() {
           // autorNome null simula OPERADOR/CONSULTA vendo a movimentação de
           // outro usuário: profiles_select oculta o nome, mas realizado_por
           // nunca é nulo no banco — não é "sem dado".
-          movimentacaoRepo: FakeMovimentacaoRepository(itens: [_item('1', patrimonioNumero: '100')]),
+          movimentacaoRepo: FakeMovimentacaoRepository(
+            itens: [_item('1', patrimonioNumero: '100')],
+          ),
         );
 
         final botaoVisualizar = find.byIcon(Icons.visibility_outlined);
@@ -497,7 +744,10 @@ void main() {
         await tester.pumpAndSettle();
 
         final dialog = find.byType(Dialog);
-        expect(find.descendant(of: dialog, matching: find.text('Não disponível')), findsOneWidget);
+        expect(
+          find.descendant(of: dialog, matching: find.text('Não disponível')),
+          findsOneWidget,
+        );
       },
     );
 
@@ -508,13 +758,26 @@ void main() {
           tester,
           movimentacaoRepo: FakeMovimentacaoRepository(),
           setores: [
-            Setor(id: 'setor-1', nome: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1)),
-            Setor(id: 'setor-2', nome: 'Almoxarifado Antigo', ativo: false, criadoEm: DateTime(2020, 1, 1)),
+            Setor(
+              id: 'setor-1',
+              nome: 'GETEC',
+              ativo: true,
+              criadoEm: DateTime(2026, 1, 1),
+            ),
+            Setor(
+              id: 'setor-2',
+              nome: 'Almoxarifado Antigo',
+              ativo: false,
+              criadoEm: DateTime(2020, 1, 1),
+            ),
           ],
         );
         await _abrirFiltros(tester);
 
-        final campoSetor = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor');
+        final campoSetor = find.widgetWithText(
+          DropdownButtonFormField<String?>,
+          'Setor',
+        );
         await tester.ensureVisible(campoSetor);
         await tester.pumpAndSettle();
         await tester.tap(campoSetor);
@@ -539,16 +802,31 @@ void main() {
           tester,
           movimentacaoRepo: movimentacaoRepo,
           setores: [
-            Setor(id: 'setor-1', nome: 'Gerencia de Tecnologia', sigla: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+            Setor(
+              id: 'setor-1',
+              nome: 'Gerencia de Tecnologia',
+              sigla: 'GETEC',
+              ativo: true,
+              criadoEm: DateTime(2026, 1, 1),
+            ),
             // "GEPOS" não existe em nenhuma lista/mapa fixo do app — prova
             // que a sigla exibida vem do cadastro real, não de um switch
             // fechado nos 4 setores do Despacho 577.
-            Setor(id: 'setor-2', nome: 'Gerência de Posturas', sigla: 'GEPOS', ativo: true, criadoEm: DateTime(2026, 1, 1)),
+            Setor(
+              id: 'setor-2',
+              nome: 'Gerência de Posturas',
+              sigla: 'GEPOS',
+              ativo: true,
+              criadoEm: DateTime(2026, 1, 1),
+            ),
           ],
         );
         await _abrirFiltros(tester);
 
-        final campoSetor = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor');
+        final campoSetor = find.widgetWithText(
+          DropdownButtonFormField<String?>,
+          'Setor',
+        );
         await tester.ensureVisible(campoSetor);
         await tester.pumpAndSettle();
         await tester.tap(campoSetor);
@@ -591,12 +869,16 @@ void main() {
         expect(find.text('GETEC'), findsOneWidget);
         expect(find.text('GEASI'), findsOneWidget);
         expect(
-          find.text('Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto'),
+          find.text(
+            'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+          ),
           findsNothing,
         );
 
         final tooltip = tester.widget<Tooltip>(
-          find.ancestor(of: find.text('GEASI'), matching: find.byType(Tooltip)).first,
+          find
+              .ancestor(of: find.text('GEASI'), matching: find.byType(Tooltip))
+              .first,
         );
         expect(
           tooltip.message,
@@ -631,15 +913,26 @@ void main() {
         await tester.pumpAndSettle();
 
         final dialog = find.byType(Dialog);
-        expect(find.descendant(of: dialog, matching: find.text('GETEC')), findsOneWidget);
-        expect(find.descendant(of: dialog, matching: find.text('GEPOS')), findsOneWidget);
         expect(
-          find.descendant(of: dialog, matching: find.text('Gerência de Posturas')),
+          find.descendant(of: dialog, matching: find.text('GETEC')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: dialog, matching: find.text('GEPOS')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: dialog,
+            matching: find.text('Gerência de Posturas'),
+          ),
           findsNothing,
         );
 
         final tooltip = tester.widget<Tooltip>(
-          find.ancestor(of: find.text('GEPOS'), matching: find.byType(Tooltip)).first,
+          find
+              .ancestor(of: find.text('GEPOS'), matching: find.byType(Tooltip))
+              .first,
         );
         expect(tooltip.message, 'Gerência de Posturas');
       },
@@ -648,7 +941,9 @@ void main() {
     testWidgets('renderiza sem exceções no tema claro', (tester) async {
       await _pumpMovimentacoesPage(
         tester,
-        movimentacaoRepo: FakeMovimentacaoRepository(itens: [_item('1', patrimonioNumero: '100')]),
+        movimentacaoRepo: FakeMovimentacaoRepository(
+          itens: [_item('1', patrimonioNumero: '100')],
+        ),
         theme: AppTheme.light,
       );
 
@@ -659,7 +954,9 @@ void main() {
     testWidgets('renderiza sem exceções no tema escuro', (tester) async {
       await _pumpMovimentacoesPage(
         tester,
-        movimentacaoRepo: FakeMovimentacaoRepository(itens: [_item('1', patrimonioNumero: '100')]),
+        movimentacaoRepo: FakeMovimentacaoRepository(
+          itens: [_item('1', patrimonioNumero: '100')],
+        ),
         theme: AppTheme.dark,
       );
 
@@ -685,9 +982,13 @@ void main() {
         ProviderScope(
           overrides: [
             authRepositoryProvider.overrideWithValue(fakeAuth),
-            permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
+            permissionsRepositoryProvider.overrideWithValue(
+              FakePermissionsRepository.paraPerfil(ProfilePerfil.admin),
+            ),
             movimentacaoRepositoryProvider.overrideWithValue(
-              FakeMovimentacaoRepository(itens: [_item('1', patrimonioNumero: '100')]),
+              FakeMovimentacaoRepository(
+                itens: [_item('1', patrimonioNumero: '100')],
+              ),
             ),
             setorRepositoryProvider.overrideWithValue(FakeSetorRepository()),
             documentosSeiRepositoryProvider.overrideWithValue(
@@ -722,52 +1023,130 @@ void main() {
       const Size(800, 600),
       const Size(360, 640),
     ]) {
-      testWidgets('em ${tamanho.width.toInt()}x${tamanho.height.toInt()}: cabeçalho sem overflow, título legível', (
-        tester,
-      ) async {
-        // A `FlutterError.onError` original só é restaurada DEPOIS de todas
-        // as interações (troca de aba + rolagem) — nunca deixada sobrescrita
-        // durante os `expect()` finais, senão o estado interno do
-        // `TestWidgetsFlutterBinding` fica inconsistente e trava os
-        // próximos testes do arquivo (mesmo padrão de
-        // `importar_sei_dialog_test.dart`).
-        final overflows = <String>[];
-        final original = FlutterError.onError;
-        FlutterError.onError = (details) {
-          if (details.toString().contains('overflowed')) {
-            overflows.add(details.summary.toString());
-            return;
-          }
-          original?.call(details);
-        };
-        addTearDown(() => FlutterError.onError = original);
+      testWidgets(
+        'em ${tamanho.width.toInt()}x${tamanho.height.toInt()}: cabeçalho sem overflow, título legível',
+        (tester) async {
+          // A `FlutterError.onError` original só é restaurada DEPOIS de todas
+          // as interações (troca de aba + rolagem) — nunca deixada sobrescrita
+          // durante os `expect()` finais, senão o estado interno do
+          // `TestWidgetsFlutterBinding` fica inconsistente e trava os
+          // próximos testes do arquivo (mesmo padrão de
+          // `importar_sei_dialog_test.dart`).
+          final overflows = <String>[];
+          final original = FlutterError.onError;
+          FlutterError.onError = (details) {
+            if (details.toString().contains('overflowed')) {
+              overflows.add(details.summary.toString());
+              return;
+            }
+            original?.call(details);
+          };
+          addTearDown(() => FlutterError.onError = original);
 
-        await pumpEm(tester, tamanho);
+          await pumpEm(tester, tamanho);
 
-        final tituloSize = tester.getSize(find.text('Movimentações'));
+          final tituloSize = tester.getSize(find.text('Movimentações'));
 
-        // Aba Pendências: troca e confere que a tabela também não estoura,
-        // e que "Situação" fica alcançável rolando até o fim.
-        await tester.tap(find.text('Pendências / Documentos SEI'));
-        await tester.pumpAndSettle();
-
-        Offset? situacaoBottomRight;
-        final scrollable = find.descendant(of: find.byType(SeiPendenciasList), matching: find.byType(Scrollable));
-        if (scrollable.evaluate().isNotEmpty) {
-          final state = tester.state<ScrollableState>(scrollable.first);
-          state.position.jumpTo(state.position.maxScrollExtent);
+          // Aba Pendências: troca e confere que a tabela também não estoura,
+          // e que "Situação" fica alcançável rolando até o fim.
+          await tester.tap(find.text('Pendências / Documentos SEI'));
           await tester.pumpAndSettle();
-          situacaoBottomRight = tester.getBottomRight(find.text('Situação'));
-        }
 
-        FlutterError.onError = original;
+          Offset? situacaoBottomRight;
+          final scrollable = find.descendant(
+            of: find.byType(SeiPendenciasList),
+            matching: find.byType(Scrollable),
+          );
+          if (scrollable.evaluate().isNotEmpty) {
+            final state = tester.state<ScrollableState>(scrollable.first);
+            state.position.jumpTo(state.position.maxScrollExtent);
+            await tester.pumpAndSettle();
+            situacaoBottomRight = tester.getBottomRight(find.text('Situação'));
+          }
 
-        expect(overflows, isEmpty, reason: 'sem overflow em ${tamanho.width}x${tamanho.height}: $overflows');
-        expect(tituloSize.width, greaterThan(80));
-        if (situacaoBottomRight != null) {
-          expect(situacaoBottomRight.dx, lessThanOrEqualTo(tamanho.width));
-        }
-      });
+          FlutterError.onError = original;
+
+          expect(
+            overflows,
+            isEmpty,
+            reason:
+                'sem overflow em ${tamanho.width}x${tamanho.height}: $overflows',
+          );
+          expect(tituloSize.width, greaterThan(80));
+          if (situacaoBottomRight != null) {
+            expect(situacaoBottomRight.dx, lessThanOrEqualTo(tamanho.width));
+          }
+        },
+      );
     }
+  });
+
+  group('deep-link /movimentacoes/:id (Ver movimentação completa)', () {
+    testWidgets(
+      'com id existente: abre o detalhe automaticamente, com 1 busca só',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository(
+          itens: [_item('mov-1', patrimonioNumero: '00011122')],
+        );
+
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: repo,
+          movimentacaoId: 'mov-1',
+        );
+
+        expect(find.text('Movimentação'), findsOneWidget);
+        expect(find.text('00011122'), findsWidgets);
+        expect(repo.buscarPorIdCallCount, 1);
+
+        // Fechar o diálogo e deixar a tela assentar não deve disparar uma
+        // segunda busca pelo mesmo id.
+        await tester.tap(find.text('Fechar'));
+        await tester.pumpAndSettle();
+        expect(repo.buscarPorIdCallCount, 1);
+      },
+    );
+
+    testWidgets(
+      'com id inexistente: mostra aviso local, sem quebrar o resto da tela',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+
+        await _pumpMovimentacoesPage(
+          tester,
+          movimentacaoRepo: repo,
+          movimentacaoId: 'nao-existe',
+        );
+
+        expect(
+          find.text('Não foi possível carregar esta movimentação.'),
+          findsOneWidget,
+        );
+        expect(
+          find.widgetWithText(TextButton, 'Tentar novamente'),
+          findsOneWidget,
+        );
+        // O resto da tela (cabeçalho/listagem) continua funcionando.
+        expect(find.text('Movimentações'), findsOneWidget);
+      },
+    );
+
+    testWidgets('"Tentar novamente" refaz a busca pelo mesmo id', (
+      tester,
+    ) async {
+      final repo = FakeMovimentacaoRepository();
+
+      await _pumpMovimentacoesPage(
+        tester,
+        movimentacaoRepo: repo,
+        movimentacaoId: 'nao-existe',
+      );
+      expect(repo.buscarPorIdCallCount, 1);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Tentar novamente'));
+      await tester.pumpAndSettle();
+
+      expect(repo.buscarPorIdCallCount, 2);
+    });
   });
 }

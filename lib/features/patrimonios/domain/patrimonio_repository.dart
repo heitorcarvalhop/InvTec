@@ -15,6 +15,20 @@ abstract class PatrimonioRepository {
 
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio);
 
+  /// Busca rápida por PREFIXO de `numero_patrimonio` (ex.: "3636" encontra
+  /// "3636001"/"3636127", nunca "1236360") — usada pelo diálogo "Consultar
+  /// patrimônio" do Dashboard. Sempre resolvida no SERVIDOR (nunca baixa
+  /// tudo para filtrar no Flutter), com tipo/setor/localização já
+  /// resolvidos no mesmo embed (zero N+1), ordenada por
+  /// `numero_patrimonio` ASC (texto) e limitada a [limit] — esse limite é
+  /// exclusivo desta busca rápida, nunca aplicado à listagem oficial de
+  /// [listar]. [prefixo] vazio (após trim) devolve lista vazia sem
+  /// consultar o servidor.
+  Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
+    String prefixo, {
+    int limit = 6,
+  });
+
   /// Página de patrimônios com tipo/setor já resolvidos (embed, sem N+1).
   /// [tipoId], [status], [setorId], [localizacaoId]/[semLocalizacao],
   /// [marca], [modelo], [responsavel] e os intervalos de data são filtros
@@ -23,15 +37,18 @@ abstract class PatrimonioRepository {
   /// filtrar/paginar em memória.
   ///
   /// [busca] é interpretado de acordo com [campoBusca]:
-  /// - [PatrimonioSearchField.patrimonio]: correspondência EXATA contra
-  ///   `numero_patrimonio` (nunca `ilike`/substring/similaridade — um
-  ///   número de patrimônio incorreto não pode aparecer como se fosse o
-  ///   patrimônio pesquisado).
+  /// - [PatrimonioSearchField.patrimonio]: PREFIXO de `numero_patrimonio`
+  ///   (`LIKE 'termo%'`, nunca substring no meio do número) — "3636"
+  ///   encontra "3636001"/"3636127", nunca "1236360". A correspondência
+  ///   exata continua funcionando como caso particular. Sem nenhum limite
+  ///   de itens além da paginação normal desta listagem (o teto de 6
+  ///   resultados é exclusivo do diálogo "Consultar patrimônio" do
+  ///   Dashboard — ver [buscarPorPrefixoNumeroPatrimonio]).
   /// - [PatrimonioSearchField.tudo] (padrão): se [busca] contém só dígitos,
-  ///   trata como identificador — `numero_patrimonio` OU `numero_serie`
-  ///   EXATOS, nunca fuzzy/"número mais próximo"; se contém letras, busca
-  ///   textual nos campos textuais (mantendo `numero_patrimonio` exato
-  ///   quando aplicável).
+  ///   trata como identificador — PREFIXO de `numero_patrimonio` (mesma
+  ///   regra do campo [patrimonio]) OU `numero_serie` EXATO como aviso
+  ///   separado quando nenhum patrimônio corresponde ao prefixo; se contém
+  ///   letras, busca textual nos campos textuais.
   /// - os demais campos ([numeroSerie], [equipamentoDescricao],
   ///   [marcaModelo], [responsavel], [localizacao]) usam `ilike` no(s)
   ///   campo(s) correspondente(s).
@@ -120,7 +137,9 @@ abstract class PatrimonioRepository {
   /// (já normalizado) esteja em [numeros] — usado pela importação de
   /// planilha para detectar existentes sem uma consulta por linha (nunca
   /// N+1).
-  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(List<String> numeros);
+  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(
+    List<String> numeros,
+  );
 
   /// Entre [numerosSerie], devolve os que já pertencem a algum patrimônio
   /// cadastrado — usado para o aviso de possível duplicidade por número de
@@ -141,11 +160,15 @@ abstract class PatrimonioRepository {
   /// quem chama precisa preservar [decisao] (nunca gerar uma nova) para um
   /// retry ou uma reconciliação posterior via
   /// [buscarExecucaoComparacaoPorOperacaoId].
-  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao);
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(
+    DecisaoItemParaExecutar decisao,
+  );
 
   /// Consulta somente-leitura de `patrimonio_comparacao_execucoes` pelo
   /// `operacao_id` — usada para reconciliar um resultado desconhecido sem
   /// nenhuma nova escrita. `null` quando nada foi encontrado (o que NÃO
   /// prova que a operação não foi aplicada — pode não ter comitado ainda).
-  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId);
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
+    String operacaoId,
+  );
 }

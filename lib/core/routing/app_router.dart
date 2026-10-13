@@ -42,7 +42,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         // enquanto resolve (checagem inicial de sessão, ou logo após o
         // login), não força navegação — evita flicker/loop de redirect
         loading: () => null,
-        error: (_, _) => (rota == '/login' || rota == '/cadastro') ? null : '/login',
+        error: (_, _) =>
+            (rota == '/login' || rota == '/cadastro') ? null : '/login',
       );
     },
     routes: [
@@ -83,7 +84,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/patrimonios',
             name: 'patrimonios',
-            builder: (context, state) => const PatrimoniosPage(),
+            // `?busca=...` (Dashboard → busca rápida) inicializa o campo
+            // de busca já existente de `PatrimoniosPage` — nunca uma
+            // segunda busca paralela.
+            builder: (context, state) => PatrimoniosPage(
+              buscaInicial: state.uri.queryParameters['busca'],
+            ),
             routes: [
               // Precisa vir antes de ':id' para que "novo" não seja
               // interpretado como um id.
@@ -100,16 +106,34 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: ':id',
                 name: 'patrimonio-detalhe',
-                builder: (context, state) => PatrimonioDetailPage(
-                  id: state.pathParameters['id']!,
-                ),
+                builder: (context, state) =>
+                    PatrimonioDetailPage(id: state.pathParameters['id']!),
               ),
             ],
           ),
           GoRoute(
             path: '/movimentacoes',
             name: 'movimentacoes',
-            builder: (context, state) => const MovimentacoesPage(),
+            // `?acao=nova` (Dashboard → "Registrar movimentação") e
+            // `?acao=importar-sei` (Dashboard → "Documento SEI") — a
+            // MESMA `MovimentacoesPage` detecta a ação e abre o
+            // diálogo/aba já existente, nenhuma rota nova por ação.
+            builder: (context, state) =>
+                MovimentacoesPage(acao: state.uri.queryParameters['acao']),
+            routes: [
+              // Deep-link para o detalhe de UMA movimentação (ex.: "Ver
+              // movimentação completa" no Dashboard) — a MESMA
+              // `MovimentacoesPage`, que busca por id e abre o diálogo de
+              // detalhe já existente automaticamente (ver seção 11 do
+              // pedido de refinamento: reutilizar, não duplicar).
+              GoRoute(
+                path: ':id',
+                name: 'movimentacao-detalhe',
+                builder: (context, state) => MovimentacoesPage(
+                  movimentacaoId: state.pathParameters['id'],
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: '/setores',
@@ -140,9 +164,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: ':id',
                 name: 'administracao-usuario-detalhe',
-                builder: (context, state) => AdminUsuarioDetalhePage(
-                  id: state.pathParameters['id']!,
-                ),
+                builder: (context, state) =>
+                    AdminUsuarioDetalhePage(id: state.pathParameters['id']!),
               ),
             ],
           ),
@@ -181,7 +204,8 @@ String? _redirectFor(AuthStatus status, String rota) {
   }
 }
 
-bool _ehAdminAtivo(AuthStatus status) => status.profile?.perfil == ProfilePerfil.admin;
+bool _ehAdminAtivo(AuthStatus status) =>
+    status.profile?.perfil == ProfilePerfil.admin;
 
 /// Faz o GoRouter reavaliar `redirect` sempre que [authControllerProvider]
 /// muda (login, logout, sessão negada por profile inexistente, ou qualquer

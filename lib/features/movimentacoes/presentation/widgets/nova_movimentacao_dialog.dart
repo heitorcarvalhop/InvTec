@@ -152,7 +152,9 @@ class _NovaMovimentacaoDialogState extends ConsumerState<NovaMovimentacaoDialog>
       // como precisando recarregar.
       ref.invalidate(patrimonioDetalheProvider(patrimonioId));
       ref.invalidate(patrimonioHistoricoProvider(patrimonioId));
-      ref.invalidate(dashboardDataProvider);
+      ref.invalidate(dashboardKpisProvider);
+      ref.invalidate(dashboardDistribuicoesProvider);
+      ref.invalidate(dashboardMovimentacoesRecentesProvider);
       ref.invalidate(patrimoniosControllerProvider);
       await ref.read(movimentacoesControllerProvider.notifier).recarregar();
 

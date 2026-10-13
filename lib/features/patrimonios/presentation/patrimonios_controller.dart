@@ -259,7 +259,9 @@ class PatrimoniosController extends AsyncNotifier<PatrimoniosListState> {
           dataMovimentacao: dataMovimentacao,
         );
     ref.invalidateSelf();
-    ref.invalidate(dashboardDataProvider);
+    ref.invalidate(dashboardKpisProvider);
+    ref.invalidate(dashboardDistribuicoesProvider);
+    ref.invalidate(dashboardMovimentacoesRecentesProvider);
     return patrimonio;
   }
 

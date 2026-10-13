@@ -31,7 +31,12 @@ import 'widgets/patrimonio_filters.dart';
 import 'widgets/patrimonio_mobile_list.dart';
 
 class PatrimoniosPage extends ConsumerStatefulWidget {
-  const PatrimoniosPage({super.key});
+  const PatrimoniosPage({super.key, this.buscaInicial});
+
+  /// Presente só quando a rota é `/patrimonios?busca=...` (ex.: a busca
+  /// rápida do Dashboard) — inicializa o MESMO campo/busca existente desta
+  /// tela (nunca uma segunda busca paralela).
+  final String? buscaInicial;
 
   @override
   ConsumerState<PatrimoniosPage> createState() => _PatrimoniosPageState();
@@ -50,6 +55,13 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
   @override
   void initState() {
     super.initState();
+    final buscaInicial = widget.buscaInicial?.trim();
+    if (buscaInicial != null && buscaInicial.isNotEmpty) {
+      _searchController.text = buscaInicial;
+      // Mesmo método/debounce que o usuário digitando dispararia — nunca
+      // uma segunda busca/consulta paralela (seção 6 do pedido).
+      ref.read(patrimoniosControllerProvider.notifier).buscar(buscaInicial);
+    }
     // Só para atualizar o texto do estado vazio (busca/filtro x cadastro
     // vazio); a consulta em si é disparada com debounce pelo controller.
     _searchController.addListener(() => setState(() {}));
@@ -66,7 +78,8 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
     ref.read(patrimoniosControllerProvider.notifier).definirCampoBusca(campo);
   }
 
-  void _alternarFiltros() => setState(() => _filtrosExpandidos = !_filtrosExpandidos);
+  void _alternarFiltros() =>
+      setState(() => _filtrosExpandidos = !_filtrosExpandidos);
 
   /// Limpar filtros limpa texto + campo de busca (-> Tudo) + Tipo + Status
   /// + Setor — nunca só o lado do controller, senão o texto digitado e o
@@ -105,10 +118,13 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
     // `20261006100000_add_permission_catalog.sql`) sempre concede as duas
     // juntas por perfil (ADMIN/GESTOR/OPERADOR têm ambas; CONSULTA não tem
     // nenhuma), então o comportamento resultante é idêntico ao anterior.
-    final canManage = ref.hasPermission('patrimonio.create') || ref.hasPermission('patrimonio.edit');
+    final canManage =
+        ref.hasPermission('patrimonio.create') ||
+        ref.hasPermission('patrimonio.edit');
     final stateAsync = ref.watch(patrimoniosControllerProvider);
     final viewMode =
-        ref.watch(patrimoniosViewModeControllerProvider).value ?? ListViewMode.list;
+        ref.watch(patrimoniosViewModeControllerProvider).value ??
+        ListViewMode.list;
     final termoBusca = _searchController.text.trim();
 
     // Último filtro conhecido (mesmo durante um `refresh` que mantém o
@@ -129,23 +145,23 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: AppSpacing.contentMaxWidth,
-        ),
+        constraints: const BoxConstraints(maxWidth: AppSpacing.contentMaxWidth),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const InvTecPageHeader(
               title: 'Patrimônios',
-              subtitle: 'Consulte e gerencie os equipamentos cadastrados no InvTec.',
+              subtitle:
+                  'Consulte e gerencie os equipamentos cadastrados no InvTec.',
             ),
             const SizedBox(height: AppSpacing.md),
             ListPageToolbar(
               searchController: _searchController,
               searchHint:
                   'Buscar por patrimônio, equipamento, série, marca, modelo, responsável...',
-              onSearchChanged: (value) =>
-                  ref.read(patrimoniosControllerProvider.notifier).buscar(value),
+              onSearchChanged: (value) => ref
+                  .read(patrimoniosControllerProvider.notifier)
+                  .buscar(value),
               searchLeading: _CampoBuscaDropdown(
                 campoBusca: _campoBusca,
                 onChanged: _alterarCampoBusca,
@@ -153,12 +169,15 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
               filterCount: _contarFiltrosAtivos(filtroAtual),
               onFiltersPressed: _alternarFiltros,
               viewMode: viewMode,
-              onViewModeChanged: (modo) =>
-                  ref.read(patrimoniosViewModeControllerProvider.notifier).definir(modo),
+              onViewModeChanged: (modo) => ref
+                  .read(patrimoniosViewModeControllerProvider.notifier)
+                  .definir(modo),
               primaryActionLabel: canManage ? 'Novo patrimônio' : null,
               primaryActionIcon: canManage ? Icons.add : null,
               onPrimaryAction: canManage ? _novoPatrimonio : null,
-              secondaryActions: importarButton != null ? [importarButton] : const [],
+              secondaryActions: importarButton != null
+                  ? [importarButton]
+                  : const [],
             ),
             if (_filtrosExpandidos) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -190,7 +209,8 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
                   ordenacaoDirecao: filtroAtual.ordenacaoDirecao,
                   onOrdenarPor: notifier.ordenarPor,
                 ),
-                if (filtroAtual.temFiltroAtivo) _ActiveFilterChips(filtro: filtroAtual),
+                if (filtroAtual.temFiltroAtivo)
+                  _ActiveFilterChips(filtro: filtroAtual),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -251,7 +271,8 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
                       totalPaginas: state.totalPaginas,
                       totalItens: state.resultado.total,
                       tamanhoPagina: state.filtro.tamanhoPagina,
-                      tamanhosPaginaPermitidos: patrimoniosTamanhosPaginaPermitidos,
+                      tamanhosPaginaPermitidos:
+                          patrimoniosTamanhosPaginaPermitidos,
                       onChanged: (pagina) => ref
                           .read(patrimoniosControllerProvider.notifier)
                           .irParaPagina(pagina),
@@ -306,7 +327,10 @@ int _contarFiltrosAtivos(PatrimoniosFiltro filtro) {
 /// Modelo" em "Busc..."). O rótulo "Buscar em" em si vira só um [Tooltip] —
 /// o valor sempre aparece por extenso ("Tudo", "Patrimônio", ...).
 class _CampoBuscaDropdown extends StatelessWidget {
-  const _CampoBuscaDropdown({required this.campoBusca, required this.onChanged});
+  const _CampoBuscaDropdown({
+    required this.campoBusca,
+    required this.onChanged,
+  });
 
   final PatrimonioSearchField campoBusca;
   final ValueChanged<PatrimonioSearchField> onChanged;
@@ -403,7 +427,9 @@ class _OrdenarPorControl extends StatelessWidget {
                 ? Icons.arrow_upward
                 : Icons.arrow_downward,
           ),
-          onPressed: ordenarPor == null ? null : () => onOrdenarPor(ordenarPor!),
+          onPressed: ordenarPor == null
+              ? null
+              : () => onOrdenarPor(ordenarPor!),
         ),
       ],
     );
@@ -446,9 +472,16 @@ class _ActiveFilterChips extends ConsumerWidget {
     final notifier = ref.read(patrimoniosControllerProvider.notifier);
     final tiposAsync = ref.watch(tiposAtivosProvider);
     final setoresAsync = ref.watch(setoresAtivosParaPatrimonioProvider);
-    final localizacoesAsync = ref.watch(localizacoesParaFiltroProvider(filtro.setorId));
+    final localizacoesAsync = ref.watch(
+      localizacoesParaFiltroProvider(filtro.setorId),
+    );
 
-    final nomeTipo = _nomePorId(tiposAsync, filtro.tipoId, (t) => t.nome, (t) => t.id);
+    final nomeTipo = _nomePorId(
+      tiposAsync,
+      filtro.tipoId,
+      (t) => t.nome,
+      (t) => t.id,
+    );
     final nomeSetor = _nomePorId(
       setoresAsync,
       filtro.setorId,
@@ -505,7 +538,8 @@ class _ActiveFilterChips extends ConsumerWidget {
         ),
       if (filtro.dataCadastroDe != null || filtro.dataCadastroAte != null)
         ActiveFilterChip(
-          label: 'Cadastro: ${_formatarIntervalo(filtro.dataCadastroDe, filtro.dataCadastroAte)}',
+          label:
+              'Cadastro: ${_formatarIntervalo(filtro.dataCadastroDe, filtro.dataCadastroAte)}',
           onRemove: () => notifier.definirDataCadastro(null, null),
         ),
       if (filtro.dataAquisicaoDe != null || filtro.dataAquisicaoAte != null)
@@ -520,7 +554,11 @@ class _ActiveFilterChips extends ConsumerWidget {
 
     // Sem `Padding` própria: quem posiciona este bloco é o `Wrap` externo
     // que o combina com "Ordenar por" (mesma linha, quando cabe).
-    return Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.xs, children: chips);
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.xs,
+      children: chips,
+    );
   }
 }
 
@@ -528,7 +566,9 @@ String _formatarData(DateTime data) =>
     '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
 
 String _formatarIntervalo(DateTime? de, DateTime? ate) {
-  if (de != null && ate != null) return '${_formatarData(de)} – ${_formatarData(ate)}';
+  if (de != null && ate != null) {
+    return '${_formatarData(de)} – ${_formatarData(ate)}';
+  }
   if (de != null) return 'a partir de ${_formatarData(de)}';
   if (ate != null) return 'até ${_formatarData(ate)}';
   return '';

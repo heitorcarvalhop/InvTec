@@ -117,25 +117,39 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   int buscarPorNumerosPatrimonioCallCount = 0;
   int buscarNumerosSerieExistentesCallCount = 0;
 
+  /// Quantas vezes [buscarPorPrefixoNumeroPatrimonio] foi chamada e com
+  /// qual [limit] — usado para provar que o diálogo "Consultar patrimônio"
+  /// do Dashboard nunca consulta antes do usuário digitar, e sempre usa o
+  /// LIMIT 6 no servidor (nunca busca tudo para cortar no Flutter).
+  int buscarPorPrefixoNumeroPatrimonioCallCount = 0;
+  int? ultimoLimitPrefixo;
+
   /// Parâmetros da última chamada a [cadastrar] — usado para verificar o
   /// que foi enviado à "RPC" (nunca status).
   Map<String, Object?>? ultimoCadastro;
 
   /// Reproduz, em memória, a MESMA semântica de
   /// [PatrimonioRepositorySupabase] para cada [PatrimonioSearchField] — em
-  /// especial, [PatrimonioSearchField.patrimonio] é sempre correspondência
-  /// EXATA, nunca `contains`.
-  bool _casaComBusca(PatrimonioDetalhe item, PatrimonioSearchField campo, String termo) {
+  /// especial, [PatrimonioSearchField.patrimonio] busca por PREFIXO
+  /// (nunca `contains`/substring no meio do número).
+  bool _casaComBusca(
+    PatrimonioDetalhe item,
+    PatrimonioSearchField campo,
+    String termo,
+  ) {
     final p = item.patrimonio;
     switch (campo) {
       case PatrimonioSearchField.patrimonio:
-        return p.numeroPatrimonio == normalizarNumeroPatrimonio(termo);
+        final numero = normalizarNumeroPatrimonio(termo);
+        return numero != null &&
+            (p.numeroPatrimonio?.startsWith(numero) ?? false);
       case PatrimonioSearchField.numeroSerie:
         return _contemIgnorandoCaixa(p.numeroSerie, termo);
       case PatrimonioSearchField.equipamentoDescricao:
         return _contemIgnorandoCaixa(p.descricao, termo);
       case PatrimonioSearchField.marcaModelo:
-        return _contemIgnorandoCaixa(p.marca, termo) || _contemIgnorandoCaixa(p.modelo, termo);
+        return _contemIgnorandoCaixa(p.marca, termo) ||
+            _contemIgnorandoCaixa(p.modelo, termo);
       case PatrimonioSearchField.responsavel:
         return _contemIgnorandoCaixa(p.responsavelAtual, termo);
       case PatrimonioSearchField.localizacao:
@@ -175,7 +189,9 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   /// releitura posterior (concorrência). Nunca usado pelo app real, só
   /// pelos testes.
   void substituirDetalhe(PatrimonioDetalhe detalhe) {
-    final index = _itens.indexWhere((item) => item.patrimonio.id == detalhe.patrimonio.id);
+    final index = _itens.indexWhere(
+      (item) => item.patrimonio.id == detalhe.patrimonio.id,
+    );
     if (index >= 0) {
       _itens[index] = detalhe;
     } else {
@@ -184,14 +200,35 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   }
 
   @override
-  Future<Patrimonio?> buscarPorNumeroPatrimonio(
-    String numeroPatrimonio,
-  ) async {
+  Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) async {
     final numero = normalizarNumeroPatrimonio(numeroPatrimonio);
     for (final item in _itens) {
       if (item.patrimonio.numeroPatrimonio == numero) return item.patrimonio;
     }
     return null;
+  }
+
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
+    String prefixo, {
+    int limit = 6,
+  }) async {
+    buscarPorPrefixoNumeroPatrimonioCallCount++;
+    ultimoLimitPrefixo = limit;
+    if (erro != null) throw erro!;
+
+    final termo = prefixo.trim().toUpperCase();
+    if (termo.isEmpty) return [];
+
+    final encontrados =
+        _itens
+            .where(
+              (item) =>
+                  item.patrimonio.numeroPatrimonio?.startsWith(termo) ?? false,
+            )
+            .toList()
+          ..sort(_compararPorNumeroPatrimonioAsc);
+    return encontrados.take(limit).toList();
   }
 
   Iterable<PatrimonioDetalhe> _comFiltrosComuns(
@@ -222,42 +259,77 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       );
     }
     if (semLocalizacao) {
-      resultado = resultado.where((item) => item.patrimonio.localizacaoAtualId == null);
+      resultado = resultado.where(
+        (item) => item.patrimonio.localizacaoAtualId == null,
+      );
     } else if (localizacaoId != null) {
-      resultado = resultado.where((item) => item.patrimonio.localizacaoAtualId == localizacaoId);
+      resultado = resultado.where(
+        (item) => item.patrimonio.localizacaoAtualId == localizacaoId,
+      );
     }
     final marcaTrim = marca?.trim();
     if (marcaTrim != null && marcaTrim.isNotEmpty) {
-      resultado = resultado.where((item) => _contemIgnorandoCaixa(item.patrimonio.marca, marcaTrim));
+      resultado = resultado.where(
+        (item) => _contemIgnorandoCaixa(item.patrimonio.marca, marcaTrim),
+      );
     }
     final modeloTrim = modelo?.trim();
     if (modeloTrim != null && modeloTrim.isNotEmpty) {
-      resultado = resultado.where((item) => _contemIgnorandoCaixa(item.patrimonio.modelo, modeloTrim));
+      resultado = resultado.where(
+        (item) => _contemIgnorandoCaixa(item.patrimonio.modelo, modeloTrim),
+      );
     }
     final responsavelTrim = responsavel?.trim();
     if (responsavelTrim != null && responsavelTrim.isNotEmpty) {
       resultado = resultado.where(
-        (item) => _contemIgnorandoCaixa(item.patrimonio.responsavelAtual, responsavelTrim),
+        (item) => _contemIgnorandoCaixa(
+          item.patrimonio.responsavelAtual,
+          responsavelTrim,
+        ),
       );
     }
     if (dataCadastroDe != null) {
-      final inicio = DateTime(dataCadastroDe.year, dataCadastroDe.month, dataCadastroDe.day);
-      resultado = resultado.where((item) => !item.patrimonio.dataCadastro.isBefore(inicio));
+      final inicio = DateTime(
+        dataCadastroDe.year,
+        dataCadastroDe.month,
+        dataCadastroDe.day,
+      );
+      resultado = resultado.where(
+        (item) => !item.patrimonio.dataCadastro.isBefore(inicio),
+      );
     }
     if (dataCadastroAte != null) {
-      final fimExclusivo = DateTime(dataCadastroAte.year, dataCadastroAte.month, dataCadastroAte.day + 1);
-      resultado = resultado.where((item) => item.patrimonio.dataCadastro.isBefore(fimExclusivo));
+      final fimExclusivo = DateTime(
+        dataCadastroAte.year,
+        dataCadastroAte.month,
+        dataCadastroAte.day + 1,
+      );
+      resultado = resultado.where(
+        (item) => item.patrimonio.dataCadastro.isBefore(fimExclusivo),
+      );
     }
     if (dataAquisicaoDe != null) {
-      final inicio = DateTime(dataAquisicaoDe.year, dataAquisicaoDe.month, dataAquisicaoDe.day);
+      final inicio = DateTime(
+        dataAquisicaoDe.year,
+        dataAquisicaoDe.month,
+        dataAquisicaoDe.day,
+      );
       resultado = resultado.where(
-        (item) => item.patrimonio.dataAquisicao != null && !item.patrimonio.dataAquisicao!.isBefore(inicio),
+        (item) =>
+            item.patrimonio.dataAquisicao != null &&
+            !item.patrimonio.dataAquisicao!.isBefore(inicio),
       );
     }
     if (dataAquisicaoAte != null) {
-      final fim = DateTime(dataAquisicaoAte.year, dataAquisicaoAte.month, dataAquisicaoAte.day);
+      final fim = DateTime(
+        dataAquisicaoAte.year,
+        dataAquisicaoAte.month,
+        dataAquisicaoAte.day,
+      );
       resultado = resultado.where(
-        (item) => item.patrimonio.dataAquisicao != null && !item.patrimonio.dataAquisicao!.isAfter(fim),
+        (item) =>
+            item.patrimonio.dataAquisicao != null &&
+            !item.patrimonio.dataAquisicao!.isAfter(fim),
       );
     }
     return resultado;
@@ -270,7 +342,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     PatrimonioOrdenacaoCampo? ordenarPor,
     OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) {
-    final lista = itens.toList()..sort(_comparadorDe(ordenarPor, ordenacaoDirecao));
+    final lista = itens.toList()
+      ..sort(_comparadorDe(ordenarPor, ordenacaoDirecao));
     final pagina = lista.skip(offset).take(limit).toList();
     return PatrimoniosResultado(itens: pagina, total: lista.length);
   }
@@ -287,8 +360,12 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   ) {
     if (campo == null) {
       return (a, b) {
-        final porData = b.patrimonio.dataCadastro.compareTo(a.patrimonio.dataCadastro);
-        return porData != 0 ? porData : b.patrimonio.id.compareTo(a.patrimonio.id);
+        final porData = b.patrimonio.dataCadastro.compareTo(
+          a.patrimonio.dataCadastro,
+        );
+        return porData != 0
+            ? porData
+            : b.patrimonio.id.compareTo(a.patrimonio.id);
       };
     }
 
@@ -296,27 +373,58 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     int porCampo(PatrimonioDetalhe a, PatrimonioDetalhe b) {
       switch (campo) {
         case PatrimonioOrdenacaoCampo.numeroPatrimonio:
-          return _compararNulosPorUltimo(a.patrimonio.numeroPatrimonio, b.patrimonio.numeroPatrimonio, sinal);
+          return _compararNulosPorUltimo(
+            a.patrimonio.numeroPatrimonio,
+            b.patrimonio.numeroPatrimonio,
+            sinal,
+          );
         case PatrimonioOrdenacaoCampo.equipamento:
           return _compararNulosPorUltimo(a.tipoNome, b.tipoNome, sinal);
         case PatrimonioOrdenacaoCampo.marca:
-          return _compararNulosPorUltimo(a.patrimonio.marca, b.patrimonio.marca, sinal);
+          return _compararNulosPorUltimo(
+            a.patrimonio.marca,
+            b.patrimonio.marca,
+            sinal,
+          );
         case PatrimonioOrdenacaoCampo.setor:
           return _compararNulosPorUltimo(a.setorNome, b.setorNome, sinal);
         case PatrimonioOrdenacaoCampo.localizacao:
-          return _compararNulosPorUltimo(a.localizacaoNome, b.localizacaoNome, sinal);
+          return _compararNulosPorUltimo(
+            a.localizacaoNome,
+            b.localizacaoNome,
+            sinal,
+          );
         case PatrimonioOrdenacaoCampo.status:
-          return _compararNulosPorUltimo(a.patrimonio.status.value, b.patrimonio.status.value, sinal);
+          return _compararNulosPorUltimo(
+            a.patrimonio.status.value,
+            b.patrimonio.status.value,
+            sinal,
+          );
         case PatrimonioOrdenacaoCampo.criadoEm:
-          return sinal * a.patrimonio.dataCadastro.compareTo(b.patrimonio.dataCadastro);
+          return sinal *
+              a.patrimonio.dataCadastro.compareTo(b.patrimonio.dataCadastro);
       }
     }
 
     return (a, b) {
       final cmp = porCampo(a, b);
-      return cmp != 0 ? cmp : sinal * a.patrimonio.id.compareTo(b.patrimonio.id);
+      return cmp != 0
+          ? cmp
+          : sinal * a.patrimonio.id.compareTo(b.patrimonio.id);
     };
   }
+
+  /// Mesma ordenação do servidor em [PatrimonioRepositorySupabase.
+  /// buscarPorPrefixoNumeroPatrimonio]: `numero_patrimonio` ASC como TEXTO
+  /// (nunca convertido para número só para ordenar).
+  int _compararPorNumeroPatrimonioAsc(
+    PatrimonioDetalhe a,
+    PatrimonioDetalhe b,
+  ) => _compararNulosPorUltimo(
+    a.patrimonio.numeroPatrimonio,
+    b.patrimonio.numeroPatrimonio,
+    1,
+  );
 
   /// `null` sempre por último, nas duas direções — mesma convenção do
   /// Postgrest real (`nullsFirst` nunca é usado por este repositório).
@@ -354,10 +462,16 @@ class FakePatrimonioRepository implements PatrimonioRepository {
 
     // Mesma lógica em duas etapas do repositório real — ver
     // PatrimonioRepositorySupabase._listarTudoNumerico.
-    if (termo != null && termo.isNotEmpty && campoBusca == PatrimonioSearchField.tudo && _somenteDigitos(termo)) {
-      final numero = normalizarNumeroPatrimonio(termo);
+    if (termo != null &&
+        termo.isNotEmpty &&
+        campoBusca == PatrimonioSearchField.tudo &&
+        _somenteDigitos(termo)) {
+      final numero = normalizarNumeroPatrimonio(termo)!;
       final matchPatrimonio = _comFiltrosComuns(
-        _itens.where((item) => item.patrimonio.numeroPatrimonio == numero),
+        _itens.where(
+          (item) =>
+              item.patrimonio.numeroPatrimonio?.startsWith(numero) ?? false,
+        ),
         tipoId: tipoId,
         status: status,
         setorId: setorId,
@@ -395,7 +509,11 @@ class FakePatrimonioRepository implements PatrimonioRepository {
         dataAquisicaoDe: dataAquisicaoDe,
         dataAquisicaoAte: dataAquisicaoAte,
       );
-      final resultadoSerie = _paginar(matchSerie, limit: _limiteCorrespondenciaSerie, offset: 0);
+      final resultadoSerie = _paginar(
+        matchSerie,
+        limit: _limiteCorrespondenciaSerie,
+        offset: 0,
+      );
       return PatrimoniosResultado(
         itens: const [],
         total: 0,
@@ -405,7 +523,9 @@ class FakePatrimonioRepository implements PatrimonioRepository {
 
     Iterable<PatrimonioDetalhe> resultado = _itens;
     if (termo != null && termo.isNotEmpty) {
-      resultado = resultado.where((item) => _casaComBusca(item, campoBusca, termo));
+      resultado = resultado.where(
+        (item) => _casaComBusca(item, campoBusca, termo),
+      );
     }
     resultado = _comFiltrosComuns(
       resultado,
@@ -480,7 +600,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       throw const AppException('Já existe um patrimônio com este número.');
     }
 
-    final responsavel = (responsavelDestino == null || responsavelDestino.trim().isEmpty)
+    final responsavel =
+        (responsavelDestino == null || responsavelDestino.trim().isEmpty)
         ? null
         : responsavelDestino.trim();
 
@@ -557,17 +678,23 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   }
 
   @override
-  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(List<String> numeros) async {
+  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(
+    List<String> numeros,
+  ) async {
     buscarPorNumerosPatrimonioCallCount++;
     if (erro != null) throw erro!;
     final normalizados = numeros.toSet();
     return _itens
-        .where((item) => normalizados.contains(item.patrimonio.numeroPatrimonio))
+        .where(
+          (item) => normalizados.contains(item.patrimonio.numeroPatrimonio),
+        )
         .toList();
   }
 
   @override
-  Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) async {
+  Future<Set<String>> buscarNumerosSerieExistentes(
+    List<String> numerosSerie,
+  ) async {
     buscarNumerosSerieExistentesCallCount++;
     if (erro != null) throw erro!;
     final procurados = numerosSerie.toSet();
@@ -579,7 +706,9 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   }
 
   @override
-  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) async {
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(
+    DecisaoItemParaExecutar decisao,
+  ) async {
     aplicarDecisaoComparacaoCallCount++;
 
     // Idempotência (mesma disciplina da RPC real):
@@ -604,7 +733,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       if (!identico) {
         throw falhaDeExecucaoComparacao(
           codigo: 'P0041',
-          mensagemDoServidor: 'operacao_id já foi utilizado com parâmetros ou usuário diferentes',
+          mensagemDoServidor:
+              'operacao_id já foi utilizado com parâmetros ou usuário diferentes',
         );
       }
       return ResultadoAplicacaoDecisao(
@@ -624,15 +754,21 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     final erroDeclarado = errosExecucaoPorPatrimonioId[decisao.patrimonioId];
     if (erroDeclarado != null) throw erroDeclarado;
 
-    final index = _itens.indexWhere((item) => item.patrimonio.id == decisao.patrimonioId);
+    final index = _itens.indexWhere(
+      (item) => item.patrimonio.id == decisao.patrimonioId,
+    );
     if (index < 0) {
-      throw falhaDeExecucaoComparacao(codigo: 'P0002', mensagemDoServidor: 'Patrimônio não encontrado');
+      throw falhaDeExecucaoComparacao(
+        codigo: 'P0002',
+        mensagemDoServidor: 'Patrimônio não encontrado',
+      );
     }
     final atual = _itens[index];
     if (atual.patrimonio.atualizadoEm != decisao.versaoEsperada) {
       throw falhaDeExecucaoComparacao(
         codigo: 'P0040',
-        mensagemDoServidor: 'O patrimônio foi alterado por outra operação desde a comparação',
+        mensagemDoServidor:
+            'O patrimônio foi alterado por outra operação desde a comparação',
       );
     }
 
@@ -650,8 +786,12 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     // `registrar_movimentacao` teria, incluindo limpar a localização
     // quando o setor muda sem uma localização nova explícita (mesma regra
     // já homologada dentro da RPC real para AJUSTE_INVENTARIO).
-    final houveTrocaDeSetor = decisao.novoSetorId != null && decisao.novoSetorId != atual.patrimonio.setorAtualId;
-    final novaLocalizacao = decisao.novaLocalizacaoId ?? (houveTrocaDeSetor ? null : atual.patrimonio.localizacaoAtualId);
+    final houveTrocaDeSetor =
+        decisao.novoSetorId != null &&
+        decisao.novoSetorId != atual.patrimonio.setorAtualId;
+    final novaLocalizacao =
+        decisao.novaLocalizacaoId ??
+        (houveTrocaDeSetor ? null : atual.patrimonio.localizacaoAtualId);
     final patrimonioAtualizado = Patrimonio(
       id: metadadosAplicados.id,
       numeroPatrimonio: metadadosAplicados.numeroPatrimonio,
@@ -676,7 +816,9 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       tipoNome: atual.tipoNome,
       setorNome: atual.setorNome,
       setorSigla: atual.setorSigla,
-      localizacaoNome: decisao.novaLocalizacaoId != null ? 'Localização fake' : atual.localizacaoNome,
+      localizacaoNome: decisao.novaLocalizacaoId != null
+          ? 'Localização fake'
+          : atual.localizacaoNome,
       criadoPorNome: atual.criadoPorNome,
     );
 
@@ -685,7 +827,9 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       metadadosAtualizados: decisao.temMetadado,
       movimentacaoRegistrada: decisao.temMovimentacao,
       jaExecutado: false,
-      movimentacaoId: decisao.temMovimentacao ? 'movimentacao-fake-${decisao.operacaoId}' : null,
+      movimentacaoId: decisao.temMovimentacao
+          ? 'movimentacao-fake-${decisao.operacaoId}'
+          : null,
       concluidoEm: DateTime.now(),
     );
     _execucoesPorOperacaoId[decisao.operacaoId] = resultado;
@@ -701,7 +845,9 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   }
 
   @override
-  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) async {
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
+    String operacaoId,
+  ) async {
     if (falhaConsultaExecucao) {
       throw const AppException('Falha ao consultar o resultado da operação');
     }

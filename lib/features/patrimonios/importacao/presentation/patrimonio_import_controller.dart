@@ -975,7 +975,9 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
 
     state = state.copyWith(step: ImportStep.resultado, bumpRevisao: true);
     // seção 32: refresh do sistema — sem exigir reiniciar o aplicativo.
-    ref.invalidate(dashboardDataProvider);
+    ref.invalidate(dashboardKpisProvider);
+    ref.invalidate(dashboardDistribuicoesProvider);
+    ref.invalidate(dashboardMovimentacoesRecentesProvider);
     ref.invalidate(patrimoniosControllerProvider);
   }
 

@@ -70,6 +70,7 @@ Future<void> _pumpPatrimoniosPage(
   required FakePatrimonioRepository patrimonioRepo,
   FakeLocalizacaoRepository? localizacaoRepo,
   List<Setor>? setores,
+  String? buscaInicial,
 }) async {
   // Janela desktop "comum" (mesmo padrão usado por outras suítes de página
   // inteira do projeto, ex.: sidebar/tema) — estes são testes de
@@ -99,12 +100,16 @@ Future<void> _pumpPatrimoniosPage(
         tipoPatrimonioRepositoryProvider.overrideWithValue(
           FakeTipoPatrimonioRepository(),
         ),
-        setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: setores)),
+        setorRepositoryProvider.overrideWithValue(
+          FakeSetorRepository(setores: setores),
+        ),
         localizacaoRepositoryProvider.overrideWithValue(
           localizacaoRepo ?? FakeLocalizacaoRepository(),
         ),
       ],
-      child: const MaterialApp(home: Scaffold(body: PatrimoniosPage())),
+      child: MaterialApp(
+        home: Scaffold(body: PatrimoniosPage(buscaInicial: buscaInicial)),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -136,7 +141,10 @@ void main() {
         tester,
         perfil: ProfilePerfil.admin,
         patrimonioRepo: FakePatrimonioRepository(
-          itens: [_item('1', numero: '00045872'), _item('2', numero: '123')],
+          itens: [
+            _item('1', numero: '00045872'),
+            _item('2', numero: '123'),
+          ],
         ),
       );
 
@@ -173,7 +181,14 @@ void main() {
           tester,
           perfil: ProfilePerfil.admin,
           patrimonioRepo: FakePatrimonioRepository(
-            itens: [_item('1', numero: '2703532', numeroSerie: '2703522', marca: 'MICROSOFT')],
+            itens: [
+              _item(
+                '1',
+                numero: '2703532',
+                numeroSerie: '2703522',
+                marca: 'MICROSOFT',
+              ),
+            ],
           ),
         );
 
@@ -183,10 +198,19 @@ void main() {
 
         // nunca aparece como se fosse o patrimônio pesquisado.
         expect(find.text('2703532'), findsNothing);
-        expect(find.text('Nenhum patrimônio nº "2703522" encontrado.'), findsOneWidget);
-        expect(find.text('1 equipamento possui "2703522" como número de série.'), findsOneWidget);
+        expect(
+          find.text('Nenhum patrimônio nº "2703522" encontrado.'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('1 equipamento possui "2703522" como número de série.'),
+          findsOneWidget,
+        );
 
-        final botaoVerResultado = find.widgetWithText(TextButton, 'Ver resultado');
+        final botaoVerResultado = find.widgetWithText(
+          TextButton,
+          'Ver resultado',
+        );
         await tester.ensureVisible(botaoVerResultado);
         await tester.pumpAndSettle();
         await tester.tap(botaoVerResultado);
@@ -220,7 +244,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 400));
         await tester.pumpAndSettle();
 
-        expect(find.text('Nenhum patrimônio encontrado para "2703522".'), findsOneWidget);
+        expect(
+          find.text('Nenhum patrimônio encontrado para "2703522".'),
+          findsOneWidget,
+        );
         expect(find.textContaining('como número de série'), findsNothing);
       },
     );
@@ -250,7 +277,11 @@ void main() {
         'Marca / Modelo',
         'Responsável',
       ]) {
-        expect(find.text(opcao), findsOneWidget, reason: 'opção "$opcao" deveria existir no seletor');
+        expect(
+          find.text(opcao),
+          findsOneWidget,
+          reason: 'opção "$opcao" deveria existir no seletor',
+        );
       }
       // "Localização" aparece duas vezes na tela nesse momento: a opção do
       // seletor de campo de busca e o rótulo do filtro
@@ -263,64 +294,66 @@ void main() {
       );
     });
 
-    testWidgets('trocar o seletor para Marca / Modelo restringe a busca a marca/modelo', (
-      tester,
-    ) async {
-      await _pumpPatrimoniosPage(
-        tester,
-        perfil: ProfilePerfil.admin,
-        patrimonioRepo: FakePatrimonioRepository(
-          itens: [
-            _item('1', numero: '100', marca: 'DELL'),
-            _item('2', numero: '200', marca: 'LENOVO'),
-          ],
-        ),
-      );
+    testWidgets(
+      'trocar o seletor para Marca / Modelo restringe a busca a marca/modelo',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.admin,
+          patrimonioRepo: FakePatrimonioRepository(
+            itens: [
+              _item('1', numero: '100', marca: 'DELL'),
+              _item('2', numero: '200', marca: 'LENOVO'),
+            ],
+          ),
+        );
 
-      await tester.tap(find.text('Tudo'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Marca / Modelo').last);
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Tudo'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Marca / Modelo').last);
+        await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField), 'dell');
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'dell');
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
 
-      expect(find.text('100'), findsOneWidget);
-      expect(find.text('200'), findsNothing);
-    });
+        expect(find.text('100'), findsOneWidget);
+        expect(find.text('200'), findsNothing);
+      },
+    );
 
-    testWidgets('Limpar filtros limpa o texto digitado e volta o seletor para Tudo', (
-      tester,
-    ) async {
-      await _pumpPatrimoniosPage(
-        tester,
-        perfil: ProfilePerfil.admin,
-        patrimonioRepo: FakePatrimonioRepository(
-          itens: [_item('1', numero: '100', marca: 'DELL')],
-        ),
-      );
+    testWidgets(
+      'Limpar filtros limpa o texto digitado e volta o seletor para Tudo',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.admin,
+          patrimonioRepo: FakePatrimonioRepository(
+            itens: [_item('1', numero: '100', marca: 'DELL')],
+          ),
+        );
 
-      await tester.tap(find.text('Tudo'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Marca / Modelo').last);
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'dell');
-      await tester.pump(const Duration(milliseconds: 400));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Tudo'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Marca / Modelo').last);
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'dell');
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
 
-      // "Limpar filtros" vive dentro do painel de filtros, que agora só
-      // aparece depois de clicar em "Filtros" na toolbar.
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Limpar filtros'));
-      await tester.pumpAndSettle();
+        // "Limpar filtros" vive dentro do painel de filtros, que agora só
+        // aparece depois de clicar em "Filtros" na toolbar.
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, 'Limpar filtros'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Tudo'), findsOneWidget);
-      expect(find.widgetWithText(TextField, 'dell'), findsNothing);
-      final textField = tester.widget<TextField>(find.byType(TextField));
-      expect(textField.controller?.text, isEmpty);
-    });
+        expect(find.text('Tudo'), findsOneWidget);
+        expect(find.widgetWithText(TextField, 'dell'), findsNothing);
+        final textField = tester.widget<TextField>(find.byType(TextField));
+        expect(textField.controller?.text, isEmpty);
+      },
+    );
 
     testWidgets('patrimônio baixado continua visível na listagem', (
       tester,
@@ -329,9 +362,7 @@ void main() {
         tester,
         perfil: ProfilePerfil.admin,
         patrimonioRepo: FakePatrimonioRepository(
-          itens: [
-            _item('1', numero: '999', status: PatrimonioStatus.baixado),
-          ],
+          itens: [_item('1', numero: '999', status: PatrimonioStatus.baixado)],
         ),
       );
 
@@ -373,91 +404,99 @@ void main() {
       expect(find.text('P0'), findsNothing);
     });
 
-    testWidgets('filtro Localização restringe a listagem por localizacao_atual_id', (
-      tester,
-    ) async {
-      await _pumpPatrimoniosPage(
-        tester,
-        perfil: ProfilePerfil.admin,
-        patrimonioRepo: FakePatrimonioRepository(
-          itens: [
-            _item('1', numero: '100', localizacaoId: 'loc-a'),
-            _item('2', numero: '200', localizacaoId: 'loc-b'),
-          ],
-        ),
-        localizacaoRepo: FakeLocalizacaoRepository(
-          localizacoes: [
-            Localizacao(
-              id: 'loc-a',
-              setorId: 'setor-1',
-              nome: 'GETEC - UNIVERSITÁRIO',
-              ativo: true,
-              criadoEm: DateTime(2026, 1, 1),
-            ),
-            Localizacao(
-              id: 'loc-b',
-              setorId: 'setor-1',
-              nome: 'DATACENTER - UNIVERSITÁRIO',
-              ativo: true,
-              criadoEm: DateTime(2026, 1, 1),
-            ),
-          ],
-        ),
-      );
+    testWidgets(
+      'filtro Localização restringe a listagem por localizacao_atual_id',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.admin,
+          patrimonioRepo: FakePatrimonioRepository(
+            itens: [
+              _item('1', numero: '100', localizacaoId: 'loc-a'),
+              _item('2', numero: '200', localizacaoId: 'loc-b'),
+            ],
+          ),
+          localizacaoRepo: FakeLocalizacaoRepository(
+            localizacoes: [
+              Localizacao(
+                id: 'loc-a',
+                setorId: 'setor-1',
+                nome: 'GETEC - UNIVERSITÁRIO',
+                ativo: true,
+                criadoEm: DateTime(2026, 1, 1),
+              ),
+              Localizacao(
+                id: 'loc-b',
+                setorId: 'setor-1',
+                nome: 'DATACENTER - UNIVERSITÁRIO',
+                ativo: true,
+                criadoEm: DateTime(2026, 1, 1),
+              ),
+            ],
+          ),
+        );
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
+        await tester.pumpAndSettle();
 
-      final campoLocalizacao = find.widgetWithText(DropdownButtonFormField<String>, 'Localização');
-      expect(campoLocalizacao, findsOneWidget);
-      await tester.ensureVisible(campoLocalizacao);
-      await tester.tap(campoLocalizacao);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('GETEC - UNIVERSITÁRIO').last);
-      await tester.pumpAndSettle();
+        final campoLocalizacao = find.widgetWithText(
+          DropdownButtonFormField<String>,
+          'Localização',
+        );
+        expect(campoLocalizacao, findsOneWidget);
+        await tester.ensureVisible(campoLocalizacao);
+        await tester.tap(campoLocalizacao);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('GETEC - UNIVERSITÁRIO').last);
+        await tester.pumpAndSettle();
 
-      expect(find.text('100'), findsOneWidget);
-      expect(find.text('200'), findsNothing);
-    });
+        expect(find.text('100'), findsOneWidget);
+        expect(find.text('200'), findsNothing);
+      },
+    );
 
-    testWidgets('"Sem localização" mostra só quem tem localizacao_atual_id nulo', (
-      tester,
-    ) async {
-      await _pumpPatrimoniosPage(
-        tester,
-        perfil: ProfilePerfil.admin,
-        patrimonioRepo: FakePatrimonioRepository(
-          itens: [
-            _item('1', numero: '100', localizacaoId: 'loc-a'),
-            _item('2', numero: '200'),
-          ],
-        ),
-        localizacaoRepo: FakeLocalizacaoRepository(
-          localizacoes: [
-            Localizacao(
-              id: 'loc-a',
-              setorId: 'setor-1',
-              nome: 'GETEC - UNIVERSITÁRIO',
-              ativo: true,
-              criadoEm: DateTime(2026, 1, 1),
-            ),
-          ],
-        ),
-      );
+    testWidgets(
+      '"Sem localização" mostra só quem tem localizacao_atual_id nulo',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.admin,
+          patrimonioRepo: FakePatrimonioRepository(
+            itens: [
+              _item('1', numero: '100', localizacaoId: 'loc-a'),
+              _item('2', numero: '200'),
+            ],
+          ),
+          localizacaoRepo: FakeLocalizacaoRepository(
+            localizacoes: [
+              Localizacao(
+                id: 'loc-a',
+                setorId: 'setor-1',
+                nome: 'GETEC - UNIVERSITÁRIO',
+                ativo: true,
+                criadoEm: DateTime(2026, 1, 1),
+              ),
+            ],
+          ),
+        );
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
+        await tester.pumpAndSettle();
 
-      final campoLocalizacao = find.widgetWithText(DropdownButtonFormField<String>, 'Localização');
-      await tester.ensureVisible(campoLocalizacao);
-      await tester.tap(campoLocalizacao);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Sem localização').last);
-      await tester.pumpAndSettle();
+        final campoLocalizacao = find.widgetWithText(
+          DropdownButtonFormField<String>,
+          'Localização',
+        );
+        await tester.ensureVisible(campoLocalizacao);
+        await tester.tap(campoLocalizacao);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Sem localização').last);
+        await tester.pumpAndSettle();
 
-      expect(find.text('200'), findsOneWidget);
-      expect(find.text('100'), findsNothing);
-    });
+        expect(find.text('200'), findsOneWidget);
+        expect(find.text('100'), findsNothing);
+      },
+    );
 
     testWidgets('resumo "1–N de total" e seletor de itens por página', (
       tester,
@@ -485,50 +524,94 @@ void main() {
     });
   });
 
+  group('deep-link busca inicial (/patrimonios?busca=...)', () {
+    testWidgets('preenche o campo de busca e aplica a busca já existente', (
+      tester,
+    ) async {
+      await _pumpPatrimoniosPage(
+        tester,
+        perfil: ProfilePerfil.admin,
+        patrimonioRepo: FakePatrimonioRepository(
+          itens: [
+            _item('1', numero: '4183343'),
+            _item('2', numero: '9999999'),
+          ],
+        ),
+        buscaInicial: '4183343',
+      );
+      // `buscar()` tem debounce de 300ms — mesmo mecanismo de quando o
+      // usuário digita, nunca uma segunda consulta/busca paralela.
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(TextField, '4183343'), findsOneWidget);
+      expect(find.text('9999999'), findsNothing);
+    });
+
+    testWidgets('busca inicial vazia não altera o comportamento padrão', (
+      tester,
+    ) async {
+      await _pumpPatrimoniosPage(
+        tester,
+        perfil: ProfilePerfil.admin,
+        patrimonioRepo: FakePatrimonioRepository(
+          itens: [_item('1', numero: '4183343')],
+        ),
+        buscaInicial: null,
+      );
+
+      expect(find.text('4183343'), findsOneWidget);
+    });
+  });
+
   group('permissões', () {
     final itens = [_item('1', numero: '00045872')];
 
-    testWidgets('CONSULTA vê a listagem mas não vê Novo patrimônio nem editar', (
+    testWidgets(
+      'CONSULTA vê a listagem mas não vê Novo patrimônio nem editar',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.consulta,
+          patrimonioRepo: FakePatrimonioRepository(itens: itens),
+        );
+
+        expect(find.text('00045872'), findsOneWidget);
+        expect(
+          find.widgetWithText(FilledButton, 'Novo patrimônio'),
+          findsNothing,
+        );
+        expect(
+          find.widgetWithText(OutlinedButton, 'Importar planilha'),
+          findsNothing,
+        );
+        expect(find.byIcon(Icons.edit_outlined), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'OPERADOR vê "Novo patrimônio" e "Importar planilha" (RPC permite OPERADOR)',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.operador,
+          patrimonioRepo: FakePatrimonioRepository(itens: itens),
+        );
+
+        expect(
+          find.widgetWithText(FilledButton, 'Novo patrimônio'),
+          findsOneWidget,
+        );
+        expect(
+          find.widgetWithText(OutlinedButton, 'Importar planilha'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('ADMIN vê "Novo patrimônio" e "Importar planilha"', (
       tester,
     ) async {
-      await _pumpPatrimoniosPage(
-        tester,
-        perfil: ProfilePerfil.consulta,
-        patrimonioRepo: FakePatrimonioRepository(itens: itens),
-      );
-
-      expect(find.text('00045872'), findsOneWidget);
-      expect(
-        find.widgetWithText(FilledButton, 'Novo patrimônio'),
-        findsNothing,
-      );
-      expect(
-        find.widgetWithText(OutlinedButton, 'Importar planilha'),
-        findsNothing,
-      );
-      expect(find.byIcon(Icons.edit_outlined), findsNothing);
-    });
-
-    testWidgets('OPERADOR vê "Novo patrimônio" e "Importar planilha" (RPC permite OPERADOR)', (
-      tester,
-    ) async {
-      await _pumpPatrimoniosPage(
-        tester,
-        perfil: ProfilePerfil.operador,
-        patrimonioRepo: FakePatrimonioRepository(itens: itens),
-      );
-
-      expect(
-        find.widgetWithText(FilledButton, 'Novo patrimônio'),
-        findsOneWidget,
-      );
-      expect(
-        find.widgetWithText(OutlinedButton, 'Importar planilha'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('ADMIN vê "Novo patrimônio" e "Importar planilha"', (tester) async {
       await _pumpPatrimoniosPage(
         tester,
         perfil: ProfilePerfil.admin,
@@ -547,77 +630,101 @@ void main() {
   });
 
   group('siglas de setor na tabela e no filtro', () {
-    testWidgets('coluna Localização/Setor mostra a sigla, com o nome completo no tooltip', (tester) async {
-      await _pumpPatrimoniosPage(
-        tester,
-        perfil: ProfilePerfil.admin,
-        patrimonioRepo: FakePatrimonioRepository(
-          itens: [
-            _item(
-              'id-1',
-              numero: '100',
-              setorNome: 'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
-              setorSigla: 'GEASI',
+    testWidgets(
+      'coluna Localização/Setor mostra a sigla, com o nome completo no tooltip',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.admin,
+          patrimonioRepo: FakePatrimonioRepository(
+            itens: [
+              _item(
+                'id-1',
+                numero: '100',
+                setorNome:
+                    'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+                setorSigla: 'GEASI',
+              ),
+            ],
+          ),
+        );
+
+        expect(find.text('GEASI'), findsOneWidget);
+        expect(
+          find.text(
+            'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+          ),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'dropdown de Setor atual mostra a sigla real, e o filtro continua usando o ID',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.admin,
+          patrimonioRepo: FakePatrimonioRepository(
+            itens: [
+              _item(
+                'id-1',
+                numero: '100',
+                setorAtualId: 'id-getec',
+                setorNome: 'Gerencia de Tecnologia',
+                setorSigla: 'GETEC',
+              ),
+              _item(
+                'id-2',
+                numero: '200',
+                setorAtualId: 'id-gepos',
+                setorNome: 'Gerência de Posturas',
+                setorSigla: 'GEPOS',
+              ),
+            ],
+          ),
+          setores: [
+            Setor(
+              id: 'id-getec',
+              nome: 'Gerencia de Tecnologia',
+              sigla: 'GETEC',
+              ativo: true,
+              criadoEm: DateTime(2026, 1, 1),
+            ),
+            // "GEPOS" não existe em nenhuma lista fixa do app — prova que a
+            // sigla vem do cadastro real, não de um switch fechado.
+            Setor(
+              id: 'id-gepos',
+              nome: 'Gerência de Posturas',
+              sigla: 'GEPOS',
+              ativo: true,
+              criadoEm: DateTime(2026, 1, 1),
             ),
           ],
-        ),
-      );
+        );
 
-      expect(find.text('GEASI'), findsOneWidget);
-      expect(
-        find.text('Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto'),
-        findsNothing,
-      );
-    });
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
+        await tester.pumpAndSettle();
 
-    testWidgets('dropdown de Setor atual mostra a sigla real, e o filtro continua usando o ID', (tester) async {
-      await _pumpPatrimoniosPage(
-        tester,
-        perfil: ProfilePerfil.admin,
-        patrimonioRepo: FakePatrimonioRepository(
-          itens: [
-            _item(
-              'id-1',
-              numero: '100',
-              setorAtualId: 'id-getec',
-              setorNome: 'Gerencia de Tecnologia',
-              setorSigla: 'GETEC',
-            ),
-            _item(
-              'id-2',
-              numero: '200',
-              setorAtualId: 'id-gepos',
-              setorNome: 'Gerência de Posturas',
-              setorSigla: 'GEPOS',
-            ),
-          ],
-        ),
-        setores: [
-          Setor(id: 'id-getec', nome: 'Gerencia de Tecnologia', sigla: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1)),
-          // "GEPOS" não existe em nenhuma lista fixa do app — prova que a
-          // sigla vem do cadastro real, não de um switch fechado.
-          Setor(id: 'id-gepos', nome: 'Gerência de Posturas', sigla: 'GEPOS', ativo: true, criadoEm: DateTime(2026, 1, 1)),
-        ],
-      );
+        final campoSetor = find.widgetWithText(
+          DropdownButtonFormField<String?>,
+          'Setor atual',
+        );
+        await tester.ensureVisible(campoSetor);
+        await tester.pumpAndSettle();
+        await tester.tap(campoSetor);
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Filtros'));
-      await tester.pumpAndSettle();
+        expect(find.text('GEPOS'), findsWidgets);
 
-      final campoSetor = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor atual');
-      await tester.ensureVisible(campoSetor);
-      await tester.pumpAndSettle();
-      await tester.tap(campoSetor);
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('GEPOS').last);
+        await tester.pumpAndSettle();
 
-      expect(find.text('GEPOS'), findsWidgets);
-
-      await tester.tap(find.text('GEPOS').last);
-      await tester.pumpAndSettle();
-
-      // O valor real do filtro continua sendo o ID (`setorAtualId` do
-      // fake): só o patrimônio do setor GEPOS (id-gepos) permanece.
-      expect(find.text('200'), findsOneWidget);
-      expect(find.text('100'), findsNothing);
-    });
+        // O valor real do filtro continua sendo o ID (`setorAtualId` do
+        // fake): só o patrimônio do setor GEPOS (id-gepos) permanece.
+        expect(find.text('200'), findsOneWidget);
+        expect(find.text('100'), findsNothing);
+      },
+    );
   });
 }

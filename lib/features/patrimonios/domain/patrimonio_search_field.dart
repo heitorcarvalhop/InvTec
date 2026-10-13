@@ -1,8 +1,8 @@
 /// Campo em que a busca da tela de patrimônios é aplicada — nunca strings
 /// mágicas espalhadas pela UI/repository. [tudo] é o modo
 /// padrão; os demais restringem a busca a um único critério, com
-/// [patrimonio] sendo o único que exige correspondência EXATA (nunca
-/// `ilike`/substring/similaridade — ver [PatrimonioRepository.listar]).
+/// [patrimonio] buscando por PREFIXO de `numero_patrimonio` (ver
+/// [PatrimonioRepository.listar]).
 enum PatrimonioSearchField {
   tudo,
   patrimonio,
@@ -40,7 +40,7 @@ enum PatrimonioSearchField {
       case PatrimonioSearchField.tudo:
         return 'Buscar por número, série, marca, modelo, responsável...';
       case PatrimonioSearchField.patrimonio:
-        return 'Número de patrimônio exato';
+        return 'Número de patrimônio (busca por prefixo)';
       case PatrimonioSearchField.numeroSerie:
         return 'Número de série';
       case PatrimonioSearchField.equipamentoDescricao:

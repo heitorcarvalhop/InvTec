@@ -44,7 +44,9 @@ class _RepositorioLento implements MovimentacaoRepository {
 
   void liberarTodos() {
     for (final c in _pendentes) {
-      if (!c.isCompleted) c.complete(_interno.movimentacaoRegistrada ?? _movimentacaoPadrao());
+      if (!c.isCompleted) {
+        c.complete(_interno.movimentacaoRegistrada ?? _movimentacaoPadrao());
+      }
     }
   }
 
@@ -114,7 +116,11 @@ class _RepositorioLento implements MovimentacaoRepository {
   );
 
   @override
-  Future<List<Movimentacao>> listarPorPatrimonio(String patrimonioId, {int limit = 20, int offset = 0}) =>
+  Future<List<Movimentacao>> listarPorPatrimonio(
+    String patrimonioId, {
+    int limit = 20,
+    int offset = 0,
+  }) =>
       _interno.listarPorPatrimonio(patrimonioId, limit: limit, offset: offset);
 
   @override
@@ -122,13 +128,24 @@ class _RepositorioLento implements MovimentacaoRepository {
     String patrimonioId, {
     int limit = 20,
     int offset = 0,
-  }) => _interno.listarHistoricoPorPatrimonio(patrimonioId, limit: limit, offset: offset);
+  }) => _interno.listarHistoricoPorPatrimonio(
+    patrimonioId,
+    limit: limit,
+    offset: offset,
+  );
 
   @override
   Future<List<MovimentacaoListagemItem>> listarPorNumeroDocumento(
     String numeroDocumento, {
     List<String>? patrimonioIds,
-  }) => _interno.listarPorNumeroDocumento(numeroDocumento, patrimonioIds: patrimonioIds);
+  }) => _interno.listarPorNumeroDocumento(
+    numeroDocumento,
+    patrimonioIds: patrimonioIds,
+  );
+
+  @override
+  Future<MovimentacaoListagemItem?> buscarPorId(String id) =>
+      _interno.buscarPorId(id);
 }
 
 Profile _profile(ProfilePerfil perfil) => Profile(
@@ -173,12 +190,45 @@ PatrimonioDetalhe _patrimonioDetalhe({
   );
 }
 
-final _setorA = Setor(id: 'setor-a', nome: 'GETEC', ativo: true, criadoEm: DateTime(2026, 1, 1));
-final _setorB = Setor(id: 'setor-b', nome: 'GEVEV', ativo: true, criadoEm: DateTime(2026, 1, 1));
-final _setorC = Setor(id: 'setor-c', nome: 'GESIS', ativo: true, criadoEm: DateTime(2026, 1, 1));
-final _localizacaoA1 = Localizacao(id: 'loc-a1', setorId: 'setor-a', nome: 'Home Office', ativo: true, criadoEm: DateTime(2026, 1, 1));
-final _localizacaoB1 = Localizacao(id: 'loc-b1', setorId: 'setor-b', nome: 'Sala 2', ativo: true, criadoEm: DateTime(2026, 1, 1));
-final _localizacaoC1 = Localizacao(id: 'loc-c1', setorId: 'setor-c', nome: 'Sala 5', ativo: true, criadoEm: DateTime(2026, 1, 1));
+final _setorA = Setor(
+  id: 'setor-a',
+  nome: 'GETEC',
+  ativo: true,
+  criadoEm: DateTime(2026, 1, 1),
+);
+final _setorB = Setor(
+  id: 'setor-b',
+  nome: 'GEVEV',
+  ativo: true,
+  criadoEm: DateTime(2026, 1, 1),
+);
+final _setorC = Setor(
+  id: 'setor-c',
+  nome: 'GESIS',
+  ativo: true,
+  criadoEm: DateTime(2026, 1, 1),
+);
+final _localizacaoA1 = Localizacao(
+  id: 'loc-a1',
+  setorId: 'setor-a',
+  nome: 'Home Office',
+  ativo: true,
+  criadoEm: DateTime(2026, 1, 1),
+);
+final _localizacaoB1 = Localizacao(
+  id: 'loc-b1',
+  setorId: 'setor-b',
+  nome: 'Sala 2',
+  ativo: true,
+  criadoEm: DateTime(2026, 1, 1),
+);
+final _localizacaoC1 = Localizacao(
+  id: 'loc-c1',
+  setorId: 'setor-c',
+  nome: 'Sala 5',
+  ativo: true,
+  criadoEm: DateTime(2026, 1, 1),
+);
 
 Future<MovimentacaoRepository> _pumpEAbrirWizard(
   WidgetTester tester, {
@@ -188,21 +238,33 @@ Future<MovimentacaoRepository> _pumpEAbrirWizard(
   List<Setor>? setores,
   List<Localizacao>? localizacoes,
 }) async {
-  final fakeAuth = FakeAuthRepository(initialUserId: 'fake-user-id', profileResolver: (_) => _profile(ProfilePerfil.admin));
+  final fakeAuth = FakeAuthRepository(
+    initialUserId: 'fake-user-id',
+    profileResolver: (_) => _profile(ProfilePerfil.admin),
+  );
   addTearDown(fakeAuth.dispose);
 
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
-        permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(ProfilePerfil.admin)),
+        permissionsRepositoryProvider.overrideWithValue(
+          FakePermissionsRepository.paraPerfil(ProfilePerfil.admin),
+        ),
         movimentacaoRepositoryProvider.overrideWithValue(movimentacaoRepo),
         patrimonioRepositoryProvider.overrideWithValue(
-          patrimonioRepositorio ?? FakePatrimonioRepository(itens: patrimonios ?? [_patrimonioDetalhe()]),
+          patrimonioRepositorio ??
+              FakePatrimonioRepository(
+                itens: patrimonios ?? [_patrimonioDetalhe()],
+              ),
         ),
-        setorRepositoryProvider.overrideWithValue(FakeSetorRepository(setores: setores ?? [_setorA, _setorB])),
+        setorRepositoryProvider.overrideWithValue(
+          FakeSetorRepository(setores: setores ?? [_setorA, _setorB]),
+        ),
         localizacaoRepositoryProvider.overrideWithValue(
-          FakeLocalizacaoRepository(localizacoes: localizacoes ?? [_localizacaoA1, _localizacaoB1]),
+          FakeLocalizacaoRepository(
+            localizacoes: localizacoes ?? [_localizacaoA1, _localizacaoB1],
+          ),
         ),
       ],
       child: const MaterialApp(home: Scaffold(body: MovimentacoesPage())),
@@ -216,23 +278,37 @@ Future<MovimentacaoRepository> _pumpEAbrirWizard(
 }
 
 Future<void> _voltar(WidgetTester tester) async {
-  await _tocar(tester, find.descendant(of: find.byType(Dialog), matching: find.text('Voltar')));
+  await _tocar(
+    tester,
+    find.descendant(of: find.byType(Dialog), matching: find.text('Voltar')),
+  );
 }
 
 /// O diálogo é um overlay por cima de `MovimentacoesPage`, que também tem um
 /// campo de busca — `find.byType(TextField)`/`ListTile` sem escopo colide
 /// com widgets da página por baixo, então tudo aqui é escopado ao `Dialog`.
-Future<void> _buscarESelecionarPatrimonio(WidgetTester tester, {String termo = '100'}) async {
+Future<void> _buscarESelecionarPatrimonio(
+  WidgetTester tester, {
+  String termo = '100',
+}) async {
   final dialog = find.byType(Dialog);
-  await tester.enterText(find.descendant(of: dialog, matching: find.byType(TextField)).first, termo);
+  await tester.enterText(
+    find.descendant(of: dialog, matching: find.byType(TextField)).first,
+    termo,
+  );
   await tester.pump(const Duration(milliseconds: 350));
   await tester.pumpAndSettle();
-  await tester.tap(find.descendant(of: dialog, matching: find.byType(ListTile)).first);
+  await tester.tap(
+    find.descendant(of: dialog, matching: find.byType(ListTile)).first,
+  );
   await tester.pumpAndSettle();
 }
 
 Future<void> _escolherTipo(WidgetTester tester, MovimentacaoTipo tipo) async {
-  final tile = find.descendant(of: find.byType(Dialog), matching: find.widgetWithText(ListTile, tipo.label));
+  final tile = find.descendant(
+    of: find.byType(Dialog),
+    matching: find.widgetWithText(ListTile, tipo.label),
+  );
   await tester.ensureVisible(tile);
   await tester.pumpAndSettle();
   await tester.tap(tile);
@@ -240,7 +316,9 @@ Future<void> _escolherTipo(WidgetTester tester, MovimentacaoTipo tipo) async {
 }
 
 Future<void> _avancar(WidgetTester tester) async {
-  await tester.tap(find.descendant(of: find.byType(Dialog), matching: find.text('Avançar')));
+  await tester.tap(
+    find.descendant(of: find.byType(Dialog), matching: find.text('Avançar')),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -256,7 +334,11 @@ Future<void> _tocar(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _selecionarSetorDestino(WidgetTester tester, String nomeSetor, {bool obrigatorio = true}) async {
+Future<void> _selecionarSetorDestino(
+  WidgetTester tester,
+  String nomeSetor, {
+  bool obrigatorio = true,
+}) async {
   final campo = find.widgetWithText(
     DropdownButtonFormField<String?>,
     obrigatorio ? 'Setor de destino *' : 'Setor de destino',
@@ -266,42 +348,69 @@ Future<void> _selecionarSetorDestino(WidgetTester tester, String nomeSetor, {boo
 }
 
 Future<void> _marcarConfirmacaoBaixa(WidgetTester tester) async {
-  await _tocar(tester, find.text('Confirmo que desejo dar baixa neste patrimônio.'));
+  await _tocar(
+    tester,
+    find.text('Confirmo que desejo dar baixa neste patrimônio.'),
+  );
 }
 
 void main() {
   group('wizard de Nova Movimentação', () {
-    testWidgets('busca e seleciona o patrimônio, mostra o resumo e avança para Tipo', (tester) async {
+    testWidgets(
+      'busca e seleciona o patrimônio, mostra o resumo e avança para Tipo',
+      (tester) async {
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          patrimonios: [
+            _patrimonioDetalhe(
+              numero: '100',
+              status: PatrimonioStatus.disponivel,
+            ),
+          ],
+        );
+
+        await _buscarESelecionarPatrimonio(tester);
+
+        expect(find.text('Passo 2 de 4 · Tipo'), findsOneWidget);
+        expect(find.text('Patrimônio: 100'), findsOneWidget);
+        expect(
+          find.text('Status atual do patrimônio: Disponível.'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'só oferece tipos compatíveis com o status atual (EMPRESTADO)',
+      (tester) async {
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          patrimonios: [
+            _patrimonioDetalhe(status: PatrimonioStatus.emprestado),
+          ],
+        );
+        await _buscarESelecionarPatrimonio(tester);
+
+        expect(find.widgetWithText(ListTile, 'Devolução'), findsOneWidget);
+        expect(
+          find.widgetWithText(ListTile, 'Ajuste de inventário'),
+          findsOneWidget,
+        );
+        expect(find.widgetWithText(ListTile, 'Baixa'), findsOneWidget);
+        expect(find.widgetWithText(ListTile, 'Transferência'), findsNothing);
+        expect(find.widgetWithText(ListTile, 'Empréstimo'), findsNothing);
+      },
+    );
+
+    testWidgets('BAIXA não mostra campos de setor/localização/responsável', (
+      tester,
+    ) async {
       await _pumpEAbrirWizard(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(),
-        patrimonios: [_patrimonioDetalhe(numero: '100', status: PatrimonioStatus.disponivel)],
       );
-
-      await _buscarESelecionarPatrimonio(tester);
-
-      expect(find.text('Passo 2 de 4 · Tipo'), findsOneWidget);
-      expect(find.text('Patrimônio: 100'), findsOneWidget);
-      expect(find.text('Status atual do patrimônio: Disponível.'), findsOneWidget);
-    });
-
-    testWidgets('só oferece tipos compatíveis com o status atual (EMPRESTADO)', (tester) async {
-      await _pumpEAbrirWizard(
-        tester,
-        movimentacaoRepo: FakeMovimentacaoRepository(),
-        patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.emprestado)],
-      );
-      await _buscarESelecionarPatrimonio(tester);
-
-      expect(find.widgetWithText(ListTile, 'Devolução'), findsOneWidget);
-      expect(find.widgetWithText(ListTile, 'Ajuste de inventário'), findsOneWidget);
-      expect(find.widgetWithText(ListTile, 'Baixa'), findsOneWidget);
-      expect(find.widgetWithText(ListTile, 'Transferência'), findsNothing);
-      expect(find.widgetWithText(ListTile, 'Empréstimo'), findsNothing);
-    });
-
-    testWidgets('BAIXA não mostra campos de setor/localização/responsável', (tester) async {
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: FakeMovimentacaoRepository());
       await _buscarESelecionarPatrimonio(tester);
       await _escolherTipo(tester, MovimentacaoTipo.baixa);
       await _avancar(tester);
@@ -312,29 +421,57 @@ void main() {
       expect(find.text('Responsável'), findsNothing);
       expect(find.text('Motivo'), findsOneWidget);
       // Sem responsável/destino a preencher: já pode avançar.
-      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar')).onPressed, isNotNull);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar'))
+            .onPressed,
+        isNotNull,
+      );
     });
 
     testWidgets('EMPRESTIMO exige responsável para avançar', (tester) async {
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: FakeMovimentacaoRepository());
+      await _pumpEAbrirWizard(
+        tester,
+        movimentacaoRepo: FakeMovimentacaoRepository(),
+      );
       await _buscarESelecionarPatrimonio(tester);
       await _escolherTipo(tester, MovimentacaoTipo.emprestimo);
       await _avancar(tester);
 
       expect(find.text('Responsável *'), findsOneWidget);
-      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar')).onPressed, isNull);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar'))
+            .onPressed,
+        isNull,
+      );
 
       // Preencher só o responsável não basta: EMPRESTIMO também exige
       // destino — os dois são checados juntos.
-      await tester.enterText(find.widgetWithText(TextFormField, 'Responsável *'), 'Maria Souza');
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Responsável *'),
+        'Maria Souza',
+      );
       await tester.pumpAndSettle();
-      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar')).onPressed, isNull);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar'))
+            .onPressed,
+        isNull,
+      );
 
       await _selecionarSetorDestino(tester, 'GEVEV');
-      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar')).onPressed, isNotNull);
+      expect(
+        tester
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Avançar'))
+            .onPressed,
+        isNotNull,
+      );
     });
 
-    testWidgets('trocar o setor de destino reseta a localização já escolhida', (tester) async {
+    testWidgets('trocar o setor de destino reseta a localização já escolhida', (
+      tester,
+    ) async {
       await _pumpEAbrirWizard(
         tester,
         movimentacaoRepo: FakeMovimentacaoRepository(),
@@ -347,7 +484,13 @@ void main() {
 
       await _selecionarSetorDestino(tester, 'GEVEV');
 
-      await _tocar(tester, find.widgetWithText(DropdownButtonFormField<String?>, 'Localização de destino'));
+      await _tocar(
+        tester,
+        find.widgetWithText(
+          DropdownButtonFormField<String?>,
+          'Localização de destino',
+        ),
+      );
       await _tocar(tester, find.text('Sala 2').last);
       expect(find.text('Sala 2'), findsOneWidget);
 
@@ -358,72 +501,114 @@ void main() {
       expect(find.text('Sala 2'), findsNothing);
     });
 
-    testWidgets('AJUSTE_INVENTARIO: manter localização (padrão) não altera nada', (tester) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
-      await _avancar(tester); // Detalhes -> Revisão (nada obrigatório)
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+    testWidgets(
+      'AJUSTE_INVENTARIO: manter localização (padrão) não altera nada',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
+        await _avancar(tester); // Detalhes -> Revisão (nada obrigatório)
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.ultimoRegistrar!['localizacaoDestinoId'], isNull);
-      expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
-    });
+        expect(repo.ultimoRegistrar!['localizacaoDestinoId'], isNull);
+        expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
+      },
+    );
 
-    testWidgets('AJUSTE_INVENTARIO: definir nova localização envia o id escolhido', (tester) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'AJUSTE_INVENTARIO: definir nova localização envia o id escolhido',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      await _tocar(tester, find.text('Definir nova'));
-      await _tocar(tester, find.widgetWithText(DropdownButtonFormField<String?>, 'Localização de destino *'));
-      await _tocar(tester, find.text('Home Office').last);
+        await _tocar(tester, find.text('Definir nova'));
+        await _tocar(
+          tester,
+          find.widgetWithText(
+            DropdownButtonFormField<String?>,
+            'Localização de destino *',
+          ),
+        );
+        await _tocar(tester, find.text('Home Office').last);
 
-      await _avancar(tester);
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _avancar(tester);
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.ultimoRegistrar!['localizacaoDestinoId'], 'loc-a1');
-      expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
-    });
+        expect(repo.ultimoRegistrar!['localizacaoDestinoId'], 'loc-a1');
+        expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
+      },
+    );
 
-    testWidgets('AJUSTE_INVENTARIO: limpar localização envia limparLocalizacao=true e id nulo', (tester) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: repo, patrimonios: [
-        _patrimonioDetalhe(localizacaoAtualId: 'loc-a1', localizacaoNome: 'Home Office'),
-      ]);
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'AJUSTE_INVENTARIO: limpar localização envia limparLocalizacao=true e id nulo',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: repo,
+          patrimonios: [
+            _patrimonioDetalhe(
+              localizacaoAtualId: 'loc-a1',
+              localizacaoNome: 'Home Office',
+            ),
+          ],
+        );
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      await _tocar(tester, find.text('Limpar'));
-      await _avancar(tester);
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _tocar(tester, find.text('Limpar'));
+        await _avancar(tester);
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.ultimoRegistrar!['localizacaoDestinoId'], isNull);
-      expect(repo.ultimoRegistrar!['limparLocalizacao'], isTrue);
-    });
+        expect(repo.ultimoRegistrar!['localizacaoDestinoId'], isNull);
+        expect(repo.ultimoRegistrar!['limparLocalizacao'], isTrue);
+      },
+    );
 
-    testWidgets('revisão mostra motivo/documento/chamado só quando preenchidos', (tester) async {
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: FakeMovimentacaoRepository());
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.manutencao);
-      await _avancar(tester);
+    testWidgets(
+      'revisão mostra motivo/documento/chamado só quando preenchidos',
+      (tester) async {
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+        );
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.manutencao);
+        await _avancar(tester);
 
-      await _selecionarSetorDestino(tester, 'GEVEV');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Número do documento'), 'DOC-9');
-      await tester.pumpAndSettle();
+        await _selecionarSetorDestino(tester, 'GEVEV');
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Número do documento'),
+          'DOC-9',
+        );
+        await tester.pumpAndSettle();
 
-      await _avancar(tester);
+        await _avancar(tester);
 
-      expect(find.text('Documento'), findsOneWidget);
-      expect(find.text('DOC-9'), findsOneWidget);
-      expect(find.text('Chamado'), findsNothing);
-    });
+        expect(find.text('Documento'), findsOneWidget);
+        expect(find.text('DOC-9'), findsOneWidget);
+        expect(find.text('Chamado'), findsNothing);
+      },
+    );
 
-    testWidgets('cancelar antes da confirmação não chama o repository', (tester) async {
+    testWidgets('cancelar antes da confirmação não chama o repository', (
+      tester,
+    ) async {
       final repo = FakeMovimentacaoRepository();
       await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
       await _buscarESelecionarPatrimonio(tester);
@@ -435,48 +620,75 @@ void main() {
       expect(find.byType(Dialog), findsNothing);
     });
 
-    testWidgets('BAIXA exige o checkbox de confirmação reforçada antes de habilitar o envio', (tester) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.baixa);
-      await _avancar(tester);
-      await _avancar(tester);
+    testWidgets(
+      'BAIXA exige o checkbox de confirmação reforçada antes de habilitar o envio',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.baixa);
+        await _avancar(tester);
+        await _avancar(tester);
 
-      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Confirmar movimentação')).onPressed, isNull);
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+              )
+              .onPressed,
+          isNull,
+        );
 
-      await _marcarConfirmacaoBaixa(tester);
-      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Confirmar movimentação')).onPressed, isNotNull);
+        await _marcarConfirmacaoBaixa(tester);
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+              )
+              .onPressed,
+          isNotNull,
+        );
 
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.registrarCallCount, 1);
-      expect(repo.ultimoRegistrar!['tipo'], MovimentacaoTipo.baixa);
-    });
+        expect(repo.registrarCallCount, 1);
+        expect(repo.ultimoRegistrar!['tipo'], MovimentacaoTipo.baixa);
+      },
+    );
 
-    testWidgets('confirmação chama o repository exatamente uma vez, fecha o diálogo e recarrega a listagem', (
-      tester,
-    ) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
-      final chamadasListarAntes = repo.listarCallCount;
+    testWidgets(
+      'confirmação chama o repository exatamente uma vez, fecha o diálogo e recarrega a listagem',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
+        final chamadasListarAntes = repo.listarCallCount;
 
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.manutencao);
-      await _avancar(tester);
-      await _selecionarSetorDestino(tester, 'GEVEV');
-      await _avancar(tester);
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.manutencao);
+        await _avancar(tester);
+        await _selecionarSetorDestino(tester, 'GEVEV');
+        await _avancar(tester);
 
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.registrarCallCount, 1);
-      expect(repo.ultimoRegistrar!['patrimonioId'], 'p1');
-      expect(repo.ultimoRegistrar!['tipo'], MovimentacaoTipo.manutencao);
-      expect(repo.ultimoRegistrar!['destinoId'], 'setor-b');
-      expect(find.byType(Dialog), findsNothing);
-      expect(find.text('Movimentação registrada com sucesso.'), findsOneWidget);
-      expect(repo.listarCallCount, greaterThan(chamadasListarAntes));
-    });
+        expect(repo.registrarCallCount, 1);
+        expect(repo.ultimoRegistrar!['patrimonioId'], 'p1');
+        expect(repo.ultimoRegistrar!['tipo'], MovimentacaoTipo.manutencao);
+        expect(repo.ultimoRegistrar!['destinoId'], 'setor-b');
+        expect(find.byType(Dialog), findsNothing);
+        expect(
+          find.text('Movimentação registrada com sucesso.'),
+          findsOneWidget,
+        );
+        expect(repo.listarCallCount, greaterThan(chamadasListarAntes));
+      },
+    );
 
     testWidgets('double-tap em Confirmar não duplica o envio', (tester) async {
       final interno = FakeMovimentacaoRepository();
@@ -507,29 +719,46 @@ void main() {
       expect(lento.registrarCallCount, 1);
     });
 
-    testWidgets('erro da RPC é exibido e mantém o formulário preenchido, sem fechar o diálogo', (tester) async {
-      final repo = FakeMovimentacaoRepository(erroRegistrar: AppException('O destino selecionado é igual ao setor atual do patrimônio.'));
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.manutencao);
-      await _avancar(tester);
-      await _selecionarSetorDestino(tester, 'GEVEV');
-      await _avancar(tester);
+    testWidgets(
+      'erro da RPC é exibido e mantém o formulário preenchido, sem fechar o diálogo',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository(
+          erroRegistrar: AppException(
+            'O destino selecionado é igual ao setor atual do patrimônio.',
+          ),
+        );
+        await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.manutencao);
+        await _avancar(tester);
+        await _selecionarSetorDestino(tester, 'GEVEV');
+        await _avancar(tester);
 
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(find.text('O destino selecionado é igual ao setor atual do patrimônio.'), findsOneWidget);
-      // Diálogo continua aberto, revisão ainda visível — nada foi perdido.
-      expect(find.byType(Dialog), findsOneWidget);
-      expect(find.text('Passo 4 de 4 · Revisão'), findsOneWidget);
-      expect(repo.registrarCallCount, 1);
-    });
+        expect(
+          find.text(
+            'O destino selecionado é igual ao setor atual do patrimônio.',
+          ),
+          findsOneWidget,
+        );
+        // Diálogo continua aberto, revisão ainda visível — nada foi perdido.
+        expect(find.byType(Dialog), findsOneWidget);
+        expect(find.text('Passo 4 de 4 · Revisão'), findsOneWidget);
+        expect(repo.registrarCallCount, 1);
+      },
+    );
 
     testWidgets(
       'concorrência: erro de estado desatualizado recarrega o patrimônio e o wizard reflete o novo status',
       (tester) async {
         final movimentacaoRepo = FakeMovimentacaoRepository(
-          erroRegistrar: AppException('O patrimônio foi alterado por outra operação. Recarregue e tente novamente.'),
+          erroRegistrar: AppException(
+            'O patrimônio foi alterado por outra operação. Recarregue e tente novamente.',
+          ),
         );
         final patrimonioRepo = FakePatrimonioRepository(
           itens: [_patrimonioDetalhe(status: PatrimonioStatus.disponivel)],
@@ -549,12 +778,19 @@ void main() {
         // Simula outra sessão movendo o mesmo patrimônio para EM_USO entre a
         // abertura do formulário e a confirmação — só depois de já termos
         // lido o estado original, exatamente como aconteceria em produção.
-        patrimonioRepo.substituirDetalhe(_patrimonioDetalhe(status: PatrimonioStatus.emUso));
+        patrimonioRepo.substituirDetalhe(
+          _patrimonioDetalhe(status: PatrimonioStatus.emUso),
+        );
 
-        await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
         expect(
-          find.text('O patrimônio foi alterado por outra operação. Recarregue e tente novamente.'),
+          find.text(
+            'O patrimônio foi alterado por outra operação. Recarregue e tente novamente.',
+          ),
           findsOneWidget,
         );
         expect(movimentacaoRepo.registrarCallCount, 1);
@@ -564,156 +800,226 @@ void main() {
         // descartar o retorno.
         await _voltar(tester);
         await _voltar(tester);
-        expect(find.text('Status atual do patrimônio: Em uso.'), findsOneWidget);
+        expect(
+          find.text('Status atual do patrimônio: Em uso.'),
+          findsOneWidget,
+        );
       },
     );
 
-    testWidgets('AJUSTE_INVENTARIO: trocar de setor NÃO oferece "Manter localização atual"', (tester) async {
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: FakeMovimentacaoRepository());
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'AJUSTE_INVENTARIO: trocar de setor NÃO oferece "Manter localização atual"',
+      (tester) async {
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+        );
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      // Antes de trocar de setor: os 3 segmentos clássicos, com "Manter".
-      expect(find.text('Manter atual'), findsOneWidget);
+        // Antes de trocar de setor: os 3 segmentos clássicos, com "Manter".
+        expect(find.text('Manter atual'), findsOneWidget);
 
-      await _selecionarSetorDestino(tester, 'GEVEV', obrigatorio: false);
+        await _selecionarSetorDestino(tester, 'GEVEV', obrigatorio: false);
 
-      // Depois de trocar de setor: nunca "Manter" — só as duas opções que
-      // deixam claro que a localização atual pertencia ao setor anterior.
-      expect(find.text('Manter atual'), findsNothing);
-      expect(find.text('Selecionar localização do novo setor'), findsOneWidget);
-      expect(find.text('Não informar localização'), findsOneWidget);
-    });
+        // Depois de trocar de setor: nunca "Manter" — só as duas opções que
+        // deixam claro que a localização atual pertencia ao setor anterior.
+        expect(find.text('Manter atual'), findsNothing);
+        expect(
+          find.text('Selecionar localização do novo setor'),
+          findsOneWidget,
+        );
+        expect(find.text('Não informar localização'), findsOneWidget);
+      },
+    );
 
-    testWidgets('AJUSTE_INVENTARIO: trocar de setor e definir localização envia o id do novo setor', (tester) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'AJUSTE_INVENTARIO: trocar de setor e definir localização envia o id do novo setor',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      await _selecionarSetorDestino(tester, 'GEVEV', obrigatorio: false);
-      await _tocar(tester, find.text('Selecionar localização do novo setor'));
-      await _tocar(tester, find.widgetWithText(DropdownButtonFormField<String?>, 'Localização de destino *'));
-      await _tocar(tester, find.text('Sala 2').last);
+        await _selecionarSetorDestino(tester, 'GEVEV', obrigatorio: false);
+        await _tocar(tester, find.text('Selecionar localização do novo setor'));
+        await _tocar(
+          tester,
+          find.widgetWithText(
+            DropdownButtonFormField<String?>,
+            'Localização de destino *',
+          ),
+        );
+        await _tocar(tester, find.text('Sala 2').last);
 
-      await _avancar(tester);
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _avancar(tester);
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.ultimoRegistrar!['destinoId'], 'setor-b');
-      expect(repo.ultimoRegistrar!['localizacaoDestinoId'], 'loc-b1');
-      expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
-    });
+        expect(repo.ultimoRegistrar!['destinoId'], 'setor-b');
+        expect(repo.ultimoRegistrar!['localizacaoDestinoId'], 'loc-b1');
+        expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
+      },
+    );
 
-    testWidgets('AJUSTE_INVENTARIO: trocar de setor e ficar sem localização — a RPC zera sozinha', (tester) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'AJUSTE_INVENTARIO: trocar de setor e ficar sem localização — a RPC zera sozinha',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(tester, movimentacaoRepo: repo);
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      await _selecionarSetorDestino(tester, 'GEVEV', obrigatorio: false);
-      // Não seleciona nenhuma localização — permanece em "Não informar
-      // localização" (o padrão depois de trocar de setor).
+        await _selecionarSetorDestino(tester, 'GEVEV', obrigatorio: false);
+        // Não seleciona nenhuma localização — permanece em "Não informar
+        // localização" (o padrão depois de trocar de setor).
 
-      await _avancar(tester);
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _avancar(tester);
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.ultimoRegistrar!['destinoId'], 'setor-b');
-      expect(repo.ultimoRegistrar!['localizacaoDestinoId'], isNull);
-      // Nunca envia limparLocalizacao=true aqui: a RPC real já zera a
-      // localização sozinha quando o setor muda sem localização nova (regra
-      // "(b)" da função) — não é a mesma coisa que um "Limpar" explícito.
-      expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
-    });
+        expect(repo.ultimoRegistrar!['destinoId'], 'setor-b');
+        expect(repo.ultimoRegistrar!['localizacaoDestinoId'], isNull);
+        // Nunca envia limparLocalizacao=true aqui: a RPC real já zera a
+        // localização sozinha quando o setor muda sem localização nova (regra
+        // "(b)" da função) — não é a mesma coisa que um "Limpar" explícito.
+        expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
+      },
+    );
 
-    testWidgets('AJUSTE_INVENTARIO em patrimônio BAIXADO não oferece alteração de setor', (tester) async {
-      await _pumpEAbrirWizard(
-        tester,
-        movimentacaoRepo: FakeMovimentacaoRepository(),
-        patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
-      );
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'AJUSTE_INVENTARIO em patrimônio BAIXADO não oferece alteração de setor',
+      (tester) async {
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
+        );
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      expect(find.text('Setor de destino'), findsNothing);
-      expect(find.text('Setor de destino *'), findsNothing);
-    });
+        expect(find.text('Setor de destino'), findsNothing);
+        expect(find.text('Setor de destino *'), findsNothing);
+      },
+    );
 
-    testWidgets('AJUSTE_INVENTARIO em patrimônio BAIXADO não oferece alteração de localização', (tester) async {
-      await _pumpEAbrirWizard(
-        tester,
-        movimentacaoRepo: FakeMovimentacaoRepository(),
-        patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
-      );
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'AJUSTE_INVENTARIO em patrimônio BAIXADO não oferece alteração de localização',
+      (tester) async {
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+          patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
+        );
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      expect(find.text('Localização'), findsNothing);
-      expect(find.byType(SegmentedButton<LocalizacaoEscolha>), findsNothing);
-    });
+        expect(find.text('Localização'), findsNothing);
+        expect(find.byType(SegmentedButton<LocalizacaoEscolha>), findsNothing);
+      },
+    );
 
-    testWidgets('AJUSTE_INVENTARIO em patrimônio BAIXADO ainda permite campos informativos', (tester) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(
-        tester,
-        movimentacaoRepo: repo,
-        patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
-      );
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'AJUSTE_INVENTARIO em patrimônio BAIXADO ainda permite campos informativos',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: repo,
+          patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
+        );
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      expect(find.widgetWithText(TextFormField, 'Motivo'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, 'Observação'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, 'Número do documento'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, 'Número do chamado'), findsOneWidget);
+        expect(find.widgetWithText(TextFormField, 'Motivo'), findsOneWidget);
+        expect(
+          find.widgetWithText(TextFormField, 'Observação'),
+          findsOneWidget,
+        );
+        expect(
+          find.widgetWithText(TextFormField, 'Número do documento'),
+          findsOneWidget,
+        );
+        expect(
+          find.widgetWithText(TextFormField, 'Número do chamado'),
+          findsOneWidget,
+        );
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Motivo'), 'Conferência de inventário anual');
-      await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Motivo'),
+          'Conferência de inventário anual',
+        );
+        await tester.pumpAndSettle();
 
-      await _avancar(tester);
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _avancar(tester);
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.ultimoRegistrar!['destinoId'], isNull);
-      expect(repo.ultimoRegistrar!['localizacaoDestinoId'], isNull);
-      expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
-      expect(repo.ultimoRegistrar!['motivo'], 'Conferência de inventário anual');
-    });
+        expect(repo.ultimoRegistrar!['destinoId'], isNull);
+        expect(repo.ultimoRegistrar!['localizacaoDestinoId'], isNull);
+        expect(repo.ultimoRegistrar!['limparLocalizacao'], isFalse);
+        expect(
+          repo.ultimoRegistrar!['motivo'],
+          'Conferência de inventário anual',
+        );
+      },
+    );
 
-    testWidgets('número do chamado bloqueia letras e preserva zeros à esquerda', (tester) async {
-      final repo = FakeMovimentacaoRepository();
-      await _pumpEAbrirWizard(
-        tester,
-        movimentacaoRepo: repo,
-        patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
-      );
-      await _buscarESelecionarPatrimonio(tester);
-      await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
-      await _avancar(tester);
+    testWidgets(
+      'número do chamado bloqueia letras e preserva zeros à esquerda',
+      (tester) async {
+        final repo = FakeMovimentacaoRepository();
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: repo,
+          patrimonios: [_patrimonioDetalhe(status: PatrimonioStatus.baixado)],
+        );
+        await _buscarESelecionarPatrimonio(tester);
+        await _escolherTipo(tester, MovimentacaoTipo.ajusteInventario);
+        await _avancar(tester);
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Número do chamado'), 'CH00042AB');
-      await tester.pumpAndSettle();
-      expect(find.text('00042'), findsOneWidget);
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Número do chamado'),
+          'CH00042AB',
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('00042'), findsOneWidget);
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Motivo'), 'Conferência de inventário anual');
-      await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Motivo'),
+          'Conferência de inventário anual',
+        );
+        await tester.pumpAndSettle();
 
-      await _avancar(tester);
-      await _tocar(tester, find.widgetWithText(FilledButton, 'Confirmar movimentação'));
+        await _avancar(tester);
+        await _tocar(
+          tester,
+          find.widgetWithText(FilledButton, 'Confirmar movimentação'),
+        );
 
-      expect(repo.ultimoRegistrar!['numeroChamado'], '00042');
-    });
+        expect(repo.ultimoRegistrar!['numeroChamado'], '00042');
+      },
+    );
 
     testWidgets(
       'dropdown de setor e revisão mostram a sigla real, com o nome completo no tooltip',
       (tester) async {
         final setorOrigem = Setor(
           id: 'setor-a',
-          nome: 'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
+          nome:
+              'Gerência de Licenciamento de Atividades Estratégicas e de Significativo Impacto',
           sigla: 'GEASI',
           ativo: true,
           criadoEm: DateTime(2026, 1, 1),
@@ -731,7 +1037,10 @@ void main() {
           tester,
           movimentacaoRepo: FakeMovimentacaoRepository(),
           patrimonios: [
-            _patrimonioDetalhe(setorNome: setorOrigem.nome, setorSigla: setorOrigem.sigla),
+            _patrimonioDetalhe(
+              setorNome: setorOrigem.nome,
+              setorSigla: setorOrigem.sigla,
+            ),
           ],
           setores: [setorOrigem, setorDestino],
         );
@@ -739,7 +1048,10 @@ void main() {
         await _escolherTipo(tester, MovimentacaoTipo.manutencao);
         await _avancar(tester);
 
-        final campo = find.widgetWithText(DropdownButtonFormField<String?>, 'Setor de destino *');
+        final campo = find.widgetWithText(
+          DropdownButtonFormField<String?>,
+          'Setor de destino *',
+        );
         await _tocar(tester, campo);
 
         expect(find.text('GEPOS'), findsOneWidget);
@@ -759,40 +1071,69 @@ void main() {
   });
 
   group('wizard de Nova Movimentação — responsividade', () {
-    for (final tamanho in const [Size(400, 700), Size(700, 800), Size(1280, 800), Size(1920, 1080)]) {
-      testWidgets('sem overflow/exceções em ${tamanho.width.toInt()}x${tamanho.height.toInt()}', (tester) async {
-        tester.view.physicalSize = tamanho;
+    for (final tamanho in const [
+      Size(400, 700),
+      Size(700, 800),
+      Size(1280, 800),
+      Size(1920, 1080),
+    ]) {
+      testWidgets(
+        'sem overflow/exceções em ${tamanho.width.toInt()}x${tamanho.height.toInt()}',
+        (tester) async {
+          tester.view.physicalSize = tamanho;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          final erros = <String>[];
+          final anterior = FlutterError.onError;
+          FlutterError.onError = (details) => erros.add(details.toString());
+
+          await _pumpEAbrirWizard(
+            tester,
+            movimentacaoRepo: FakeMovimentacaoRepository(),
+          );
+          await _buscarESelecionarPatrimonio(tester);
+          await _escolherTipo(tester, MovimentacaoTipo.manutencao);
+          await _avancar(tester);
+          await _selecionarSetorDestino(tester, 'GEVEV');
+          await _avancar(tester);
+
+          FlutterError.onError = anterior;
+          expect(erros, isEmpty, reason: erros.join('\n'));
+        },
+      );
+    }
+
+    testWidgets(
+      'título, indicador de passo e botões continuam presentes em todas as larguras',
+      (tester) async {
+        tester.view.physicalSize = const Size(420, 760);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
-        final erros = <String>[];
-        final anterior = FlutterError.onError;
-        FlutterError.onError = (details) => erros.add(details.toString());
+        await _pumpEAbrirWizard(
+          tester,
+          movimentacaoRepo: FakeMovimentacaoRepository(),
+        );
 
-        await _pumpEAbrirWizard(tester, movimentacaoRepo: FakeMovimentacaoRepository());
-        await _buscarESelecionarPatrimonio(tester);
-        await _escolherTipo(tester, MovimentacaoTipo.manutencao);
-        await _avancar(tester);
-        await _selecionarSetorDestino(tester, 'GEVEV');
-        await _avancar(tester);
-
-        FlutterError.onError = anterior;
-        expect(erros, isEmpty, reason: erros.join('\n'));
-      });
-    }
-
-    testWidgets('título, indicador de passo e botões continuam presentes em todas as larguras', (tester) async {
-      tester.view.physicalSize = const Size(420, 760);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await _pumpEAbrirWizard(tester, movimentacaoRepo: FakeMovimentacaoRepository());
-
-      expect(find.descendant(of: find.byType(Dialog), matching: find.text('Nova movimentação')), findsOneWidget);
-      expect(find.text('Passo 1 de 4 · Patrimônio'), findsOneWidget);
-      expect(find.descendant(of: find.byType(Dialog), matching: find.text('Cancelar')), findsOneWidget);
-    });
+        expect(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.text('Nova movimentação'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Passo 1 de 4 · Patrimônio'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.text('Cancelar'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

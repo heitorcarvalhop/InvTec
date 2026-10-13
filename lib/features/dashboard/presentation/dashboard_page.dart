@@ -2,87 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/page_header.dart';
-import '../../../core/widgets/status_chip.dart';
-import '../../../core/widgets/stat_card.dart';
-import '../domain/movimentacao_resumo.dart';
-import '../../movimentacoes/domain/movimentacao.dart';
-import '../../movimentacoes/presentation/widgets/movimentacao_tipo_visual.dart';
+import '../../auth/domain/profile.dart';
+import '../../auth/presentation/auth_controller.dart';
 import 'dashboard_providers.dart';
+import 'widgets/admin_attention_card.dart';
+import 'widgets/categoria_barras_card.dart';
+import 'widgets/dashboard_kpi_row.dart';
+import 'widgets/distribuicao_async_card.dart';
+import 'widgets/movimentacoes_recentes_card.dart';
+import 'widgets/quick_actions_card.dart';
+import 'widgets/top_localizacoes_card.dart';
 
+/// Dashboard 3.0: central operacional do InvTec — cada seção carrega (e
+/// falha) de forma independente, só aparece se a permissão efetiva do
+/// usuário atual permitir, e nunca inventa um número que o banco atual
+/// não consegue fornecer (ver docs do pedido original). Sem
+/// `ConsumerWidget` único cobrindo tudo: cada seção é seu próprio
+/// `ConsumerWidget`/provider — uma falha isolada numa seção nunca derruba
+/// as outras.
+///
+/// Hierarquia (refinamento visual): KPIs → Ações rápidas (logo abaixo,
+/// área de maior uso diário) → Atenção ADMIN (quando aplicável) → área
+/// operacional em duas colunas INDEPENDENTES (~60/40): a coluna principal
+/// (Movimentações recentes + Patrimônios por setor) nunca é forçada a
+/// crescer para acompanhar a coluna secundária (Patrimônios por tipo + Top
+/// localizações) — é exatamente esse pareamento lado a lado de conteúdos
+/// com alturas diferentes que antes deixava "Patrimônios por setor" com um
+/// vão vazio enorme quando havia só 1 setor; aqui cada coluna soma a
+/// altura dos seus próprios cards, sem nivelar com a outra.
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dashboardAsync = ref.watch(dashboardDataProvider);
-
-    return dashboardAsync.when(
-      data: (data) => _DashboardContent(data: data),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => Center(
-        child: EmptyState(
-          icon: Icons.error_outline,
-          message: 'Não foi possível carregar os dados do dashboard.',
-          actionLabel: 'Tentar novamente',
-          onAction: () => ref.invalidate(dashboardDataProvider),
-        ),
-      ),
-    );
-  }
-}
-
-class _DashboardContent extends StatelessWidget {
-  const _DashboardContent({required this.data});
-
-  final DashboardData data;
-
-  @override
-  Widget build(BuildContext context) {
-    final stats = data.stats;
-
-    final cards = [
-      InvTecStatCard(
-        label: 'Total de patrimônios',
-        value: stats.total,
-        icon: Icons.inventory_2_outlined,
-        kind: AppStatusKind.neutral,
-      ),
-      InvTecStatCard(
-        label: 'Disponíveis',
-        value: stats.disponiveis,
-        icon: Icons.check_circle_outline,
-        kind: AppStatusKind.success,
-      ),
-      InvTecStatCard(
-        label: 'Em uso',
-        value: stats.emUso,
-        icon: Icons.person_outline,
-        kind: AppStatusKind.info,
-      ),
-      InvTecStatCard(
-        label: 'Emprestados',
-        value: stats.emprestados,
-        icon: Icons.handshake_outlined,
-        kind: AppStatusKind.warning,
-      ),
-      InvTecStatCard(
-        label: 'Em manutenção',
-        value: stats.emManutencao,
-        icon: Icons.build_outlined,
-        kind: AppStatusKind.warning,
-      ),
-      InvTecStatCard(
-        label: 'Baixados',
-        value: stats.baixados,
-        icon: Icons.remove_circle_outline,
-        kind: AppStatusKind.neutral,
-      ),
-    ];
+    final isAdmin =
+        ref.watch(authControllerProvider).value?.profile?.perfil ==
+        ProfilePerfil.admin;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -91,127 +49,59 @@ class _DashboardContent extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const InvTecPageHeader(title: 'Dashboard', subtitle: 'Visão geral do patrimônio.'),
+            InvTecPageHeader(
+              title: 'Dashboard',
+              subtitle: 'Visão geral do patrimônio da GETEC',
+              actions: const [_UpdatedAtLabel()],
+            ),
             const SizedBox(height: AppSpacing.lg),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final colunas = _colunasDeStatCards(constraints.maxWidth);
-                final espacamentoTotal = AppSpacing.md * (colunas - 1);
-                final largura = (constraints.maxWidth - espacamentoTotal) / colunas;
-                return Wrap(
-                  spacing: AppSpacing.md,
-                  runSpacing: AppSpacing.md,
-                  children: [for (final card in cards) SizedBox(width: largura, child: card)],
-                );
-              },
-            ),
+            const DashboardKpiRow(),
+            const SizedBox(height: AppSpacing.lg),
+            const QuickActionsCard(),
+            if (isAdmin) ...[
+              const SizedBox(height: AppSpacing.lg),
+              const AdminAttentionCard(),
+            ],
             const SizedBox(height: AppSpacing.xl),
-            Text('Movimentações recentes', style: AppTypography.cardTitle(context)),
-            const SizedBox(height: AppSpacing.sm),
-            _RecentMovements(movimentacoes: data.movimentacoesRecentes),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecentMovements extends StatelessWidget {
-  const _RecentMovements({required this.movimentacoes});
-
-  final List<MovimentacaoResumo> movimentacoes;
-
-  @override
-  Widget build(BuildContext context) {
-    // Mesmo raio (AppRadius.lg) dos stat cards acima — os dois formam o
-    // conjunto de cards "principais" do Dashboard, enquanto o resto do app
-    // (formulários/tabelas/dialogs) continua no AppRadius.md do cardTheme.
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      side: BorderSide(color: Theme.of(context).surfaceColors.border),
-    );
-
-    if (movimentacoes.isEmpty) {
-      return Card(
-        shape: shape,
-        child: const EmptyState(icon: Icons.history_outlined, message: 'Nenhuma movimentação registrada.'),
-      );
-    }
-
-    return Card(
-      shape: shape,
-      clipBehavior: Clip.antiAlias,
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: movimentacoes.length,
-        separatorBuilder: (context, index) => const Divider(height: 1),
-        itemBuilder: (context, index) => _MovementRow(item: movimentacoes[index]),
-      ),
-    );
-  }
-}
-
-class _MovementRow extends StatefulWidget {
-  const _MovementRow({required this.item});
-
-  final MovimentacaoResumo item;
-
-  @override
-  State<_MovementRow> createState() => _MovementRowState();
-}
-
-class _MovementRowState extends State<_MovementRow> {
-  bool _hovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final item = widget.item;
-    final statusColors = Theme.of(context).statusColors;
-    final (icon, kind) = visualDoTipoMovimentacao(item.tipo);
-    final (badgeBackground, badgeForeground) = switch (kind) {
-      AppStatusKind.success => (statusColors.successBackground, statusColors.successForeground),
-      AppStatusKind.warning => (statusColors.warningBackground, statusColors.warningForeground),
-      AppStatusKind.error => (statusColors.errorBackground, statusColors.errorForeground),
-      AppStatusKind.info => (statusColors.infoBackground, statusColors.infoForeground),
-      AppStatusKind.neutral => (statusColors.neutralBackground, statusColors.neutralForeground),
-    };
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      child: Container(
-        color: _hovering ? Theme.of(context).surfaceColors.rowHover : null,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(color: badgeBackground, borderRadius: BorderRadius.circular(AppRadius.sm)),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 16, color: badgeForeground),
-            ),
-            const SizedBox(width: AppSpacing.smd),
-            Expanded(
-              flex: 3,
-              child: Column(
+            _TwoColumnRow(
+              leftFlex: 3,
+              rightFlex: 2,
+              left: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.patrimonioLabel, style: AppTypography.body(context)?.copyWith(fontWeight: FontWeight.w700)),
-                  Text(item.tipo.label, style: AppTypography.auxiliary(context)),
+                  const MovimentacoesRecentesCard(),
+                  const SizedBox(height: AppSpacing.xl),
+                  DistribuicaoAsyncCard(
+                    builder: (d) => CategoriaBarrasCard(
+                      titulo: 'Patrimônios por setor',
+                      itens: d.porSetor,
+                      total: d.totalConsiderado,
+                      corBarra: Theme.of(context).dataVizColors.cyan,
+                      mensagemVazio: 'Nenhum patrimônio cadastrado.',
+                    ),
+                  ),
+                ],
+              ),
+              right: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DistribuicaoAsyncCard(
+                    builder: (d) => CategoriaBarrasCard(
+                      titulo: 'Patrimônios por tipo',
+                      itens: d.porTipo,
+                      total: d.totalConsiderado,
+                      corBarra: Theme.of(context).dataVizColors.teal,
+                      mensagemVazio: 'Nenhum patrimônio cadastrado.',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  DistribuicaoAsyncCard(
+                    builder: (d) =>
+                        TopLocalizacoesCard(itens: d.topLocalizacoes),
+                  ),
                 ],
               ),
             ),
-            Expanded(
-              flex: 3,
-              child: Text(
-                '${item.origemNome ?? '—'} → ${item.destinoNome ?? '—'}',
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.body(context),
-              ),
-            ),
-            Text(_formatarData(item.dataMovimentacao), style: AppTypography.caption(context)),
           ],
         ),
       ),
@@ -219,19 +109,79 @@ class _MovementRowState extends State<_MovementRow> {
   }
 }
 
-/// Quantidade de colunas dos stat cards por faixa de largura disponível —
-/// faixas discretas (6 / 3+3 / 2+2+2 / 1) em vez de "o quanto couber", para
-/// nunca sobrar um card sozinho numa linha nem espremer cards estreitos
-/// demais só para encaixar todos na mesma fileira.
-int _colunasDeStatCards(double larguraDisponivel) {
-  if (larguraDisponivel >= 1100) return 6;
-  if (larguraDisponivel >= 700) return 3;
-  if (larguraDisponivel >= 420) return 2;
-  return 1;
+/// Indicador discreto de "última carga" (seção 3 do pedido) — sem polling:
+/// só mostra a hora em que [dashboardKpisProvider] resolveu com sucesso da
+/// última vez (recalculada quando o provider é invalidado/recarregado,
+/// nunca por um timer).
+class _UpdatedAtLabel extends ConsumerWidget {
+  const _UpdatedAtLabel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kpisAsync = ref.watch(dashboardKpisProvider);
+    return kpisAsync.when(
+      data: (_) => Text(
+        'Atualizado às ${_horaAtual()}',
+        style: AppTypography.caption(context),
+      ),
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+    );
+  }
 }
 
-String _formatarData(DateTime data) {
-  final local = data.toLocal();
+String _horaAtual() {
+  final agora = DateTime.now();
   String pad(int n) => n.toString().padLeft(2, '0');
-  return '${pad(local.day)}/${pad(local.month)}/${local.year} ${pad(local.hour)}:${pad(local.minute)}';
+  return '${pad(agora.hour)}:${pad(agora.minute)}';
+}
+
+/// Duas colunas lado a lado em telas largas, empilhadas em telas estreitas
+/// — mesmo padrão de largura mínima usado pela faixa de KPIs (nunca
+/// scroll horizontal; ver seção 12 do pedido). [leftFlex]/[rightFlex]
+/// permitem uma proporção assimétrica (~60/40 para a área operacional,
+/// onde a coluna de Movimentações recentes merece mais destaque) sem
+/// forçar as DUAS colunas a crescerem até a mesma altura — cada
+/// `Expanded` só reparte LARGURA; a altura de cada coluna continua sendo a
+/// soma natural do conteúdo dela.
+class _TwoColumnRow extends StatelessWidget {
+  const _TwoColumnRow({
+    required this.left,
+    required this.right,
+    this.leftFlex = 1,
+    this.rightFlex = 1,
+  });
+
+  final Widget left;
+  final Widget right;
+  final int leftFlex;
+  final int rightFlex;
+
+  static const _larguraMinimaDuasColunas = 900.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _larguraMinimaDuasColunas) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: leftFlex, child: left),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(flex: rightFlex, child: right),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            left,
+            const SizedBox(height: AppSpacing.xl),
+            right,
+          ],
+        );
+      },
+    );
+  }
 }

@@ -9,6 +9,12 @@ import 'status_chip.dart';
 /// Card de métrica (ícone + valor + descrição) usado no Dashboard. [kind]
 /// tinge só o pequeno badge do ícone com uma cor contextual discreta
 /// (nunca o card inteiro), coerente com o resto dos status da aplicação.
+///
+/// [onTap] é opcional: quando informado, o card todo fica clicável (cursor
+/// de ponteiro + highlight de hover/toque, via [InkWell]) — usado pelos
+/// cards do Dashboard que têm uma rota de destino natural (ex.: "Patrimônios"
+/// → `/patrimonios`). Sem destino, o card permanece estático: nunca fica
+/// com aparência clicável sem navegar para lugar nenhum.
 class InvTecStatCard extends StatelessWidget {
   const InvTecStatCard({
     super.key,
@@ -16,12 +22,14 @@ class InvTecStatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     this.kind = AppStatusKind.info,
+    this.onTap,
   });
 
   final String label;
   final int value;
   final IconData icon;
   final AppStatusKind kind;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -34,41 +42,48 @@ class InvTecStatCard extends StatelessWidget {
       AppStatusKind.neutral => (statusColors.neutralBackground, statusColors.neutralForeground),
     };
 
-    return Card(
-      // Card "principal" de destaque do Dashboard: raio um pouco maior
-      // (AppRadius.lg) que o padrão de card do app (AppRadius.md, usado em
-      // formulários/tabelas/dialogs) para reforçar a hierarquia visual sem
-      // alterar o `cardTheme` global. Mesma cor/borda do tema, só o raio muda.
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: Theme.of(context).surfaceColors.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: tintBackground,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 18, color: tintForeground),
+    // Card "principal" de destaque do Dashboard: raio um pouco maior
+    // (AppRadius.lg) que o padrão de card do app (AppRadius.md, usado em
+    // formulários/tabelas/dialogs) para reforçar a hierarquia visual sem
+    // alterar o `cardTheme` global. Mesma cor/borda do tema, só o raio muda.
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      side: BorderSide(color: Theme.of(context).surfaceColors.border),
+    );
+
+    final conteudo = Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: tintBackground,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text('$value', style: AppTypography.metric(context)),
-            const SizedBox(height: AppSpacing.xs),
-            // Label em estilo "eyebrow" (menor, tracking amplo) — fica
-            // acima/abaixo do número como metadado discreto, sem precisar de
-            // caixa alta (o rótulo em português tende a ficar mais longo que
-            // o padrão de referência e perde legibilidade em CAPS).
-            Text(label, style: AppTypography.eyebrow(context)),
-          ],
-        ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: tintForeground),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text('$value', style: AppTypography.metric(context)),
+          const SizedBox(height: AppSpacing.xs),
+          // Label em estilo "eyebrow" (menor, tracking amplo) — fica
+          // acima/abaixo do número como metadado discreto, sem precisar de
+          // caixa alta (o rótulo em português tende a ficar mais longo que
+          // o padrão de referência e perde legibilidade em CAPS).
+          Text(label, style: AppTypography.eyebrow(context)),
+        ],
       ),
+    );
+
+    return Card(
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null
+          ? conteudo
+          : InkWell(onTap: onTap, mouseCursor: SystemMouseCursors.click, child: conteudo),
     );
   }
 }

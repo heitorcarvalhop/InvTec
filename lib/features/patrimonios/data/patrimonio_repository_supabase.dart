@@ -116,7 +116,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
           // deixa ADMIN/GESTOR verem o nome de quem não é o próprio usuário
           // — para outros perfis o embed volta nulo, e a UI só omite
           // "Criado por" (ver PatrimonioDetalhe).
-          .select('$_colunasComRelacionamentos, criado_por_profile:profiles(nome)')
+          .select(
+            '$_colunasComRelacionamentos, criado_por_profile:profiles(nome)',
+          )
           .eq('id', id)
           .maybeSingle();
       return row == null ? null : PatrimonioDetalhe.fromJson(row);
@@ -126,9 +128,7 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   }
 
   @override
-  Future<Patrimonio?> buscarPorNumeroPatrimonio(
-    String numeroPatrimonio,
-  ) async {
+  Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) async {
     final numero = normalizarNumeroPatrimonio(numeroPatrimonio);
     if (numero == null) return null;
 
@@ -139,6 +139,27 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
           .eq('numero_patrimonio', numero)
           .maybeSingle();
       return row == null ? null : Patrimonio.fromJson(row);
+    } on PostgrestException catch (e) {
+      throw AppException(mapPatrimonioErrorMessage(e), cause: e);
+    }
+  }
+
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
+    String prefixo, {
+    int limit = 6,
+  }) async {
+    final termo = prefixo.trim();
+    if (termo.isEmpty) return [];
+
+    try {
+      final rows = await _client
+          .from('patrimonios')
+          .select(_colunasComRelacionamentos)
+          .ilike('numero_patrimonio', '$termo%')
+          .order('numero_patrimonio', ascending: true)
+          .limit(limit);
+      return rows.map(PatrimonioDetalhe.fromJson).toList();
     } on PostgrestException catch (e) {
       throw AppException(mapPatrimonioErrorMessage(e), cause: e);
     }
@@ -185,7 +206,10 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       // Modo "Tudo" com consulta só de dígitos tem uma lógica própria em
       // duas etapas (nunca mistura patrimônio com série no mesmo
       // resultado) — ver [_listarTudoNumerico].
-      if (termo != null && termo.isNotEmpty && campoBusca == PatrimonioSearchField.tudo && _somenteDigitos(termo)) {
+      if (termo != null &&
+          termo.isNotEmpty &&
+          campoBusca == PatrimonioSearchField.tudo &&
+          _somenteDigitos(termo)) {
         return await _listarTudoNumerico(
           termo: termo,
           limit: limit,
@@ -196,7 +220,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
         );
       }
 
-      var query = _client.from('patrimonios').select(_colunasComRelacionamentos);
+      var query = _client
+          .from('patrimonios')
+          .select(_colunasComRelacionamentos);
 
       if (termo != null && termo.isNotEmpty) {
         final resultado = await _aplicarFiltroBusca(query, campoBusca, termo);
@@ -227,11 +253,16 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   /// fazia "2703522" devolver visualmente o patrimônio 2703532, só porque é
   /// o número de série dele).
   ///
-  /// Etapa 1: `numero_patrimonio = termo` (exato). Se achar algo, é o
-  /// resultado — [PatrimonioSearchField.numeroSerie] nunca entra em jogo.
+  /// Etapa 1: `numero_patrimonio` por PREFIXO (`LIKE 'termo%'`, nunca
+  /// substring no meio do número) — "3636" encontra "3636001"/"3636127",
+  /// nunca "1236360". Isso inclui a correspondência EXATA como caso
+  /// particular (o próprio número sempre começa com ele mesmo), então o
+  /// comportamento anterior de busca exata continua funcionando, só
+  /// ampliado. Se achar algo, é o resultado —
+  /// [PatrimonioSearchField.numeroSerie] nunca entra em jogo.
   /// Etapa 2: só executa uma SEGUNDA consulta (nunca N+1: uma única query
   /// extra, e só quando a etapa 1 não achou nada) por `numero_serie =
-  /// termo` (também exato) — o retorno vai em
+  /// termo` (exato) — o retorno vai em
   /// [PatrimoniosResultado.correspondenciasPorNumeroSerie], NUNCA em
   /// [PatrimoniosResultado.itens], para a UI nunca apresentar isso como se
   /// fosse o patrimônio pesquisado.
@@ -248,7 +279,7 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     var queryPatrimonio = _client
         .from('patrimonios')
         .select(_colunasComRelacionamentos)
-        .eq('numero_patrimonio', numero);
+        .ilike('numero_patrimonio', '$numero%');
     queryPatrimonio = _aplicarFiltrosComuns(queryPatrimonio, filtros);
     final resultadoPatrimonio = await _executarConsulta(
       queryPatrimonio,
@@ -259,7 +290,10 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     );
     if (resultadoPatrimonio.total > 0) return resultadoPatrimonio;
 
-    var querySerie = _client.from('patrimonios').select(_colunasComRelacionamentos).eq('numero_serie', termo);
+    var querySerie = _client
+        .from('patrimonios')
+        .select(_colunasComRelacionamentos)
+        .eq('numero_serie', termo);
     querySerie = _aplicarFiltrosComuns(querySerie, filtros);
     final resultadoSerie = await _executarConsulta(
       querySerie,
@@ -318,22 +352,33 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     // do dia seguinte` (nunca `23:59:59.999`), convertendo o dia local do
     // dispositivo para o instante UTC correspondente.
     if (filtros.dataCadastroDe != null) {
-      resultado = resultado.gte('data_cadastro', _inicioDoDiaLocalEmUtc(filtros.dataCadastroDe!).toIso8601String());
+      resultado = resultado.gte(
+        'data_cadastro',
+        _inicioDoDiaLocalEmUtc(filtros.dataCadastroDe!).toIso8601String(),
+      );
     }
     if (filtros.dataCadastroAte != null) {
       resultado = resultado.lt(
         'data_cadastro',
-        _inicioDoDiaSeguinteLocalEmUtc(filtros.dataCadastroAte!).toIso8601String(),
+        _inicioDoDiaSeguinteLocalEmUtc(
+          filtros.dataCadastroAte!,
+        ).toIso8601String(),
       );
     }
 
     // `data_aquisicao` é `date` (sem hora) — comparação direta, sem
     // conversão de fuso, ambos os limites inclusivos.
     if (filtros.dataAquisicaoDe != null) {
-      resultado = resultado.gte('data_aquisicao', _formatarData(filtros.dataAquisicaoDe!));
+      resultado = resultado.gte(
+        'data_aquisicao',
+        _formatarData(filtros.dataAquisicaoDe!),
+      );
     }
     if (filtros.dataAquisicaoAte != null) {
-      resultado = resultado.lte('data_aquisicao', _formatarData(filtros.dataAquisicaoAte!));
+      resultado = resultado.lte(
+        'data_aquisicao',
+        _formatarData(filtros.dataAquisicaoAte!),
+      );
     }
 
     return resultado;
@@ -355,7 +400,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     OrdenacaoDirecao ordenacaoDirecao = OrdenacaoDirecao.asc,
   }) async {
     final ordenada = _aplicarOrdenacao(query, ordenarPor, ordenacaoDirecao);
-    final response = await ordenada.range(offset, offset + limit - 1).count(CountOption.exact);
+    final response = await ordenada
+        .range(offset, offset + limit - 1)
+        .count(CountOption.exact);
 
     final itens = response.data.map(PatrimonioDetalhe.fromJson).toList();
     return PatrimoniosResultado(itens: itens, total: response.count);
@@ -386,7 +433,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     OrdenacaoDirecao direcao,
   ) {
     if (campo == null) {
-      return query.order('data_cadastro', ascending: false).order('id', ascending: false);
+      return query
+          .order('data_cadastro', ascending: false)
+          .order('id', ascending: false);
     }
 
     final ascending = direcao == OrdenacaoDirecao.asc;
@@ -395,13 +444,25 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       case PatrimonioOrdenacaoCampo.numeroPatrimonio:
         ordenada = query.order('numero_patrimonio', ascending: ascending);
       case PatrimonioOrdenacaoCampo.equipamento:
-        ordenada = query.order('nome', ascending: ascending, referencedTable: 'tipos_patrimonio');
+        ordenada = query.order(
+          'nome',
+          ascending: ascending,
+          referencedTable: 'tipos_patrimonio',
+        );
       case PatrimonioOrdenacaoCampo.marca:
         ordenada = query.order('marca', ascending: ascending);
       case PatrimonioOrdenacaoCampo.setor:
-        ordenada = query.order('nome', ascending: ascending, referencedTable: 'setores');
+        ordenada = query.order(
+          'nome',
+          ascending: ascending,
+          referencedTable: 'setores',
+        );
       case PatrimonioOrdenacaoCampo.localizacao:
-        ordenada = query.order('nome', ascending: ascending, referencedTable: 'localizacoes');
+        ordenada = query.order(
+          'nome',
+          ascending: ascending,
+          referencedTable: 'localizacoes',
+        );
       case PatrimonioOrdenacaoCampo.status:
         ordenada = query.order('status', ascending: ascending);
       case PatrimonioOrdenacaoCampo.criadoEm:
@@ -410,9 +471,12 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     return ordenada.order('id', ascending: ascending);
   }
 
-  /// Aplica o filtro de busca sobre [query], de acordo com [campo] — nunca
-  /// `ilike`/substring/similaridade para [PatrimonioSearchField.patrimonio],
-  /// sempre correspondência EXATA.
+  /// Aplica o filtro de busca sobre [query], de acordo com [campo] —
+  /// [PatrimonioSearchField.patrimonio] busca por PREFIXO de
+  /// `numero_patrimonio` (`LIKE 'termo%'`, nunca substring no meio do
+  /// número): "3636" encontra "3636001"/"3636127", nunca "1236360". A
+  /// correspondência exata continua funcionando como caso particular (o
+  /// próprio número sempre começa com ele mesmo).
   ///
   /// Retorna `null` quando já se sabe, sem consultar `patrimonios`, que
   /// NENHUM registro pode corresponder (hoje só o modo "Localização" sem
@@ -430,7 +494,7 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     switch (campo) {
       case PatrimonioSearchField.patrimonio:
         final numero = normalizarNumeroPatrimonio(termo)!;
-        return query.eq('numero_patrimonio', numero);
+        return query.ilike('numero_patrimonio', '$numero%');
 
       case PatrimonioSearchField.numeroSerie:
         // `.ilike()` é uma chamada direta do builder (não um `.or()`
@@ -483,7 +547,10 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   /// textual. Chamada direta de `.ilike()` — padrão cru, sem
   /// `postgrestFilterValue` (ver comentário em [_aplicarFiltroBusca]).
   Future<List<String>> _idsLocalizacoesPorNome(String termo) async {
-    final rows = await _client.from('localizacoes').select('id').ilike('nome', '%$termo%');
+    final rows = await _client
+        .from('localizacoes')
+        .select('id')
+        .ilike('nome', '%$termo%');
     return rows.map((row) => row['id'] as String).toList();
   }
 
@@ -566,10 +633,7 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
             'modelo': _semEspacosOuNulo(modelo),
             'descricao': _semEspacosOuNulo(descricao),
             'observacao': _semEspacosOuNulo(observacao),
-            'data_aquisicao': dataAquisicao?.toIso8601String().substring(
-              0,
-              10,
-            ),
+            'data_aquisicao': dataAquisicao?.toIso8601String().substring(0, 10),
           })
           .eq('id', id)
           .select()
@@ -581,7 +645,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   }
 
   @override
-  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(List<String> numeros) async {
+  Future<List<PatrimonioDetalhe>> buscarPorNumerosPatrimonio(
+    List<String> numeros,
+  ) async {
     if (numeros.isEmpty) return [];
     try {
       final resultado = <PatrimonioDetalhe>[];
@@ -602,7 +668,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   }
 
   @override
-  Future<Set<String>> buscarNumerosSerieExistentes(List<String> numerosSerie) async {
+  Future<Set<String>> buscarNumerosSerieExistentes(
+    List<String> numerosSerie,
+  ) async {
     if (numerosSerie.isEmpty) return {};
     try {
       final resultado = <String>{};
@@ -620,7 +688,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   }
 
   @override
-  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(DecisaoItemParaExecutar decisao) async {
+  Future<ResultadoAplicacaoDecisao> aplicarDecisaoComparacao(
+    DecisaoItemParaExecutar decisao,
+  ) async {
     try {
       // ÚNICA chamada: `aplicar_decisao_comparacao_patrimonio` trava o
       // patrimônio, revalida a versão e — quando há alteração de setor/
@@ -667,7 +737,9 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   }
 
   @override
-  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(String operacaoId) async {
+  Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
+    String operacaoId,
+  ) async {
     try {
       // SELECT direto — nunca uma RPC: a tabela só é ESCRITA pela função
       // SECURITY DEFINER; esta leitura respeita a RLS já instalada
@@ -684,14 +756,21 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       if (row == null) return null;
       final usuarioAtualId = _client.auth.currentUser?.id;
       if (row['criado_por'] != usuarioAtualId) {
-        throw AppException('A operação $operacaoId não pertence à sessão atual.');
+        throw AppException(
+          'A operação $operacaoId não pertence à sessão atual.',
+        );
       }
-      return ResultadoAplicacaoDecisao.fromJson(row['resultado'] as Map<String, dynamic>);
+      return ResultadoAplicacaoDecisao.fromJson(
+        row['resultado'] as Map<String, dynamic>,
+      );
     } on PostgrestException catch (e) {
       // Falha de LEITURA (rede/permissão) — NUNCA convertida em `null`: o
       // chamador não pode confundir "não consegui perguntar" com "perguntei
       // e não achei nada" (mesma garantia de `buscarLotePorId` do SEI).
-      throw AppException('Falha ao consultar o resultado da operação $operacaoId', cause: e);
+      throw AppException(
+        'Falha ao consultar o resultado da operação $operacaoId',
+        cause: e,
+      );
     }
   }
 }
@@ -700,7 +779,10 @@ const _tamanhoLoteConsulta = 200;
 
 Iterable<List<String>> _emLotes(List<String> valores, int tamanho) sync* {
   for (var i = 0; i < valores.length; i += tamanho) {
-    yield valores.sublist(i, i + tamanho > valores.length ? valores.length : i + tamanho);
+    yield valores.sublist(
+      i,
+      i + tamanho > valores.length ? valores.length : i + tamanho,
+    );
   }
 }
 

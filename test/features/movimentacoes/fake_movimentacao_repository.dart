@@ -128,19 +128,31 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
     }
 
     if (setorId != null) {
-      resultado = resultado.where((item) => item.setorOrigemId == setorId || item.setorDestinoId == setorId);
+      resultado = resultado.where(
+        (item) =>
+            item.setorOrigemId == setorId || item.setorDestinoId == setorId,
+      );
     }
 
     if (periodoDe != null) {
       final inicio = DateTime(periodoDe.year, periodoDe.month, periodoDe.day);
-      resultado = resultado.where((item) => !item.dataMovimentacao.isBefore(inicio));
+      resultado = resultado.where(
+        (item) => !item.dataMovimentacao.isBefore(inicio),
+      );
     }
     if (periodoAte != null) {
-      final fimExclusivo = DateTime(periodoAte.year, periodoAte.month, periodoAte.day + 1);
-      resultado = resultado.where((item) => item.dataMovimentacao.isBefore(fimExclusivo));
+      final fimExclusivo = DateTime(
+        periodoAte.year,
+        periodoAte.month,
+        periodoAte.day + 1,
+      );
+      resultado = resultado.where(
+        (item) => item.dataMovimentacao.isBefore(fimExclusivo),
+      );
     }
 
-    final lista = resultado.toList()..sort(_comparadorDe(ordenarPor, ordenacaoDirecao));
+    final lista = resultado.toList()
+      ..sort(_comparadorDe(ordenarPor, ordenacaoDirecao));
 
     final pagina = lista.skip(offset).take(limit).toList();
     return MovimentacoesResultado(itens: pagina, total: lista.length);
@@ -152,10 +164,8 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
   /// desempate); qualquer campo escolhido usa `id` como desempate final na
   /// MESMA direção. `patrimonio` compara como TEXTO (nunca numericamente),
   /// igual ao Postgrest real.
-  int Function(MovimentacaoListagemItem, MovimentacaoListagemItem) _comparadorDe(
-    MovimentacaoOrdenacaoCampo? campo,
-    OrdenacaoDirecao direcao,
-  ) {
+  int Function(MovimentacaoListagemItem, MovimentacaoListagemItem)
+  _comparadorDe(MovimentacaoOrdenacaoCampo? campo, OrdenacaoDirecao direcao) {
     if (campo == null) {
       return (a, b) {
         final porData = b.dataMovimentacao.compareTo(a.dataMovimentacao);
@@ -169,13 +179,25 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
         case MovimentacaoOrdenacaoCampo.data:
           return sinal * a.dataMovimentacao.compareTo(b.dataMovimentacao);
         case MovimentacaoOrdenacaoCampo.patrimonio:
-          return _compararNulosPorUltimo(a.patrimonioNumero, b.patrimonioNumero, sinal);
+          return _compararNulosPorUltimo(
+            a.patrimonioNumero,
+            b.patrimonioNumero,
+            sinal,
+          );
         case MovimentacaoOrdenacaoCampo.tipo:
           return sinal * a.tipo.value.compareTo(b.tipo.value);
         case MovimentacaoOrdenacaoCampo.origem:
-          return _compararNulosPorUltimo(a.setorOrigemNome, b.setorOrigemNome, sinal);
+          return _compararNulosPorUltimo(
+            a.setorOrigemNome,
+            b.setorOrigemNome,
+            sinal,
+          );
         case MovimentacaoOrdenacaoCampo.destino:
-          return _compararNulosPorUltimo(a.setorDestinoNome, b.setorDestinoNome, sinal);
+          return _compararNulosPorUltimo(
+            a.setorDestinoNome,
+            b.setorDestinoNome,
+            sinal,
+          );
       }
     }
 
@@ -200,7 +222,10 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
     List<String>? patrimonioIds,
   }) async {
     listarPorNumeroDocumentoCallCount++;
-    ultimaChamadaListarPorNumeroDocumento = {'numeroDocumento': numeroDocumento, 'patrimonioIds': patrimonioIds};
+    ultimaChamadaListarPorNumeroDocumento = {
+      'numeroDocumento': numeroDocumento,
+      'patrimonioIds': patrimonioIds,
+    };
     if (erro != null) throw erro!;
 
     // Reproduz a mesma semântica da implementação real: `eq` exato de
@@ -209,8 +234,27 @@ class FakeMovimentacaoRepository implements MovimentacaoRepository {
     // linha alguma.
     return _itens
         .where((item) => item.numeroDocumento == numeroDocumento)
-        .where((item) => patrimonioIds == null || patrimonioIds.isEmpty || patrimonioIds.contains(item.patrimonioId))
+        .where(
+          (item) =>
+              patrimonioIds == null ||
+              patrimonioIds.isEmpty ||
+              patrimonioIds.contains(item.patrimonioId),
+        )
         .toList();
+  }
+
+  /// Quantas vezes [buscarPorId] foi chamado — usado para provar que o
+  /// deep-link `/movimentacoes/:id` dispara no máximo UMA consulta extra.
+  int buscarPorIdCallCount = 0;
+
+  @override
+  Future<MovimentacaoListagemItem?> buscarPorId(String id) async {
+    buscarPorIdCallCount++;
+    if (erro != null) throw erro!;
+    for (final item in _itens) {
+      if (item.id == id) return item;
+    }
+    return null;
   }
 
   @override
