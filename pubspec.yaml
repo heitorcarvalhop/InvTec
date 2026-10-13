@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.2
@@ -44,6 +44,7 @@ dependencies:
   shared_preferences: ^2.5.5
   pdfrx: ^2.4.5
   crypto: ^3.0.6
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +56,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  msix: ^3.18.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -100,3 +102,37 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Empacotamento MSIX (distribuição Windows fora da Store — ver
+# docs/windows-release.md). `msix_version` é omitido de propósito: o
+# pacote `msix` deriva a versão MSIX automaticamente a partir de
+# major.minor.patch da `version` acima, sempre com ".0" como 4o número
+# (ex.: 1.0.0+1 -> 1.0.0.0; o "+1", o build number, NÃO entra na versão
+# MSIX — é ignorado de propósito pelo próprio pacote `msix`). Isso mantém
+# pubspec.yaml como ÚNICA fonte de verdade, mas tem uma consequência
+# direta: toda release Windows precisa incrementar pelo menos o PATCH
+# (1.0.0 -> 1.0.1) — nunca publicar duas releases diferentes com o mesmo
+# major.minor.patch, senão o AppInstaller vê a mesma Version e não
+# oferece atualização nenhuma.
+#
+# `publisher` precisa ser IDÊNTICO ao Subject do certificado de
+# assinatura (ver scripts/windows/create_signing_certificate.ps1) — se
+# algum dia o certificado mudar de Subject, este valor tem que acompanhar
+# exatamente, senão a assinatura do MSIX é rejeitada.
+#
+# `identity_name`/`publisher_display_name` são a identidade ESTÁVEL do
+# InvTec: depois da primeira instalação em qualquer máquina, não alterar
+# (veja docs/windows-release.md, seção "Identidade do pacote").
+msix_config:
+  display_name: InvTec
+  publisher_display_name: GETEC
+  identity_name: GETEC.InvTec
+  publisher: CN=GETEC
+  logo_path: assets/images/invtec_logo.png
+  architecture: x64
+  capabilities: internetClient
+  languages: pt-br
+  store: false
+  install_certificate: false
+  output_path: dist/windows
+  output_name: InvTec

@@ -4,10 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/app/app.dart';
 import 'package:invtec/core/shell/widgets/navigation_sidebar.dart';
 import 'package:invtec/core/widgets/status_chip.dart';
+import 'package:invtec/features/administracao/data/usuario_admin_repository_supabase.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
+import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
 import 'package:invtec/features/dashboard/data/dashboard_repository_supabase.dart';
-import 'package:invtec/features/dashboard/domain/dashboard_stats.dart';
+import 'package:invtec/features/notificacoes/data/app_notification_repository_supabase.dart';
 import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supabase.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_listagem_item.dart';
@@ -24,8 +26,11 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/setores/data/setor_repository_supabase.dart';
 import 'package:invtec/features/setores/domain/setor.dart';
 
+import '../../features/administracao/fake_usuario_admin_repository.dart';
 import '../../features/auth/fake_auth_repository.dart';
+import '../../features/auth/fake_permissions_repository.dart';
 import '../../features/dashboard/fake_dashboard_repository.dart';
+import '../../features/notificacoes/fake_app_notification_repository.dart';
 import '../../features/movimentacoes/fake_movimentacao_repository.dart';
 import '../../features/movimentacoes/sei/fake_documentos_sei_repository.dart';
 import '../../features/patrimonios/fake_patrimonio_repository.dart';
@@ -126,17 +131,18 @@ Future<void> _abrirApp(WidgetTester tester, Size tam, {String nome = 'Heitor Per
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
+        permissionsRepositoryProvider.overrideWithValue(
+          FakePermissionsRepository.paraPerfil(ProfilePerfil.admin),
+        ),
+        usuarioAdminRepositoryProvider.overrideWithValue(FakeUsuarioAdminRepository()),
+        appNotificationRepositoryProvider.overrideWithValue(FakeAppNotificationRepository()),
         dashboardRepositoryProvider.overrideWithValue(
           FakeDashboardRepository(
-            stats: const DashboardStats(
-              total: 1414,
-              ativos: 1400,
-              disponiveis: 300,
-              emUso: 900,
-              emprestados: 20,
-              emManutencao: 10,
-              baixados: 14,
-            ),
+            totalPatrimonios: 1414,
+            totalSetores: 4,
+            totalLocalizacoes: 15,
+            totalTipos: 16,
+            movimentacoesUltimos30Dias: 23,
           ),
         ),
         patrimonioRepositoryProvider.overrideWithValue(FakePatrimonioRepository(itens: patrimonios)),

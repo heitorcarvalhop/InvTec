@@ -1,0 +1,81 @@
+name: Windows Release
+
+# Build + MSIX assinado + GitHub Release para o InvTec Windows.
+#
+# NAO publica nada automaticamente a partir de um push normal: so dispara
+# em tag "v*" (ex.: v1.0.0) ou acionamento manual. Ver docs/windows-release.md
+# para o processo completo e para os secrets/variaveis que precisam existir
+# no repositorio antes do primeiro uso real deste workflow.
+#
+# INVTEC_UPDATE_BASE_URL pode apontar para QUALQUER host HTTPS estavel -
+# hoje a decisao e usar o Supabase Storage do projeto (bucket
+# invtec-updates), nao o GitHub Releases, porque o GitHub serve todo
+# asset como application/octet-stream (confirmado, sem como configurar
+# por arquivo) - ver docs/windows-release.md, secao "Hospedagem". O
+# GitHub Release publicado por este workflow continua existindo como
+# backup/distribuicao secundaria dos artefatos, mas o upload real para o
+# Supabase Storage e MANUAL por enquanto (nao automatizado aqui, nenhum
+# secret do Supabase foi adicionado a este workflow).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-sign-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Materializar certificado de assinatura (temporario)
+        shell: pwsh
+        run: |
+          $certPath = Join-Path $env:RUNNER_TEMP 'InvTec.pfx'
+          $bytes = [System.Convert]::FromBase64String($env:CERT_B64)
+          [System.IO.File]::WriteAllBytes($certPath, $bytes)
+          echo "CERT_PATH=$certPath" >> $env:GITHUB_ENV
+        env:
+          CERT_B64: ${{ secrets.INVTEC_SIGNING_CERTIFICATE_BASE64 }}
+
+      - name: Build Windows + MSIX assinado
+        shell: pwsh
+        run: |
+          $securePwd = ConvertTo-SecureString -String $env:CERT_PWD -AsPlainText -Force
+          ./scripts/windows/build_installer.ps1 -RunTests -CertificatePath $env:CERT_PATH -CertificatePassword $securePwd
+        env:
+          CERT_PWD: ${{ secrets.INVTEC_SIGNING_CERTIFICATE_PASSWORD }}
+
+      - name: Remover certificado temporario
+        if: always()
+        shell: pwsh
+        run: Remove-Item $env:CERT_PATH -Force -ErrorAction SilentlyContinue
+
+      - name: Gerar InvTec.appinstaller
+        shell: pwsh
+        run: ./scripts/windows/generate_appinstaller.ps1
+        env:
+          INVTEC_UPDATE_BASE_URL: ${{ vars.INVTEC_UPDATE_BASE_URL }}
+
+      - name: Publicar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/windows/InvTec-*.msix
+            dist/windows/InvTec.appinstaller
+          fail_on_unmatched_files: true
+          generate_release_notes: true

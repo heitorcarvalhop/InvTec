@@ -11,7 +11,7 @@ import 'package:invtec/features/auth/domain/profile.dart';
 /// migração de `profile.perfil == ...` para `ref.hasPermission(...)`
 /// (Etapa 5), sem duplicar a tabela de presets em cada arquivo de teste.
 class FakePermissionsRepository implements PermissionsRepository {
-  FakePermissionsRepository({Set<String> chaves = const {}}) : _chaves = chaves;
+  FakePermissionsRepository({this.chaves = const {}});
 
   static const _todasAsChaves = {
     'patrimonio.view',
@@ -68,14 +68,14 @@ class FakePermissionsRepository implements PermissionsRepository {
     }
   }
 
-  final Set<String> _chaves;
+  final Set<String> chaves;
 
   int minhasPermissoesCallCount = 0;
 
   @override
   Future<Set<String>> minhasPermissoes() async {
     minhasPermissoesCallCount++;
-    return _chaves;
+    return chaves;
   }
 
   @override

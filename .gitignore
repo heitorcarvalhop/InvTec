@@ -69,3 +69,13 @@ local_test_data/
 
 # Estado local do Supabase CLI (cache de versão/projeto, não é código do projeto).
 supabase/.temp/
+
+
+# Certificado de assinatura MSIX — a chave privada (.pfx) NUNCA pode ser
+# versionada (compromete a capacidade de atualizar instalações existentes
+# se exposta). O certificado público (.cer) também fica fora do Git por
+# padrão: é um artefato de distribuição (compartilhado via release/canal
+# interno, documentado em docs/windows-release.md), não código-fonte.
+/certs/
+*.pfx
+*.cer
