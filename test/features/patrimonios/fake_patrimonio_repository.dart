@@ -6,6 +6,8 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
+import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
+import 'package:invtec/features/patrimonios/domain/tombamento_normalizacao.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
 
 /// Exceção genérica (nunca [AppException]/
@@ -46,10 +48,41 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     this.falhaConsultaExecucao = false,
     this.aposEscritaDeExecucao,
     this.autorId = 'user-1',
+    this.historicoAnterior = const {},
+    this.erroHistoricoAnterior,
+    this.historicoTombamentosPorId = const {},
+    this.erroHistoricoTombamentosPorId,
   }) : _itens = [...?itens];
 
   final List<PatrimonioDetalhe> _itens;
   final Object? erro;
+
+  /// Simula `patrimonio_tombamentos_historico` — chave: tombamento
+  /// ANTERIOR bruto (comparado por [normalizarTombamentoParaComparacao],
+  /// igual à implementação real); valor: lista de
+  /// `(id do patrimônio em [_itens], origem)`. Só para testar
+  /// [buscarPorTombamentoAnterior] isoladamente, sem depender da migration
+  /// 3A.4 estar aplicada em lugar nenhum.
+  final Map<String, List<(String, String)>> historicoAnterior;
+
+  /// Quando definido, [buscarPorTombamentoAnterior] lança em vez de
+  /// consultar — simula falha de rede/consulta na tabela de histórico
+  /// (nunca deve derrubar a pesquisa principal; ver uso em
+  /// `patrimonios_pesquisa_test.dart`).
+  final Object? erroHistoricoAnterior;
+
+  int buscarPorTombamentoAnteriorCallCount = 0;
+
+  /// Simula `patrimonio_tombamentos_historico` para a tela de detalhe —
+  /// chave: id do patrimônio em [_itens]; valor: histórico já pronto, na
+  /// ordem que [buscarHistoricoTombamentosPorId] deve devolver (o fake
+  /// nunca reordena, mesma responsabilidade do chamador real/do banco).
+  final Map<String, List<TombamentoHistoricoItem>> historicoTombamentosPorId;
+
+  /// Quando definido, [buscarHistoricoTombamentosPorId] lança em vez de
+  /// consultar — simula falha de leitura (nunca deve derrubar a tela de
+  /// detalhe; a seção mostra "tentar novamente").
+  final Object? erroHistoricoTombamentosPorId;
 
   /// Quem "executou" cada [aplicarDecisaoComparacao] (grava
   /// como `criado_por`). Mesmo papel de `autorId` em
@@ -130,8 +163,9 @@ class FakePatrimonioRepository implements PatrimonioRepository {
 
   /// Reproduz, em memória, a MESMA semântica de
   /// [PatrimonioRepositorySupabase] para cada [PatrimonioSearchField] — em
-  /// especial, [PatrimonioSearchField.patrimonio] busca por PREFIXO
-  /// (nunca `contains`/substring no meio do número).
+  /// especial, [PatrimonioSearchField.patrimonio] busca por QUALQUER
+  /// SEQUÊNCIA CONTÍGUA de dígitos (Fase 2 da pesquisa inteligente — nunca
+  /// mais só prefixo), com equivalência de zeros à esquerda.
   bool _casaComBusca(
     PatrimonioDetalhe item,
     PatrimonioSearchField campo,
@@ -140,9 +174,8 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     final p = item.patrimonio;
     switch (campo) {
       case PatrimonioSearchField.patrimonio:
-        final numero = normalizarNumeroPatrimonio(termo);
-        return numero != null &&
-            (p.numeroPatrimonio?.startsWith(numero) ?? false);
+        final chave = normalizarTombamentoParaComparacao(termo).chaveComparacao;
+        return chave != null && (p.numeroPatrimonio?.contains(chave) ?? false);
       case PatrimonioSearchField.numeroSerie:
         return _contemIgnorandoCaixa(p.numeroSerie, termo);
       case PatrimonioSearchField.equipamentoDescricao:
@@ -461,16 +494,20 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     final termo = busca?.trim();
 
     // Mesma lógica em duas etapas do repositório real — ver
-    // PatrimonioRepositorySupabase._listarTudoNumerico.
+    // PatrimonioRepositorySupabase._listarTudoNumerico. Etapa 1 agora é
+    // QUALQUER SEQUÊNCIA CONTÍGUA (Fase 2), nunca mais só prefixo.
     if (termo != null &&
         termo.isNotEmpty &&
         campoBusca == PatrimonioSearchField.tudo &&
         _somenteDigitos(termo)) {
-      final numero = normalizarNumeroPatrimonio(termo)!;
-      final matchPatrimonio = _comFiltrosComuns(
+      // "somente zeros" (ex.: "0000") nunca é uma chave válida — só a
+      // etapa de série (exata) ainda pode casar, igual ao real.
+      final chave = normalizarTombamentoParaComparacao(termo).chaveComparacao;
+      final matchPatrimonio = chave == null
+          ? const Iterable<PatrimonioDetalhe>.empty()
+          : _comFiltrosComuns(
         _itens.where(
-          (item) =>
-              item.patrimonio.numeroPatrimonio?.startsWith(numero) ?? false,
+          (item) => item.patrimonio.numeroPatrimonio?.contains(chave) ?? false,
         ),
         tipoId: tipoId,
         status: status,
@@ -492,7 +529,21 @@ class FakePatrimonioRepository implements PatrimonioRepository {
         ordenarPor: ordenarPor,
         ordenacaoDirecao: ordenacaoDirecao,
       );
-      if (resultadoPatrimonio.total > 0) return resultadoPatrimonio;
+
+      final anteriores = await _buscarAnteriorSemDuplicarFake(
+        termo: termo,
+        jaPresentes: resultadoPatrimonio.itens,
+      );
+
+      if (resultadoPatrimonio.total > 0) {
+        return anteriores.isEmpty
+            ? resultadoPatrimonio
+            : PatrimoniosResultado(
+                itens: resultadoPatrimonio.itens,
+                total: resultadoPatrimonio.total,
+                correspondenciasPorTombamentoAnterior: anteriores,
+              );
+      }
 
       final matchSerie = _comFiltrosComuns(
         _itens.where((item) => item.patrimonio.numeroSerie == termo),
@@ -518,6 +569,7 @@ class FakePatrimonioRepository implements PatrimonioRepository {
         itens: const [],
         total: 0,
         correspondenciasPorNumeroSerie: resultadoSerie.itens,
+        correspondenciasPorTombamentoAnterior: anteriores,
       );
     }
 
@@ -542,13 +594,44 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       dataAquisicaoDe: dataAquisicaoDe,
       dataAquisicaoAte: dataAquisicaoAte,
     );
-    return _paginar(
+    final pagina = _paginar(
       resultado,
       limit: limit,
       offset: offset,
       ordenarPor: ordenarPor,
       ordenacaoDirecao: ordenacaoDirecao,
     );
+
+    if (termo != null &&
+        termo.isNotEmpty &&
+        campoBusca == PatrimonioSearchField.patrimonio) {
+      final anteriores = await _buscarAnteriorSemDuplicarFake(
+        termo: termo,
+        jaPresentes: pagina.itens,
+      );
+      if (anteriores.isNotEmpty) {
+        return PatrimoniosResultado(
+          itens: pagina.itens,
+          total: pagina.total,
+          correspondenciasPorTombamentoAnterior: anteriores,
+        );
+      }
+    }
+    return pagina;
+  }
+
+  /// Mesma regra do repositório real (ver `_buscarAnteriorSemDuplicar` em
+  /// `PatrimonioRepositorySupabase`): nunca repete, em
+  /// [PatrimoniosResultado.correspondenciasPorTombamentoAnterior], um
+  /// patrimônio já presente em [jaPresentes].
+  Future<List<PatrimonioEncontradoPorAnterior>> _buscarAnteriorSemDuplicarFake({
+    required String termo,
+    required List<PatrimonioDetalhe> jaPresentes,
+  }) async {
+    final anteriores = await buscarPorTombamentoAnterior(termo);
+    if (anteriores.isEmpty) return anteriores;
+    final idsJaPresentes = jaPresentes.map((d) => d.patrimonio.id).toSet();
+    return anteriores.where((a) => !idsJaPresentes.contains(a.patrimonio.patrimonio.id)).toList();
   }
 
   @override
@@ -861,5 +944,49 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       throw const AppException('A operação não pertence à sessão atual.');
     }
     return resultado;
+  }
+
+  @override
+  Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
+    String termo,
+  ) async {
+    buscarPorTombamentoAnteriorCallCount++;
+    final erroConfigurado = erroHistoricoAnterior;
+    if (erroConfigurado != null) throw erroConfigurado;
+
+    final chave = normalizarTombamentoParaComparacao(termo).chaveComparacao;
+    if (chave == null) return const [];
+
+    final resultado = <PatrimonioEncontradoPorAnterior>[];
+    for (final entry in historicoAnterior.entries) {
+      if (normalizarTombamentoParaComparacao(entry.key).chaveComparacao != chave) {
+        continue;
+      }
+      for (final (patrimonioId, origem) in entry.value) {
+        final detalhe = _itens.firstWhere(
+          (item) => item.patrimonio.id == patrimonioId,
+          orElse: () => throw StateError(
+            'historicoAnterior referencia o id "$patrimonioId", que não está em itens',
+          ),
+        );
+        resultado.add(
+          PatrimonioEncontradoPorAnterior(
+            patrimonio: detalhe,
+            numeroAnteriorEncontrado: entry.key,
+            origem: origem,
+          ),
+        );
+      }
+    }
+    return resultado;
+  }
+
+  @override
+  Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
+    String patrimonioId,
+  ) async {
+    final erroConfigurado = erroHistoricoTombamentosPorId;
+    if (erroConfigurado != null) throw erroConfigurado;
+    return historicoTombamentosPorId[patrimonioId] ?? const [];
   }
 }

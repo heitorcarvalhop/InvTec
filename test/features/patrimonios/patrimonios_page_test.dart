@@ -224,6 +224,34 @@ void main() {
     );
 
     testWidgets(
+      'Pesquisa inteligente Fase 3: busca pelo tombamento ANTERIOR mostra o bem com '
+      'o tombamento ATUAL e a observação de como foi encontrado',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.admin,
+          patrimonioRepo: FakePatrimonioRepository(
+            itens: [_item('1', numero: '654321', marca: 'DELL')],
+            historicoAnterior: {
+              '123456': [('1', 'IMPORTACAO_PLANILHA')],
+            },
+          ),
+        );
+
+        await tester.enterText(find.byType(TextField), '123456');
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Encontrado pelo tombamento anterior'), findsOneWidget);
+        expect(find.text('Patrimônio 654321'), findsOneWidget);
+        expect(
+          find.textContaining('Encontrado pelo tombamento anterior: 123456'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
       'campo Patrimônio + "2703522" continua mostrando só a mensagem genérica, '
       'sem o aviso de correspondência por série',
       (tester) async {
@@ -586,6 +614,33 @@ void main() {
           findsNothing,
         );
         expect(find.byIcon(Icons.edit_outlined), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'CONSULTA também vê correspondências por tombamento anterior — a '
+      'busca histórica não tem gate de permissão no cliente, ela já é '
+      'inteiramente controlada pela RLS de patrimonio_tombamentos_historico '
+      '(mesma permissão patrimonio.view que já libera a tela inteira para '
+      'CONSULTA); nenhum código Flutter decide "quem pode ver histórico"',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.consulta,
+          patrimonioRepo: FakePatrimonioRepository(
+            itens: [_item('1', numero: '654321')],
+            historicoAnterior: {
+              '123456': [('1', 'IMPORTACAO_PLANILHA')],
+            },
+          ),
+        );
+
+        await tester.enterText(find.byType(TextField), '123456');
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Encontrado pelo tombamento anterior'), findsOneWidget);
+        expect(find.text('Patrimônio 654321'), findsOneWidget);
       },
     );
 

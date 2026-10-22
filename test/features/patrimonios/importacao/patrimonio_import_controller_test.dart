@@ -15,6 +15,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
+import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
 import 'package:invtec/features/patrimonios/domain/tipo_patrimonio.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/import_column_field.dart';
@@ -220,6 +221,14 @@ class _RepositorioComFalhaSeletiva implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  @override
+  Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
+    String termo,
+  ) => _delegado.buscarPorTombamentoAnterior(termo);
+  @override
+  Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
+    String patrimonioId,
+  ) => _delegado.buscarHistoricoTombamentosPorId(patrimonioId);
 }
 
 /// Repositório que só libera cada `cadastrar` quando o teste manda — usado
@@ -352,6 +361,14 @@ class _RepositorioComPortoes implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  @override
+  Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
+    String termo,
+  ) => _delegado.buscarPorTombamentoAnterior(termo);
+  @override
+  Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
+    String patrimonioId,
+  ) => _delegado.buscarHistoricoTombamentosPorId(patrimonioId);
 }
 
 ProviderContainer _criarContainer(
@@ -2081,4 +2098,12 @@ class _RepositorioContadorConcorrencia implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  @override
+  Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
+    String termo,
+  ) => _delegado.buscarPorTombamentoAnterior(termo);
+  @override
+  Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
+    String patrimonioId,
+  ) => _delegado.buscarHistoricoTombamentosPorId(patrimonioId);
 }

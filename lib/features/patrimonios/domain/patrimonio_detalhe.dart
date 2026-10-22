@@ -51,3 +51,28 @@ class PatrimonioDetalhe {
   /// completo continua em [setorNome] para tooltip/detalhamento.
   String get setorExibidoCompacto => siglaOuNomeSetor(sigla: setorSigla, nome: setorNome) ?? setorNome;
 }
+
+/// Um patrimônio encontrado pela pesquisa por TOMBAMENTO ANTERIOR (nunca
+/// pelo tombamento atual — isso já é [PatrimoniosResultado.itens]) — ver
+/// [PatrimonioRepository.buscarPorTombamentoAnterior]. Carrega o valor
+/// bruto do tombamento anterior encontrado (nunca só a chave normalizada,
+/// para exibição fiel) e a origem do registro histórico, para a UI deixar
+/// claro COMO o resultado foi encontrado — nunca apresentado como se fosse
+/// uma correspondência pelo tombamento atual.
+class PatrimonioEncontradoPorAnterior {
+  const PatrimonioEncontradoPorAnterior({
+    required this.patrimonio,
+    required this.numeroAnteriorEncontrado,
+    required this.origem,
+  });
+
+  final PatrimonioDetalhe patrimonio;
+  final String numeroAnteriorEncontrado;
+
+  /// 'MANUAL' | 'ALTERACAO_DIRETA' | 'ADMINISTRATIVA' | 'IMPORTACAO_PLANILHA'
+  /// — ver migration 20261014100000 (histórico de tombamentos). Nunca
+  /// interpretado como prova de validação adicional aqui: a própria
+  /// existência da linha em `patrimonio_tombamentos_historico` já é o que
+  /// importa para a busca.
+  final String origem;
+}

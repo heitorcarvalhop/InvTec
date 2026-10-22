@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/patrimonio_repository_supabase.dart';
 import '../domain/patrimonio_detalhe.dart';
+import '../domain/tombamento_historico_item.dart';
 
 /// Detalhe de um patrimônio por id, com tipo/setor/criador já resolvidos.
 /// `family` + `autoDispose`: cada tela de detalhe busca só o seu id, e o
@@ -12,4 +13,13 @@ final patrimonioDetalheProvider = FutureProvider.autoDispose
     .family<PatrimonioDetalhe?, String>((ref, id) async {
       final repository = ref.watch(patrimonioRepositoryProvider);
       return repository.buscarDetalhePorId(id);
+    });
+
+/// Histórico de tombamentos (seção "Histórico de tombamentos" da tela de
+/// detalhe) de um patrimônio por id — mesmo padrão de
+/// [patrimonioDetalheProvider]/`patrimonioHistoricoProvider` (movimentações).
+final patrimonioHistoricoTombamentosProvider = FutureProvider.autoDispose
+    .family<List<TombamentoHistoricoItem>, String>((ref, id) async {
+      final repository = ref.watch(patrimonioRepositoryProvider);
+      return repository.buscarHistoricoTombamentosPorId(id);
     });

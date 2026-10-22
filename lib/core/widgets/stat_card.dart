@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../responsive/breakpoints.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
@@ -35,11 +36,26 @@ class InvTecStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColors = Theme.of(context).statusColors;
     final (tintBackground, tintForeground) = switch (kind) {
-      AppStatusKind.success => (statusColors.successBackground, statusColors.successForeground),
-      AppStatusKind.warning => (statusColors.warningBackground, statusColors.warningForeground),
-      AppStatusKind.error => (statusColors.errorBackground, statusColors.errorForeground),
-      AppStatusKind.info => (statusColors.infoBackground, statusColors.infoForeground),
-      AppStatusKind.neutral => (statusColors.neutralBackground, statusColors.neutralForeground),
+      AppStatusKind.success => (
+        statusColors.successBackground,
+        statusColors.successForeground,
+      ),
+      AppStatusKind.warning => (
+        statusColors.warningBackground,
+        statusColors.warningForeground,
+      ),
+      AppStatusKind.error => (
+        statusColors.errorBackground,
+        statusColors.errorForeground,
+      ),
+      AppStatusKind.info => (
+        statusColors.infoBackground,
+        statusColors.infoForeground,
+      ),
+      AppStatusKind.neutral => (
+        statusColors.neutralBackground,
+        statusColors.neutralForeground,
+      ),
     };
 
     // Card "principal" de destaque do Dashboard: raio um pouco maior
@@ -51,22 +67,31 @@ class InvTecStatCard extends StatelessWidget {
       side: BorderSide(color: Theme.of(context).surfaceColors.border),
     );
 
+    // Mobile (Fase 2 — densidade): o mesmo card em 2 colunas numa tela de
+    // ~390px fica alto demais com o padding/ícone do desktop — aqui só o
+    // "chrome" ao redor (padding, caixa do ícone, gaps) encolhe; o número
+    // (`AppTypography.metric`) e o rótulo continuam do mesmo tamanho de
+    // fonte, legibilidade preservada.
+    final mobile = context.screenSize == ScreenSize.mobile;
+    final iconBoxSize = mobile ? 28.0 : 36.0;
+    final iconSize = mobile ? 15.0 : 18.0;
+
     final conteudo = Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(mobile ? AppSpacing.smd : AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: iconBoxSize,
+            height: iconBoxSize,
             decoration: BoxDecoration(
               color: tintBackground,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: tintForeground),
+            child: Icon(icon, size: iconSize, color: tintForeground),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: mobile ? AppSpacing.xs : AppSpacing.sm),
           Text('$value', style: AppTypography.metric(context)),
           const SizedBox(height: AppSpacing.xs),
           // Label em estilo "eyebrow" (menor, tracking amplo) — fica
@@ -83,7 +108,11 @@ class InvTecStatCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: onTap == null
           ? conteudo
-          : InkWell(onTap: onTap, mouseCursor: SystemMouseCursors.click, child: conteudo),
+          : InkWell(
+              onTap: onTap,
+              mouseCursor: SystemMouseCursors.click,
+              child: conteudo,
+            ),
     );
   }
 }

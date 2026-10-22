@@ -9,7 +9,11 @@ import '../../domain/movimentacao_listagem_item.dart';
 import 'movimentacao_tipo_visual.dart';
 
 class MovimentacoesMobileList extends StatelessWidget {
-  const MovimentacoesMobileList({super.key, required this.itens, required this.onVisualizar});
+  const MovimentacoesMobileList({
+    super.key,
+    required this.itens,
+    required this.onVisualizar,
+  });
 
   final List<MovimentacaoListagemItem> itens;
   final ValueChanged<MovimentacaoListagemItem> onVisualizar;
@@ -21,7 +25,10 @@ class MovimentacoesMobileList extends StatelessWidget {
         for (final item in itens)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _MovimentacaoCard(item: item, onTap: () => onVisualizar(item)),
+            child: _MovimentacaoCard(
+              item: item,
+              onTap: () => onVisualizar(item),
+            ),
           ),
       ],
     );
@@ -42,7 +49,7 @@ class _MovimentacaoCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.smd),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -53,9 +60,15 @@ class _MovimentacaoCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.patrimonioNumero ?? '—', style: AppTypography.cardTitle(context)),
+                        Text(
+                          item.patrimonioNumero ?? '—',
+                          style: AppTypography.cardTitle(context),
+                        ),
                         if (item.patrimonioTipoNome != null)
-                          Text(item.patrimonioTipoNome!, style: AppTypography.auxiliary(context)),
+                          Text(
+                            item.patrimonioTipoNome!,
+                            style: AppTypography.auxiliary(context),
+                          ),
                       ],
                     ),
                   ),
@@ -63,7 +76,7 @@ class _MovimentacaoCard extends StatelessWidget {
                   StatusChip(label: item.tipo.label, kind: kind, icon: icon),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.xs),
               // Sigla cadastrada — card compacto, sem espaço para tooltip
               // por segmento (o diálogo de detalhe, aberto ao tocar o
               // card, mostra o nome completo por tooltip).
@@ -78,14 +91,22 @@ class _MovimentacaoCard extends StatelessWidget {
                 runSpacing: AppSpacing.xs,
                 children: [
                   if (item.responsavelExibido != null)
-                    _InfoChip(icon: Icons.person_outline, texto: item.responsavelExibido!),
-                  _InfoChip(icon: Icons.schedule_outlined, texto: _formatarDataHora(item.dataMovimentacao)),
+                    _InfoChip(
+                      icon: Icons.person_outline,
+                      texto: item.responsavelExibido!,
+                    ),
+                  _InfoChip(
+                    icon: Icons.schedule_outlined,
+                    texto: _formatarDataHora(item.dataMovimentacao),
+                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(onPressed: onTap, child: const Text('Ver detalhes')),
+                child: TextButton(
+                  onPressed: onTap,
+                  child: const Text('Ver detalhes'),
+                ),
               ),
             ],
           ),
@@ -109,7 +130,12 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
-        Text(texto, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          texto,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }

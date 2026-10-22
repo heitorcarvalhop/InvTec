@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -18,7 +19,10 @@ import 'sign_up_controller.dart';
 /// posição do cursor).
 class _CpfInputFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final digitos = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
     final limitados = digitos.length > 11 ? digitos.substring(0, 11) : digitos;
 
@@ -30,7 +34,10 @@ class _CpfInputFormatter extends TextInputFormatter {
     }
 
     final texto = buffer.toString();
-    return TextEditingValue(text: texto, selection: TextSelection.collapsed(offset: texto.length));
+    return TextEditingValue(
+      text: texto,
+      selection: TextSelection.collapsed(offset: texto.length),
+    );
   }
 }
 
@@ -74,12 +81,14 @@ class _CadastroPageState extends ConsumerState<CadastroPage> {
 
     setState(() => _isSubmitting = true);
     try {
-      final outcome = await ref.read(signUpControllerProvider).signUp(
-        nome: _nomeController.text,
-        cpf: _cpfController.text,
-        email: _emailController.text,
-        senha: _senhaController.text,
-      );
+      final outcome = await ref
+          .read(signUpControllerProvider)
+          .signUp(
+            nome: _nomeController.text,
+            cpf: _cpfController.text,
+            email: _emailController.text,
+            senha: _senhaController.text,
+          );
       if (!mounted) return;
 
       switch (outcome) {
@@ -108,12 +117,18 @@ class _CadastroPageState extends ConsumerState<CadastroPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Mobile (Fase 2 — densidade): mesmo formulário, menos respiro ao
+    // redor — nenhum campo/botão muda de tamanho (mesmo padrão do Login).
+    final mobile = context.screenSize == ScreenSize.mobile;
 
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: mobile ? AppSpacing.lg : AppSpacing.xl,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 380),
               child: Column(
@@ -126,26 +141,38 @@ class _CadastroPageState extends ConsumerState<CadastroPage> {
                       color: AppColors.seed.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
-                    child: Icon(Icons.person_add_alt_outlined, color: AppColors.seed, size: 28),
+                    child: Icon(
+                      Icons.person_add_alt_outlined,
+                      color: AppColors.seed,
+                      size: 28,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     'Criar conta',
-                    style: theme.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'Sistema de Controle Patrimonial',
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  SizedBox(height: mobile ? AppSpacing.lg : AppSpacing.xl),
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: EdgeInsets.all(
+                        mobile ? AppSpacing.md : AppSpacing.lg,
+                      ),
                       child: _confirmacaoEmailPendente
-                          ? _ConfirmacaoEmailPanel(onVoltarParaLogin: () => context.go('/login'))
+                          ? _ConfirmacaoEmailPanel(
+                              onVoltarParaLogin: () => context.go('/login'),
+                            )
                           : _buildForm(theme),
                     ),
                   ),
@@ -172,7 +199,10 @@ class _CadastroPageState extends ConsumerState<CadastroPage> {
             enabled: !_isSubmitting,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.name],
-            decoration: const InputDecoration(labelText: 'Nome completo', prefixIcon: Icon(Icons.person_outline)),
+            decoration: const InputDecoration(
+              labelText: 'Nome completo',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
             validator: validarNome,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -182,7 +212,10 @@ class _CadastroPageState extends ConsumerState<CadastroPage> {
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.next,
             inputFormatters: [_CpfInputFormatter()],
-            decoration: const InputDecoration(labelText: 'CPF', prefixIcon: Icon(Icons.badge_outlined)),
+            decoration: const InputDecoration(
+              labelText: 'CPF',
+              prefixIcon: Icon(Icons.badge_outlined),
+            ),
             validator: validarCpf,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -192,7 +225,10 @@ class _CadastroPageState extends ConsumerState<CadastroPage> {
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.email],
-            decoration: const InputDecoration(labelText: 'E-mail', prefixIcon: Icon(Icons.mail_outline)),
+            decoration: const InputDecoration(
+              labelText: 'E-mail',
+              prefixIcon: Icon(Icons.mail_outline),
+            ),
             validator: validarEmail,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -207,7 +243,11 @@ class _CadastroPageState extends ConsumerState<CadastroPage> {
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 tooltip: _obscureSenha ? 'Mostrar senha' : 'Ocultar senha',
-                icon: Icon(_obscureSenha ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                icon: Icon(
+                  _obscureSenha
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
                 onPressed: () => setState(() => _obscureSenha = !_obscureSenha),
               ),
             ),
@@ -226,19 +266,31 @@ class _CadastroPageState extends ConsumerState<CadastroPage> {
               labelText: 'Confirmar senha',
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
-                tooltip: _obscureConfirmacao ? 'Mostrar senha' : 'Ocultar senha',
-                icon: Icon(_obscureConfirmacao ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                onPressed: () => setState(() => _obscureConfirmacao = !_obscureConfirmacao),
+                tooltip: _obscureConfirmacao
+                    ? 'Mostrar senha'
+                    : 'Ocultar senha',
+                icon: Icon(
+                  _obscureConfirmacao
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
+                onPressed: () =>
+                    setState(() => _obscureConfirmacao = !_obscureConfirmacao),
               ),
             ),
-            validator: (value) => validarConfirmacaoSenha(_senhaController.text, value),
+            validator: (value) =>
+                validarConfirmacaoSenha(_senhaController.text, value),
             onFieldSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: AppSpacing.lg),
           FilledButton(
             onPressed: _isSubmitting ? null : _submit,
             child: _isSubmitting
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Text('Criar conta'),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -271,7 +323,9 @@ class _RequisitosSenhaChecklist extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  satisfeitos.contains(requisito) ? Icons.check_circle : Icons.circle_outlined,
+                  satisfeitos.contains(requisito)
+                      ? Icons.check_circle
+                      : Icons.circle_outlined,
                   size: 16,
                   color: satisfeitos.contains(requisito)
                       ? theme.colorScheme.primary
@@ -311,7 +365,11 @@ class _ConfirmacaoEmailPanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.mark_email_read_outlined, color: theme.colorScheme.primary, size: 40),
+        Icon(
+          Icons.mark_email_read_outlined,
+          color: theme.colorScheme.primary,
+          size: 40,
+        ),
         const SizedBox(height: AppSpacing.md),
         Text(
           'Cadastro criado. Verifique seu e-mail para confirmar a conta e depois faça login.',
@@ -319,7 +377,10 @@ class _ConfirmacaoEmailPanel extends StatelessWidget {
           style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: AppSpacing.lg),
-        FilledButton(onPressed: onVoltarParaLogin, child: const Text('Voltar para o login')),
+        FilledButton(
+          onPressed: onVoltarParaLogin,
+          child: const Text('Voltar para o login'),
+        ),
       ],
     );
   }

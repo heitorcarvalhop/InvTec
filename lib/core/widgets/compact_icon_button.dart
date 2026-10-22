@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../responsive/breakpoints.dart';
+
 /// `IconButton` compacto com formato circular GARANTIDO para hover/focus/
 /// splash/pressed — substitui o padrão `IconButton(visualDensity: compact,
 /// ...)` repetido em vários pontos do app (toolbar de ordenação, paginação,
@@ -11,10 +13,13 @@ import 'package:flutter/material.dart';
 /// isso implícito/dependente de versão, o `shape` e a área de toque aqui
 /// são explícitos.
 ///
-/// Área de toque 32x32 — mesma convenção já usada em
+/// Área de toque 32x32 no desktop/tablet — mesma convenção já usada em
 /// `PaginationControls._PageNumberButton`, pequena o bastante para não
 /// parecer um retângulo gigante ao lado de um ícone pequeno, mas ainda
-/// confortável para clique/toque.
+/// confortável para clique com mouse. No mobile ([ScreenSize.mobile]) a
+/// área de toque sobe para 44x44 (mínimo seguro para dedo, "Fase 2 —
+/// densidade mobile") SEM aumentar o ícone visual — só a região invisível
+/// de toque ao redor dele cresce.
 class CompactIconButton extends StatelessWidget {
   const CompactIconButton({
     super.key,
@@ -37,6 +42,8 @@ class CompactIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mobile = context.screenSize == ScreenSize.mobile;
+    final touchSize = mobile ? 44.0 : 32.0;
     return IconButton(
       icon: icon,
       tooltip: tooltip,
@@ -46,8 +53,10 @@ class CompactIconButton extends StatelessWidget {
       style: IconButton.styleFrom(
         shape: const CircleBorder(),
         padding: EdgeInsets.zero,
-        minimumSize: const Size(32, 32),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        minimumSize: Size(touchSize, touchSize),
+        tapTargetSize: mobile
+            ? MaterialTapTargetSize.padded
+            : MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }

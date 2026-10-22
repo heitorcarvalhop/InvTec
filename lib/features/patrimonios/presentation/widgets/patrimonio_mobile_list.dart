@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/responsive/breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/patrimonio_detalhe.dart';
@@ -71,11 +72,19 @@ class PatrimonioCard extends StatelessWidget {
       patrimonio.modelo,
     ].where((v) => v != null && v.isNotEmpty).join(' ');
 
+    // Mobile (Fase 2 — densidade): mesmo card do desktop ("Cards" view),
+    // só com padding/gaps/ícone de edição menores — texto e informação
+    // mostrada continuam os mesmos, nada é escondido.
+    final mobile = context.screenSize == ScreenSize.mobile;
+    final cardPadding = mobile ? AppSpacing.smd : AppSpacing.md;
+    final gap = mobile ? AppSpacing.xs : AppSpacing.sm;
+    final editButtonSize = mobile ? 44.0 : 36.0;
+
     return Card(
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: EdgeInsets.all(cardPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -92,7 +101,10 @@ class PatrimonioCard extends StatelessWidget {
                         ),
                         if (equipamento.isNotEmpty)
                           Text(equipamento, style: AppTypography.body(context)),
-                        Text(detalhe.tipoNome, style: AppTypography.auxiliary(context)),
+                        Text(
+                          detalhe.tipoNome,
+                          style: AppTypography.auxiliary(context),
+                        ),
                       ],
                     ),
                   ),
@@ -100,7 +112,7 @@ class PatrimonioCard extends StatelessWidget {
                   PatrimonioStatusChip(status: patrimonio.status),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: gap),
               Wrap(
                 spacing: AppSpacing.md,
                 runSpacing: AppSpacing.xs,
@@ -113,8 +125,12 @@ class PatrimonioCard extends StatelessWidget {
                     icon: Icons.place_outlined,
                     texto: detalhe.localizacaoNome ?? 'Sem localização',
                   ),
-                  if (patrimonio.numeroSerie != null && patrimonio.numeroSerie!.isNotEmpty)
-                    _InfoChip(icon: Icons.qr_code_2_outlined, texto: 'Série: ${patrimonio.numeroSerie}'),
+                  if (patrimonio.numeroSerie != null &&
+                      patrimonio.numeroSerie!.isNotEmpty)
+                    _InfoChip(
+                      icon: Icons.qr_code_2_outlined,
+                      texto: 'Série: ${patrimonio.numeroSerie}',
+                    ),
                   if (patrimonio.responsavelAtual != null)
                     _InfoChip(
                       icon: Icons.person_outline,
@@ -122,7 +138,7 @@ class PatrimonioCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: gap),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -131,8 +147,10 @@ class PatrimonioCard extends StatelessWidget {
                       message: 'Editar',
                       child: IconButton(
                         style: IconButton.styleFrom(
-                          minimumSize: const Size(36, 36),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          minimumSize: Size(editButtonSize, editButtonSize),
+                          tapTargetSize: mobile
+                              ? MaterialTapTargetSize.padded
+                              : MaterialTapTargetSize.shrinkWrap,
                         ),
                         iconSize: 18,
                         icon: const Icon(Icons.edit_outlined),

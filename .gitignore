@@ -62,6 +62,9 @@ app.*.map.json
 # Dados reais usados apenas para testes locais
 local_test_data/
 
+
+/Planilha_Comparação/
+
 # Pacote de distribuição (ZIP + pasta Release copiada) — artefato gerado,
 # nunca versionado; regenerado por `flutter build windows --release` + empacotamento manual.
 /dist/
@@ -69,6 +72,7 @@ local_test_data/
 
 # Estado local do Supabase CLI (cache de versão/projeto, não é código do projeto).
 supabase/.temp/
+supabase/
 
 
 # Certificado de assinatura MSIX — a chave privada (.pfx) NUNCA pode ser

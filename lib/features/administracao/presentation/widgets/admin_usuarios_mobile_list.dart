@@ -22,7 +22,10 @@ class AdminUsuariosMobileList extends StatelessWidget {
         for (final usuario in usuarios)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _UsuarioCard(usuario: usuario, onTap: () => onVerDetalhes(usuario)),
+            child: _UsuarioCard(
+              usuario: usuario,
+              onTap: () => onVerDetalhes(usuario),
+            ),
           ),
       ],
     );
@@ -44,7 +47,7 @@ class _UsuarioCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.smd),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -70,18 +73,26 @@ class _UsuarioCard extends StatelessWidget {
                   AdminUsuarioStatusChip(status: usuario.accessStatus),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.xs),
               Wrap(
                 spacing: AppSpacing.md,
                 runSpacing: AppSpacing.xs,
                 children: [
-                  _InfoItem(label: 'CPF', valor: cpfMascarado ?? 'Não informado'),
+                  _InfoItem(
+                    label: 'CPF',
+                    valor: cpfMascarado ?? 'Não informado',
+                  ),
                   _InfoItem(label: 'Perfil', valor: usuario.perfil.label),
-                  _InfoItem(label: 'Rejeições', valor: '${usuario.rejectionCount}'),
-                  _InfoItem(label: 'Cadastro', valor: formatarDataCurta(usuario.criadoEm)),
+                  _InfoItem(
+                    label: 'Rejeições',
+                    valor: '${usuario.rejectionCount}',
+                  ),
+                  _InfoItem(
+                    label: 'Cadastro',
+                    valor: formatarDataCurta(usuario.criadoEm),
+                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
@@ -113,7 +124,9 @@ class _InfoItem extends StatelessWidget {
       children: [
         Text(
           label,
-          style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
         Text(valor, style: theme.textTheme.bodyMedium),
       ],

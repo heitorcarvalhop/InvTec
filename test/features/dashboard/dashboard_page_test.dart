@@ -27,6 +27,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
+import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
 import 'package:go_router/go_router.dart';
 
@@ -163,6 +164,14 @@ class _PatrimonioRepositorioTravado implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => throw UnimplementedError();
+  @override
+  Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
+    String termo,
+  ) => throw UnimplementedError();
+  @override
+  Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
+    String patrimonioId,
+  ) => throw UnimplementedError();
 }
 
 /// Delega tudo para [FakePatrimonioRepository], exceto
@@ -282,6 +291,14 @@ class _RepositorioComFalhaNaPrimeiraPrefixo implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  @override
+  Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
+    String termo,
+  ) => _delegado.buscarPorTombamentoAnterior(termo);
+  @override
+  Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
+    String patrimonioId,
+  ) => _delegado.buscarHistoricoTombamentosPorId(patrimonioId);
 }
 
 Future<void> _pumpDashboard(

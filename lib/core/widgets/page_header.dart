@@ -53,12 +53,26 @@ class InvTecPageHeader extends StatelessWidget {
 
     if (actions.isEmpty) return titulo;
 
-    final botoes = Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: actions);
+    final botoes = Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: actions,
+    );
 
     if (compact) {
+      // Mobile (Fase 2 — densidade): gap menor entre título e ações do que
+      // o usado em tablet/telas médias — um cabeçalho com título + ações
+      // empilhadas não precisa do mesmo respiro do desktop.
+      final gap = context.screenSize == ScreenSize.mobile
+          ? AppSpacing.sm
+          : AppSpacing.md;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [titulo, const SizedBox(height: AppSpacing.md), botoes],
+        children: [
+          titulo,
+          SizedBox(height: gap),
+          botoes,
+        ],
       );
     }
 

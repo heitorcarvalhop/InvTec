@@ -10,6 +10,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
+import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
 import 'package:invtec/features/patrimonios/presentation/patrimonios_controller.dart';
 
@@ -177,6 +178,14 @@ class _RepositorioComPortoesListar implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  @override
+  Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
+    String termo,
+  ) => _delegado.buscarPorTombamentoAnterior(termo);
+  @override
+  Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
+    String patrimonioId,
+  ) => _delegado.buscarHistoricoTombamentosPorId(patrimonioId);
 }
 
 ProviderContainer _criarContainer(PatrimonioRepository repo) {
@@ -272,65 +281,60 @@ void main() {
       },
     );
 
-    group('campo Patrimônio busca por PREFIXO (não mais só exata)', () {
-      final itensComPrefixoComum = [
-        _patrimonio(id: '1', numero: '3636001'),
-        _patrimonio(id: '2', numero: '3636127'),
-        _patrimonio(id: '3', numero: '3636988'),
-        // contém "3636" no MEIO, nunca pode aparecer para uma busca por
-        // prefixo "3636" — só "começa com" conta.
-        _patrimonio(id: '4', numero: '1236360'),
+    group('campo Patrimônio busca por QUALQUER SEQUÊNCIA CONTÍGUA de dígitos (Fase 2)', () {
+      final itensNumericos = [
+        _patrimonio(id: '1', numero: '123456'),
+        _patrimonio(id: '2', numero: '987654'),
       ];
 
-      test('"3" encontra todos os que começam com 3', () async {
+      for (final caso in ['123456', '123', '234', '345', '456', '56']) {
+        test('"$caso" encontra 123456 (início/meio/fim)', () async {
+          final container = _criarContainer(
+            FakePatrimonioRepository(itens: itensNumericos),
+          );
+          addTearDown(container.dispose);
+          final notifier = container.read(patrimoniosControllerProvider.notifier);
+
+          notifier.definirCampoBusca(PatrimonioSearchField.patrimonio);
+          notifier.buscar(caso);
+          await Future<void>.delayed(const Duration(milliseconds: 350));
+          final state = await container.read(
+            patrimoniosControllerProvider.future,
+          );
+
+          expect(
+            state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
+            ['123456'],
+            reason: 'busca "$caso" deveria encontrar só 123456',
+          );
+        });
+      }
+
+      test('"987" encontra 987654, nunca 123456', () async {
         final container = _criarContainer(
-          FakePatrimonioRepository(itens: itensComPrefixoComum),
+          FakePatrimonioRepository(itens: itensNumericos),
         );
         addTearDown(container.dispose);
         final notifier = container.read(patrimoniosControllerProvider.notifier);
 
         notifier.definirCampoBusca(PatrimonioSearchField.patrimonio);
-        notifier.buscar('3');
+        notifier.buscar('987');
         await Future<void>.delayed(const Duration(milliseconds: 350));
         final state = await container.read(
           patrimoniosControllerProvider.future,
         );
 
         expect(
-          state.resultado.itens
-              .map((i) => i.patrimonio.numeroPatrimonio)
-              .toSet(),
-          {'3636001', '3636127', '3636988'},
-        );
-      });
-
-      test('"36" refina para um subconjunto mais específico', () async {
-        final container = _criarContainer(
-          FakePatrimonioRepository(itens: itensComPrefixoComum),
-        );
-        addTearDown(container.dispose);
-        final notifier = container.read(patrimoniosControllerProvider.notifier);
-
-        notifier.definirCampoBusca(PatrimonioSearchField.patrimonio);
-        notifier.buscar('36');
-        await Future<void>.delayed(const Duration(milliseconds: 350));
-        final state = await container.read(
-          patrimoniosControllerProvider.future,
-        );
-
-        expect(
-          state.resultado.itens
-              .map((i) => i.patrimonio.numeroPatrimonio)
-              .toSet(),
-          {'3636001', '3636127', '3636988'},
+          state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
+          ['987654'],
         );
       });
 
       test(
-        '"3636" refina ainda mais — nunca inclui "1236360" (prefixo no meio, não no início)',
+        'patrimônio inexistente: nenhuma sequência bate com nada',
         () async {
           final container = _criarContainer(
-            FakePatrimonioRepository(itens: itensComPrefixoComum),
+            FakePatrimonioRepository(itens: itensNumericos),
           );
           addTearDown(container.dispose);
           final notifier = container.read(
@@ -338,31 +342,22 @@ void main() {
           );
 
           notifier.definirCampoBusca(PatrimonioSearchField.patrimonio);
-          notifier.buscar('3636');
+          notifier.buscar('999999');
           await Future<void>.delayed(const Duration(milliseconds: 350));
           final state = await container.read(
             patrimoniosControllerProvider.future,
           );
 
-          expect(
-            state.resultado.itens
-                .map((i) => i.patrimonio.numeroPatrimonio)
-                .toSet(),
-            {'3636001', '3636127', '3636988'},
-          );
-          expect(
-            state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
-            isNot(contains('1236360')),
-          );
+          expect(state.resultado.itens, isEmpty);
         },
       );
 
       test(
-        'zeros à esquerda digitados são preservados na busca (nunca convertidos para número)',
+        'zeros à esquerda digitados são EQUIVALENTES aos do número armazenado (nunca exigem igualdade literal)',
         () async {
           final container = _criarContainer(
             FakePatrimonioRepository(
-              itens: [_patrimonio(id: '1', numero: '00458720')],
+              itens: [_patrimonio(id: '1', numero: '458720')],
             ),
           );
           addTearDown(container.dispose);
@@ -379,7 +374,7 @@ void main() {
 
           expect(
             state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
-            ['00458720'],
+            ['458720'],
           );
         },
       );
@@ -590,140 +585,116 @@ void main() {
       );
     });
 
-    group('Tudo + numérico busca por PREFIXO de numero_patrimonio', () {
-      final itensComPrefixoComum = [
-        _patrimonio(id: '1', numero: '3600001'),
-        _patrimonio(id: '2', numero: '3600127'),
-        _patrimonio(id: '3', numero: '3601500'),
-        // contém "3600" no MEIO, nunca pode aparecer para uma busca por
-        // prefixo "3600" — só "começa com" conta.
-        _patrimonio(id: '4', numero: '1236000'),
+    group('Tudo + numérico busca por QUALQUER SEQUÊNCIA CONTÍGUA de dígitos (Fase 2)', () {
+      // Mesmo exemplo do pedido original: "123456" precisa ser encontrado
+      // por "123" (início), "234"/"345" (meio), "456" (fim) e "56" (fim,
+      // mais curto). "987654" nunca deve aparecer em nenhuma dessas
+      // buscas — prova que não é um "contains" acidentalmente largo
+      // demais (ex.: comparando dígito a dígito fora de ordem).
+      final itensNumericos = [
+        _patrimonio(id: '1', numero: '123456'),
+        _patrimonio(id: '2', numero: '987654'),
       ];
 
-      test('"3" encontra todos os que começam com 3', () async {
+      for (final caso in ['123456', '123', '234', '345', '456', '56']) {
+        test('"$caso" encontra 123456 (início/meio/fim)', () async {
+          final container = _criarContainer(
+            FakePatrimonioRepository(itens: itensNumericos),
+          );
+          addTearDown(container.dispose);
+          final notifier = container.read(patrimoniosControllerProvider.notifier);
+
+          notifier.buscar(caso);
+          await Future<void>.delayed(const Duration(milliseconds: 350));
+          final state = await container.read(patrimoniosControllerProvider.future);
+
+          expect(
+            state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
+            ['123456'],
+            reason: 'busca "$caso" deveria encontrar só 123456',
+          );
+        });
+      }
+
+      test('"987" encontra 987654, nunca 123456 (cada um só pela sua própria sequência)', () async {
         final container = _criarContainer(
-          FakePatrimonioRepository(itens: itensComPrefixoComum),
+          FakePatrimonioRepository(itens: itensNumericos),
         );
         addTearDown(container.dispose);
         final notifier = container.read(patrimoniosControllerProvider.notifier);
 
-        notifier.buscar('3');
+        notifier.buscar('987');
         await Future<void>.delayed(const Duration(milliseconds: 350));
-        final state = await container.read(
-          patrimoniosControllerProvider.future,
-        );
+        final state = await container.read(patrimoniosControllerProvider.future);
 
         expect(
-          state.resultado.itens
-              .map((i) => i.patrimonio.numeroPatrimonio)
-              .toSet(),
-          {'3600001', '3600127', '3601500'},
+          state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
+          ['987654'],
         );
       });
 
-      test('"36" refina para um subconjunto mais específico', () async {
+      test('zeros à esquerda digitados são EQUIVALENTES aos do número armazenado (nunca exigem igualdade literal)', () async {
+        // "0123" e "123" representam a MESMA identidade de tombamento
+        // (regra de negócio já usada em toda a conciliação/histórico) —
+        // buscar com zeros à esquerda precisa encontrar o valor
+        // armazenado SEM esses zeros, nunca o contrário.
         final container = _criarContainer(
-          FakePatrimonioRepository(itens: itensComPrefixoComum),
+          FakePatrimonioRepository(itens: [_patrimonio(id: '1', numero: '458720')]),
         );
         addTearDown(container.dispose);
         final notifier = container.read(patrimoniosControllerProvider.notifier);
 
-        notifier.buscar('36');
+        notifier.buscar('0045');
         await Future<void>.delayed(const Duration(milliseconds: 350));
-        final state = await container.read(
-          patrimoniosControllerProvider.future,
-        );
+        final state = await container.read(patrimoniosControllerProvider.future);
 
         expect(
-          state.resultado.itens
-              .map((i) => i.patrimonio.numeroPatrimonio)
-              .toSet(),
-          {'3600001', '3600127', '3601500'},
+          state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
+          ['458720'],
+          reason: '"0045" normalizado ("45") precisa casar com o "45" contido em "458720"',
         );
       });
 
+      test('busca "somente zeros" (ex.: "000") nunca casa com nada — nunca uma chave válida', () async {
+        final container = _criarContainer(
+          FakePatrimonioRepository(
+            itens: [_patrimonio(id: '1', numero: '458720'), _patrimonio(id: '2', numero: '987654')],
+          ),
+        );
+        addTearDown(container.dispose);
+        final notifier = container.read(patrimoniosControllerProvider.notifier);
+
+        notifier.buscar('000');
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+        final state = await container.read(patrimoniosControllerProvider.future);
+
+        expect(state.resultado.itens, isEmpty);
+      });
+
       test(
-        '"3600" refina ainda mais — nunca inclui "1236000" (prefixo no meio, não no início)',
+        'debounce: digitação intermediária ("1", depois "123") não dispara duas consultas',
         () async {
           final container = _criarContainer(
-            FakePatrimonioRepository(itens: itensComPrefixoComum),
+            FakePatrimonioRepository(itens: itensNumericos),
           );
           addTearDown(container.dispose);
           final notifier = container.read(
             patrimoniosControllerProvider.notifier,
           );
 
-          notifier.buscar('3600');
-          await Future<void>.delayed(const Duration(milliseconds: 350));
-          final state = await container.read(
-            patrimoniosControllerProvider.future,
-          );
-
-          expect(
-            state.resultado.itens
-                .map((i) => i.patrimonio.numeroPatrimonio)
-                .toSet(),
-            {'3600001', '3600127'},
-          );
-          expect(
-            state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
-            isNot(contains('1236000')),
-          );
-        },
-      );
-
-      test(
-        'zeros à esquerda digitados são preservados na busca (nunca convertidos para número)',
-        () async {
-          final container = _criarContainer(
-            FakePatrimonioRepository(
-              itens: [_patrimonio(id: '1', numero: '00458720')],
-            ),
-          );
-          addTearDown(container.dispose);
-          final notifier = container.read(
-            patrimoniosControllerProvider.notifier,
-          );
-
-          notifier.buscar('0045');
-          await Future<void>.delayed(const Duration(milliseconds: 350));
-          final state = await container.read(
-            patrimoniosControllerProvider.future,
-          );
-
-          expect(
-            state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
-            ['00458720'],
-          );
-        },
-      );
-
-      test(
-        'debounce: digitação intermediária ("36", depois "3600") não dispara duas consultas',
-        () async {
-          final container = _criarContainer(
-            FakePatrimonioRepository(itens: itensComPrefixoComum),
-          );
-          addTearDown(container.dispose);
-          final notifier = container.read(
-            patrimoniosControllerProvider.notifier,
-          );
-
-          notifier.buscar('36');
+          notifier.buscar('1');
           await Future<void>.delayed(const Duration(milliseconds: 100));
-          notifier.buscar('3600');
+          notifier.buscar('123');
           await Future<void>.delayed(const Duration(milliseconds: 350));
           final state = await container.read(
             patrimoniosControllerProvider.future,
           );
 
-          // só a busca final ("3600") chegou a resolver.
-          expect(state.filtro.busca, '3600');
+          // só a busca final ("123") chegou a resolver.
+          expect(state.filtro.busca, '123');
           expect(
-            state.resultado.itens
-                .map((i) => i.patrimonio.numeroPatrimonio)
-                .toSet(),
-            {'3600001', '3600127'},
+            state.resultado.itens.map((i) => i.patrimonio.numeroPatrimonio),
+            ['123456'],
           );
         },
       );

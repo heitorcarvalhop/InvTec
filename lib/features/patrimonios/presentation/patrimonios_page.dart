@@ -141,7 +141,6 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
             label: const Text('Importar planilha'),
           )
         : null;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: ConstrainedBox(
@@ -175,9 +174,7 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
               primaryActionLabel: canManage ? 'Novo patrimônio' : null,
               primaryActionIcon: canManage ? Icons.add : null,
               onPrimaryAction: canManage ? _novoPatrimonio : null,
-              secondaryActions: importarButton != null
-                  ? [importarButton]
-                  : const [],
+              secondaryActions: [?importarButton],
             ),
             if (_filtrosExpandidos) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -218,6 +215,17 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
               data: (state) {
                 final itens = state.resultado.itens;
                 if (itens.isEmpty) {
+                  if (state.resultado.correspondenciasPorTombamentoAnterior.isNotEmpty) {
+                    // Fase 3: nenhum bem corresponde ao tombamento ATUAL
+                    // pesquisado, mas pelo menos um corresponde pelo
+                    // ANTERIOR — mostrado como resultado de verdade (não
+                    // só uma dica), já que é exatamente o que foi
+                    // pesquisado.
+                    return _CorrespondenciasPorTombamentoAnterior(
+                      correspondencias: state.resultado.correspondenciasPorTombamentoAnterior,
+                      onTap: (id) => _abrirDetalhe(id),
+                    );
+                  }
                   return _EmptyList(
                     temFiltroOuBusca:
                         state.filtro.temFiltroAtivo || termoBusca.isNotEmpty,
@@ -280,6 +288,16 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
                           .read(patrimoniosControllerProvider.notifier)
                           .definirTamanhoPagina(tamanho),
                     ),
+                    // Fase 4: "não ocultar outros resultados válidos" — um
+                    // resultado encontrado pelo tombamento ATUAL nunca
+                    // esconde uma correspondência por tombamento ANTERIOR.
+                    if (state.resultado.correspondenciasPorTombamentoAnterior.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      _CorrespondenciasPorTombamentoAnterior(
+                        correspondencias: state.resultado.correspondenciasPorTombamentoAnterior,
+                        onTap: (id) => _abrirDetalhe(id),
+                      ),
+                    ],
                   ],
                 );
               },
@@ -662,6 +680,90 @@ class _EmptyList extends StatelessWidget {
             'para começar o controle patrimonial.',
         actionLabel: canManage ? 'Cadastrar patrimônio' : null,
         onAction: canManage ? onNovoPatrimonio : null,
+      ),
+    );
+  }
+}
+
+/// Pesquisa inteligente, Fase 3 — mostra patrimônios encontrados pelo
+/// TOMBAMENTO ANTERIOR (nunca misturado com [PatrimonioDesktopTable]/
+/// [PatrimonioCardsGrid]/[PatrimonioMobileList], que são sempre resultados
+/// pelo tombamento ATUAL). Cada linha deixa explícito: o tombamento ATUAL
+/// do bem, o tombamento ANTERIOR que foi encontrado, e sua
+/// identificação/descrição — nunca apresentado como se fosse uma
+/// correspondência pelo atual. Quando o mesmo tombamento anterior está
+/// associado a mais de um bem (ambíguo), todos aparecem, cada um com um
+/// aviso — nunca escolhido um automaticamente.
+class _CorrespondenciasPorTombamentoAnterior extends StatelessWidget {
+  const _CorrespondenciasPorTombamentoAnterior({
+    required this.correspondencias,
+    required this.onTap,
+  });
+
+  final List<PatrimonioEncontradoPorAnterior> correspondencias;
+  final void Function(String id) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    // Chaves (pelo valor bruto encontrado) que aparecem mais de uma vez =
+    // o mesmo tombamento anterior associado a bens diferentes — nunca
+    // resolvido automaticamente (Fase 4), só sinalizado.
+    final contagemPorChave = <String, int>{};
+    for (final c in correspondencias) {
+      contagemPorChave[c.numeroAnteriorEncontrado] =
+          (contagemPorChave[c.numeroAnteriorEncontrado] ?? 0) + 1;
+    }
+
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.history, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Encontrado pelo tombamento anterior',
+                    style: AppTypography.cardTitle(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: correspondencias.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final c = correspondencias[index];
+              final ambiguo = (contagemPorChave[c.numeroAnteriorEncontrado] ?? 0) > 1;
+              return ListTile(
+                leading: Icon(
+                  ambiguo ? Icons.warning_amber : Icons.history,
+                  color: ambiguo ? Theme.of(context).colorScheme.error : null,
+                ),
+                title: Text('Patrimônio ${c.patrimonio.patrimonio.numeroPatrimonio ?? '(sem número)'}'),
+                subtitle: Text(
+                  '${c.patrimonio.tipoNome} — ${c.patrimonio.patrimonio.descricao ?? 'sem descrição'}\n'
+                  'Encontrado pelo tombamento anterior: ${c.numeroAnteriorEncontrado}'
+                  '${ambiguo ? ' — ATENÇÃO: este tombamento anterior está associado a mais de um bem' : ''}',
+                ),
+                isThreeLine: true,
+                onTap: () => onTap(c.patrimonio.patrimonio.id),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

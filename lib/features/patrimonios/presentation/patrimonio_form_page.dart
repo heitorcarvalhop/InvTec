@@ -54,8 +54,13 @@ class _PatrimonioFormPageState extends ConsumerState<PatrimonioFormPage> {
     final tiposAsync = ref.watch(tiposAtivosProvider);
     final setoresAsync = ref.watch(setoresAtivosParaPatrimonioProvider);
 
+    // Mobile (Fase 2 — densidade): a mesma página, só com um pouco menos de
+    // margem ao redor do conteúdo — os gaps entre campos/seções (já
+    // `AppSpacing.md`/`lg`) não mudam, nem o tamanho dos campos/botões.
+    final paginaMobile = context.screenSize == ScreenSize.mobile;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(paginaMobile ? AppSpacing.md : AppSpacing.lg),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1040),
         child: Column(
@@ -63,7 +68,8 @@ class _PatrimonioFormPageState extends ConsumerState<PatrimonioFormPage> {
           children: [
             InvTecPageHeader(
               title: 'Novo patrimônio',
-              subtitle: 'Cadastre um novo equipamento e registre sua entrada inicial.',
+              subtitle:
+                  'Cadastre um novo equipamento e registre sua entrada inicial.',
               onBack: _sair,
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -302,7 +308,9 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
       hora.hour,
       hora.minute,
     );
-    setState(() => _dataMovimentacao = combinada.isAfter(agora) ? agora : combinada);
+    setState(
+      () => _dataMovimentacao = combinada.isAfter(agora) ? agora : combinada,
+    );
   }
 
   Future<void> _submit() async {
@@ -440,7 +448,10 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
             // Sigla cadastrada, nome completo por tooltip.
             child: Tooltip(
               message: setor.nome,
-              child: Text(setor.rotuloCompacto, overflow: TextOverflow.ellipsis),
+              child: Text(
+                setor.rotuloCompacto,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
       ],
@@ -464,7 +475,10 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
             value: setor.id,
             child: Tooltip(
               message: setor.nome,
-              child: Text(setor.rotuloCompacto, overflow: TextOverflow.ellipsis),
+              child: Text(
+                setor.rotuloCompacto,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
       ],
@@ -542,7 +556,9 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
       controller: _observacaoMovimentacaoController,
       enabled: !_isSubmitting,
       maxLines: 2,
-      decoration: const InputDecoration(labelText: 'Observação da movimentação'),
+      decoration: const InputDecoration(
+        labelText: 'Observação da movimentação',
+      ),
     );
 
     return Form(
@@ -556,13 +572,28 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('DADOS DO EQUIPAMENTO', style: theme.textTheme.labelLarge),
+                  Text(
+                    'DADOS DO EQUIPAMENTO',
+                    style: theme.textTheme.labelLarge,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  _FieldPair(duasColunas: duasColunas, first: numeroField, second: tipoField),
+                  _FieldPair(
+                    duasColunas: duasColunas,
+                    first: numeroField,
+                    second: tipoField,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  _FieldPair(duasColunas: duasColunas, first: marcaField, second: modeloField),
+                  _FieldPair(
+                    duasColunas: duasColunas,
+                    first: marcaField,
+                    second: modeloField,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  _FieldPair(duasColunas: duasColunas, first: serieField, second: dataAquisicaoField),
+                  _FieldPair(
+                    duasColunas: duasColunas,
+                    first: serieField,
+                    second: dataAquisicaoField,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   descricaoField,
                   const SizedBox(height: AppSpacing.md),
@@ -580,7 +611,11 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                 children: [
                   Text('ENTRADA INICIAL', style: theme.textTheme.labelLarge),
                   const SizedBox(height: AppSpacing.md),
-                  _FieldPair(duasColunas: duasColunas, first: origemColuna, second: destinoColuna),
+                  _FieldPair(
+                    duasColunas: duasColunas,
+                    first: origemColuna,
+                    second: destinoColuna,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   _FieldPair(
                     duasColunas: duasColunas,
@@ -597,7 +632,11 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  _FieldPair(duasColunas: duasColunas, first: motivoField, second: dataMovimentacaoField),
+                  _FieldPair(
+                    duasColunas: duasColunas,
+                    first: motivoField,
+                    second: dataMovimentacaoField,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   observacaoMovimentacaoField,
                 ],
@@ -661,7 +700,11 @@ class _FieldPair extends StatelessWidget {
     if (!duasColunas) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [first, const SizedBox(height: AppSpacing.md), second],
+        children: [
+          first,
+          const SizedBox(height: AppSpacing.md),
+          second,
+        ],
       );
     }
     return Row(
@@ -695,7 +738,9 @@ class _LocalizacaoSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final localizacoesAsync = ref.watch(localizacoesAtivasPorSetorProvider(setorId));
+    final localizacoesAsync = ref.watch(
+      localizacoesAtivasPorSetorProvider(setorId),
+    );
 
     return localizacoesAsync.when(
       data: (localizacoes) {
@@ -717,7 +762,10 @@ class _LocalizacaoSelector extends ConsumerWidget {
           items: [
             const DropdownMenuItem(value: null, child: Text('Sem localização')),
             for (final localizacao in localizacoes)
-              DropdownMenuItem(value: localizacao.id, child: Text(localizacao.nome)),
+              DropdownMenuItem(
+                value: localizacao.id,
+                child: Text(localizacao.nome),
+              ),
           ],
           onChanged: enabled ? onChanged : null,
         );

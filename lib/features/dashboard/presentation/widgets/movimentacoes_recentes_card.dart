@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/responsive/breakpoints.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -121,6 +122,83 @@ class _MovementRow extends StatelessWidget {
       ),
     };
 
+    final badge = Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: badgeBackground,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 16, color: badgeForeground),
+    );
+
+    final transicao = Text(
+      '${siglaOuNomeSetor(sigla: item.origemSigla, nome: item.origemNome) ?? '—'} → '
+      '${siglaOuNomeSetor(sigla: item.destinoSigla, nome: item.destinoNome) ?? '—'}',
+      overflow: TextOverflow.ellipsis,
+      style: AppTypography.body(context),
+    );
+
+    // Mobile (Fase 2 — densidade): as 3 colunas lado a lado do desktop
+    // (patrimônio | setor origem→destino | data) ficam espremidas demais
+    // numa tela de ~390px dentro do Dashboard — aqui empilham em vez de
+    // dividir a largura, sem remover nenhuma informação.
+    if (context.screenSize == ScreenSize.mobile) {
+      return InkWell(
+        onTap: () => showMovimentacaoResumoDialog(context, item),
+        mouseCursor: SystemMouseCursors.click,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.smd,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              badge,
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.patrimonioLabel,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.body(
+                              context,
+                            )?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          _formatarData(item.dataMovimentacao),
+                          style: AppTypography.caption(context),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      item.tipo.label,
+                      style: AppTypography.auxiliary(context),
+                    ),
+                    transicao,
+                    if (item.autorNome != null)
+                      Text(
+                        'por ${item.autorNome}',
+                        style: AppTypography.auxiliary(context),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return InkWell(
       onTap: () => showMovimentacaoResumoDialog(context, item),
       hoverColor: Theme.of(context).surfaceColors.rowHover,
@@ -132,16 +210,7 @@ class _MovementRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: badgeBackground,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 16, color: badgeForeground),
-            ),
+            badge,
             const SizedBox(width: AppSpacing.smd),
             Expanded(
               flex: 3,
@@ -166,12 +235,7 @@ class _MovementRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${siglaOuNomeSetor(sigla: item.origemSigla, nome: item.origemNome) ?? '—'} → '
-                    '${siglaOuNomeSetor(sigla: item.destinoSigla, nome: item.destinoNome) ?? '—'}',
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body(context),
-                  ),
+                  transicao,
                   if (item.autorNome != null)
                     Text(
                       'por ${item.autorNome}',

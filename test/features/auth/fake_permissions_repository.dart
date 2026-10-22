@@ -18,6 +18,9 @@ class FakePermissionsRepository implements PermissionsRepository {
     'patrimonio.create',
     'patrimonio.edit',
     'patrimonio.compare_update',
+    // ADMIN-only, mesmo critério de patrimonio.compare_update — ver
+    // migration 20261019120000 (ainda não aplicada em produção).
+    'patrimonio.import_historico',
     'movimentacao.view',
     'movimentacao.create',
     'setor.view',
@@ -35,9 +38,13 @@ class FakePermissionsRepository implements PermissionsRepository {
       case ProfilePerfil.admin:
         return FakePermissionsRepository(chaves: _todasAsChaves);
       case ProfilePerfil.gestor:
-        // tudo, EXCETO patrimonio.compare_update (sempre foi ADMIN puro).
+        // tudo, EXCETO patrimonio.compare_update e patrimonio.import_historico
+        // (sempre foram ADMIN puro).
         return FakePermissionsRepository(
-          chaves: _todasAsChaves.difference({'patrimonio.compare_update'}),
+          chaves: _todasAsChaves.difference({
+            'patrimonio.compare_update',
+            'patrimonio.import_historico',
+          }),
         );
       case ProfilePerfil.operador:
         return FakePermissionsRepository(

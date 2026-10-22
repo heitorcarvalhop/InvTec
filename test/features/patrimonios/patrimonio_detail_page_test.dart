@@ -10,6 +10,7 @@ import 'package:invtec/features/patrimonios/data/tipo_patrimonio_repository_supa
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/tipo_patrimonio.dart';
+import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
 import 'package:invtec/features/movimentacoes/data/movimentacao_repository_supabase.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao.dart';
 import 'package:invtec/features/movimentacoes/domain/movimentacao_historico_item.dart';
@@ -47,6 +48,8 @@ Future<void> _pumpDetailPage(
   required PatrimonioDetalhe detalhe,
   ProfilePerfil perfil = ProfilePerfil.admin,
   List<MovimentacaoHistoricoItem> historico = const [],
+  List<TombamentoHistoricoItem> historicoTombamentos = const [],
+  Object? erroHistoricoTombamentos,
 }) async {
   final fakeAuth = FakeAuthRepository(
     initialUserId: 'fake-user-id',
@@ -60,7 +63,11 @@ Future<void> _pumpDetailPage(
         authRepositoryProvider.overrideWithValue(fakeAuth),
         permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(perfil)),
         patrimonioRepositoryProvider.overrideWithValue(
-          FakePatrimonioRepository(itens: [detalhe]),
+          FakePatrimonioRepository(
+            itens: [detalhe],
+            historicoTombamentosPorId: {detalhe.patrimonio.id: historicoTombamentos},
+            erroHistoricoTombamentosPorId: erroHistoricoTombamentos,
+          ),
         ),
         tipoPatrimonioRepositoryProvider.overrideWithValue(
           FakeTipoPatrimonioRepository(tipos: _tipos),
@@ -208,6 +215,10 @@ void main() {
     expect(find.text('Heitor Pereira'), findsOneWidget);
     expect(
       find.text('Nenhuma movimentação registrada para este patrimônio.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Nenhum tombamento anterior registrado para este patrimônio.'),
       findsOneWidget,
     );
   });
@@ -462,6 +473,185 @@ void main() {
     expect(find.text(descricaoLonga), findsOneWidget);
     expect(find.text('GETEC'), findsOneWidget);
     expect(find.byTooltip('Gerência de Tecnologia'), findsOneWidget, reason: 'nome completo do setor por tooltip');
+  });
+
+  group('histórico de tombamentos', () {
+    PatrimonioDetalhe detalhe() => PatrimonioDetalhe(
+      patrimonio: Patrimonio(
+        id: '1',
+        numeroPatrimonio: '654321',
+        tipoId: 'tipo-1',
+        status: PatrimonioStatus.emUso,
+        setorAtualId: 'setor-1',
+        dataCadastro: DateTime.utc(2026, 1, 10),
+        atualizadoEm: DateTime.utc(2026, 1, 10),
+      ),
+      tipoNome: 'Notebook',
+      setorNome: 'GETEC',
+    );
+
+    testWidgets('sem histórico mostra mensagem adequada', (tester) async {
+      await _pumpDetailPage(tester, detalhe: detalhe());
+
+      expect(find.text('Histórico de tombamentos'), findsOneWidget);
+      expect(
+        find.text('Nenhum tombamento anterior registrado para este patrimônio.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'apresentação COMPACTA: anterior → atual, origem resumida + data curta, '
+      'sem o texto de evidência/observação visível por padrão (pedido de simplificação)',
+      (tester) async {
+        await _pumpDetailPage(
+          tester,
+          detalhe: detalhe(),
+          historicoTombamentos: [
+            TombamentoHistoricoItem(
+              sequencia: 2,
+              numeroAnterior: '0123456',
+              numeroNovo: '654321',
+              origem: 'ALTERACAO_DIRETA',
+              registradoEm: DateTime.utc(2026, 2, 1, 10, 0),
+            ),
+            TombamentoHistoricoItem(
+              sequencia: 1,
+              numeroAnterior: '0777386',
+              numeroNovo: '0123456',
+              origem: 'IMPORTACAO_PLANILHA',
+              registradoEm: DateTime.utc(2026, 10, 20, 9, 0),
+              observacao:
+                  'Patrimônio já está no tombamento atual correto; texto longo de '
+                  'evidência documental da Fase 2 que NÃO deve poluir a lista.',
+            ),
+          ],
+        );
+
+        // Zeros à esquerda preservados EXATAMENTE como armazenados — nunca
+        // normalizados para exibição.
+        expect(find.text('0123456 → 654321'), findsOneWidget);
+        expect(find.text('0777386 → 0123456'), findsOneWidget);
+
+        // Origem resumida (vocabulário do pedido) + data CURTA (sem hora),
+        // combinadas numa única linha compacta.
+        expect(find.textContaining('Alteração direta • 01/02/2026'), findsOneWidget);
+        expect(find.textContaining('Planilha oficial • 20/10/2026'), findsOneWidget);
+
+        // Nada de texto técnico/verboso nem rótulos "Registrado em"/"Troca
+        // efetiva em" soltos na lista — só dentro de "Ver detalhes".
+        expect(find.textContaining('Registrado em:'), findsNothing);
+        expect(find.textContaining('Troca efetiva em:'), findsNothing);
+        expect(
+          find.textContaining('NÃO deve poluir a lista'),
+          findsNothing,
+          reason: 'observação/evidência não some do Supabase, só não aparece inline por padrão',
+        );
+        expect(find.text('Ver detalhes'), findsNWidgets(2));
+      },
+    );
+
+    testWidgets(
+      '"Ver detalhes" abre diálogo com origem completa, "Registrado em" '
+      '(nunca confundido com a data da troca) e a observação original intacta',
+      (tester) async {
+        await _pumpDetailPage(
+          tester,
+          detalhe: detalhe(),
+          historicoTombamentos: [
+            TombamentoHistoricoItem(
+              sequencia: 1,
+              numeroAnterior: '111111',
+              numeroNovo: '654321',
+              origem: 'MANUAL',
+              // Horário LOCAL (não `.utc`) de propósito: a exibição usa
+              // `.toLocal()`, então um valor UTC faria a asserção de hora
+              // abaixo variar com o fuso da máquina que roda o teste.
+              registradoEm: DateTime(2026, 3, 1, 8, 0),
+              dataEfetivaAlteracao: DateTime(2026, 2, 28, 17, 0),
+              observacao: 'Observação original completa, nunca alterada.',
+            ),
+          ],
+        );
+
+        await tester.ensureVisible(find.text('Ver detalhes'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Ver detalhes'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Detalhes do histórico de tombamento'), findsOneWidget);
+        expect(find.text('Alteração manual'), findsOneWidget);
+        // "Registrado em" (quando a gravação aconteceu) e "Troca efetiva
+        // em" (quando a troca de fato ocorreu, só para MANUAL) aparecem
+        // como campos SEPARADOS e claramente rotulados — nunca um
+        // confundido com o outro.
+        expect(find.textContaining('Registrado em'), findsOneWidget);
+        expect(find.textContaining('01/03/2026 às 08:00'), findsOneWidget);
+        expect(find.textContaining('Troca efetiva em'), findsOneWidget);
+        expect(find.textContaining('28/02/2026 às 17:00'), findsOneWidget);
+        expect(find.text('Observação original completa, nunca alterada.'), findsOneWidget);
+
+        await tester.tap(find.text('Fechar'));
+        await tester.pumpAndSettle();
+        expect(find.text('Detalhes do histórico de tombamento'), findsNothing);
+      },
+    );
+
+    testWidgets('respeita a ordem já devolvida pelo repositório (sequência DESC)', (tester) async {
+      await _pumpDetailPage(
+        tester,
+        detalhe: detalhe(),
+        historicoTombamentos: [
+          TombamentoHistoricoItem(
+            sequencia: 2,
+            numeroAnterior: '222222',
+            numeroNovo: '654321',
+            origem: 'MANUAL',
+            registradoEm: DateTime.utc(2026, 2, 1),
+          ),
+          TombamentoHistoricoItem(
+            sequencia: 1,
+            numeroAnterior: '111111',
+            numeroNovo: '222222',
+            origem: 'MANUAL',
+            registradoEm: DateTime.utc(2026, 1, 1),
+          ),
+        ],
+      );
+
+      final posicaoMaisRecente = tester.getTopLeft(find.text('222222 → 654321')).dy;
+      final posicaoMaisAntiga = tester.getTopLeft(find.text('111111 → 222222')).dy;
+      expect(posicaoMaisRecente, lessThan(posicaoMaisAntiga));
+    });
+
+    testWidgets('falha ao carregar mostra erro com ação de tentar novamente', (tester) async {
+      await _pumpDetailPage(
+        tester,
+        detalhe: detalhe(),
+        erroHistoricoTombamentos: Exception('falha de leitura simulada'),
+      );
+
+      expect(
+        find.text('Não foi possível carregar o histórico de tombamentos. Tente novamente.'),
+        findsOneWidget,
+      );
+      expect(find.text('Tentar novamente'), findsOneWidget);
+    });
+
+    testWidgets('busca por tombamento anterior continua funcionando (regressão)', (tester) async {
+      // Esta seção nova (detalhe) nunca deve interferir com
+      // buscarPorTombamentoAnterior (pesquisa) — campos/métodos
+      // independentes do mesmo FakePatrimonioRepository.
+      final repo = FakePatrimonioRepository(
+        itens: [detalhe()],
+        historicoAnterior: {
+          '999999': [('1', 'MANUAL')],
+        },
+      );
+      final resultado = await repo.buscarPorTombamentoAnterior('999999');
+      expect(resultado, hasLength(1));
+      expect(resultado.single.patrimonio.patrimonio.id, '1');
+    });
   });
 
   group('navegação de voltar', () {

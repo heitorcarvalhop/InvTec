@@ -10,6 +10,8 @@ import '../domain/patrimonio_ordenacao.dart';
 import '../domain/patrimonio_repository.dart';
 import '../domain/patrimonio_search_field.dart';
 import '../domain/patrimonios_resultado.dart';
+import '../domain/tombamento_historico_item.dart';
+import '../domain/tombamento_normalizacao.dart';
 import '../importacao/domain/comparacao_execucao.dart';
 import 'patrimonio_error_mapper.dart';
 
@@ -236,16 +238,56 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
         query = resultado;
       }
       query = _aplicarFiltrosComuns(query, filtrosComuns);
-      return await _executarConsulta(
+      final resultado = await _executarConsulta(
         query,
         limit: limit,
         offset: offset,
         ordenarPor: ordenarPor,
         ordenacaoDirecao: ordenacaoDirecao,
       );
+
+      // Busca por tombamento ANTERIOR (Fase 3) só faz sentido quando o
+      // campo selecionado é especificamente "Patrimônio" — modos de texto
+      // livre (marca, descrição, responsável, localização) nunca cruzam
+      // com tombamento. O modo "Tudo" numérico já é tratado em
+      // [_listarTudoNumerico], que tem sua própria chamada equivalente.
+      if (termo != null &&
+          termo.isNotEmpty &&
+          campoBusca == PatrimonioSearchField.patrimonio) {
+        final anteriores = await _buscarAnteriorSemDuplicar(
+          termo: termo,
+          jaPresentes: resultado.itens,
+        );
+        if (anteriores.isNotEmpty) {
+          return PatrimoniosResultado(
+            itens: resultado.itens,
+            total: resultado.total,
+            correspondenciasPorTombamentoAnterior: anteriores,
+          );
+        }
+      }
+      return resultado;
     } on PostgrestException catch (e) {
       throw AppException(mapPatrimonioErrorMessage(e), cause: e);
     }
+  }
+
+  /// Chama [buscarPorTombamentoAnterior] e remove (por `id`) qualquer
+  /// patrimônio que já apareça em [jaPresentes] — "evitar retornar o mesmo
+  /// patrimônio várias vezes quando ele corresponder por critérios
+  /// diferentes" (Fase 4). Nunca lança: [buscarPorTombamentoAnterior] já
+  /// devolve lista vazia em vez de erro quando o histórico não está
+  /// disponível.
+  Future<List<PatrimonioEncontradoPorAnterior>> _buscarAnteriorSemDuplicar({
+    required String termo,
+    required List<PatrimonioDetalhe> jaPresentes,
+  }) async {
+    final anteriores = await buscarPorTombamentoAnterior(termo);
+    if (anteriores.isEmpty) return anteriores;
+    final idsJaPresentes = jaPresentes.map((d) => d.patrimonio.id).toSet();
+    return anteriores
+        .where((a) => !idsJaPresentes.contains(a.patrimonio.patrimonio.id))
+        .toList();
   }
 
   /// Busca em duas etapas LÓGICAS para o modo "Tudo" quando a consulta é só
@@ -253,19 +295,39 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   /// fazia "2703522" devolver visualmente o patrimônio 2703532, só porque é
   /// o número de série dele).
   ///
-  /// Etapa 1: `numero_patrimonio` por PREFIXO (`LIKE 'termo%'`, nunca
-  /// substring no meio do número) — "3636" encontra "3636001"/"3636127",
-  /// nunca "1236360". Isso inclui a correspondência EXATA como caso
-  /// particular (o próprio número sempre começa com ele mesmo), então o
-  /// comportamento anterior de busca exata continua funcionando, só
-  /// ampliado. Se achar algo, é o resultado —
-  /// [PatrimonioSearchField.numeroSerie] nunca entra em jogo.
+  /// Etapa 1: `numero_patrimonio` por QUALQUER SEQUÊNCIA CONTÍGUA de
+  /// dígitos (`ILIKE '%termo%'`, Fase 2 da pesquisa inteligente) — "234"
+  /// encontra "123456" (meio), "3636" encontra "3636001"/"3636127"
+  /// (início), "456" encontra "123456" (fim). Isso inclui a correspondência
+  /// EXATA e por PREFIXO como casos particulares, então todo comportamento
+  /// anterior continua funcionando, só ampliado. [termo] é normalizado pela
+  /// mesma regra de equivalência de zeros à esquerda do resto do projeto
+  /// (`normalizarTombamentoParaComparacao` — zeros à esquerda nunca fazem
+  /// parte da identidade de um tombamento puramente numérico) ANTES de
+  /// virar o padrão `ILIKE`: isso também corrige um comportamento
+  /// pré-existente em que buscar com zeros à esquerda (ex. "00123456")
+  /// nunca encontrava o patrimônio armazenado sem eles ("123456") — ver
+  /// relatório da Fase 1 desta tarefa.
+  ///
+  /// Uma busca por substring (`%termo%`) não pode usar o índice B-tree de
+  /// `numero_patrimonio` da mesma forma que um prefixo (`termo%`) — vira
+  /// sequential scan. Com os ~1.468 patrimônios atuais isso é
+  /// imperceptível; documentado aqui para quem for investigar desempenho
+  /// se a base crescer muito (um índice trigram — `pg_trgm` + GIN — seria a
+  /// forma correta de acelerar isso, mas é uma mudança de schema, fora do
+  /// escopo desta tarefa que não aplica migrations).
+  ///
   /// Etapa 2: só executa uma SEGUNDA consulta (nunca N+1: uma única query
   /// extra, e só quando a etapa 1 não achou nada) por `numero_serie =
   /// termo` (exato) — o retorno vai em
   /// [PatrimoniosResultado.correspondenciasPorNumeroSerie], NUNCA em
   /// [PatrimoniosResultado.itens], para a UI nunca apresentar isso como se
   /// fosse o patrimônio pesquisado.
+  ///
+  /// Em QUALQUER saída (etapa 1 com resultado, ou etapa 2), também busca
+  /// correspondências por TOMBAMENTO ANTERIOR (Fase 3) e as anexa — nunca
+  /// oculta esse resultado só porque a etapa 1 já achou algo pelo
+  /// tombamento atual (Fase 4: "não ocultar outros resultados válidos").
   Future<PatrimoniosResultado> _listarTudoNumerico({
     required String termo,
     required int limit,
@@ -274,12 +336,18 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
     required PatrimonioOrdenacaoCampo? ordenarPor,
     required OrdenacaoDirecao ordenacaoDirecao,
   }) async {
-    final numero = normalizarNumeroPatrimonio(termo)!;
+    final chave = normalizarTombamentoParaComparacao(termo).chaveComparacao;
+    // somenteZeros ou (impossível aqui, já que _somenteDigitos garantiu
+    // dígitos) não-numérico: sem chave válida, não há o que buscar por
+    // tombamento — mas o termo BRUTO ainda pode bater uma série exata.
+    if (chave == null) {
+      return _buscarSoPorSerie(termo: termo, filtros: filtros);
+    }
 
     var queryPatrimonio = _client
         .from('patrimonios')
         .select(_colunasComRelacionamentos)
-        .ilike('numero_patrimonio', '$numero%');
+        .ilike('numero_patrimonio', '%$chave%');
     queryPatrimonio = _aplicarFiltrosComuns(queryPatrimonio, filtros);
     final resultadoPatrimonio = await _executarConsulta(
       queryPatrimonio,
@@ -288,8 +356,38 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       ordenarPor: ordenarPor,
       ordenacaoDirecao: ordenacaoDirecao,
     );
-    if (resultadoPatrimonio.total > 0) return resultadoPatrimonio;
 
+    final anteriores = await _buscarAnteriorSemDuplicar(
+      termo: termo,
+      jaPresentes: resultadoPatrimonio.itens,
+    );
+
+    if (resultadoPatrimonio.total > 0) {
+      return anteriores.isEmpty
+          ? resultadoPatrimonio
+          : PatrimoniosResultado(
+              itens: resultadoPatrimonio.itens,
+              total: resultadoPatrimonio.total,
+              correspondenciasPorTombamentoAnterior: anteriores,
+            );
+    }
+
+    final resultadoSerie = await _buscarSoPorSerie(termo: termo, filtros: filtros);
+    return PatrimoniosResultado(
+      itens: const [],
+      total: 0,
+      correspondenciasPorNumeroSerie: resultadoSerie.correspondenciasPorNumeroSerie,
+      correspondenciasPorTombamentoAnterior: anteriores,
+    );
+  }
+
+  /// Etapa 2 isolada (ver [_listarTudoNumerico]) — `numero_serie = termo`
+  /// (exato, nunca substring: série pode conter letras/hífens e um
+  /// `ILIKE '%...%'` geraria falsos positivos demais para ser útil aqui).
+  Future<PatrimoniosResultado> _buscarSoPorSerie({
+    required String termo,
+    required _FiltrosComuns filtros,
+  }) async {
     var querySerie = _client
         .from('patrimonios')
         .select(_colunasComRelacionamentos)
@@ -300,7 +398,6 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       limit: _limiteCorrespondenciaSerie,
       offset: 0,
     );
-
     return PatrimoniosResultado(
       itens: const [],
       total: 0,
@@ -472,11 +569,10 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   }
 
   /// Aplica o filtro de busca sobre [query], de acordo com [campo] —
-  /// [PatrimonioSearchField.patrimonio] busca por PREFIXO de
-  /// `numero_patrimonio` (`LIKE 'termo%'`, nunca substring no meio do
-  /// número): "3636" encontra "3636001"/"3636127", nunca "1236360". A
-  /// correspondência exata continua funcionando como caso particular (o
-  /// próprio número sempre começa com ele mesmo).
+  /// [PatrimonioSearchField.patrimonio] busca por QUALQUER SEQUÊNCIA
+  /// CONTÍGUA de dígitos de `numero_patrimonio` (`ILIKE '%termo%'`, em
+  /// qualquer posição): "3636" encontra "3636001"/"3636127" E "1236360". A
+  /// correspondência exata continua funcionando como caso particular.
   ///
   /// Retorna `null` quando já se sabe, sem consultar `patrimonios`, que
   /// NENHUM registro pode corresponder (hoje só o modo "Localização" sem
@@ -493,8 +589,13 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   ) async {
     switch (campo) {
       case PatrimonioSearchField.patrimonio:
-        final numero = normalizarNumeroPatrimonio(termo)!;
-        return query.ilike('numero_patrimonio', '$numero%');
+        // Mesma correção da Fase 2/1 do modo "Tudo" (ver
+        // [_listarTudoNumerico]): sequência contígua em qualquer posição
+        // (nunca só prefixo) + equivalência de zeros à esquerda.
+        final chave =
+            normalizarTombamentoParaComparacao(termo).chaveComparacao ??
+            normalizarNumeroPatrimonio(termo)!;
+        return query.ilike('numero_patrimonio', '%$chave%');
 
       case PatrimonioSearchField.numeroSerie:
         // `.ilike()` é uma chamada direta do builder (não um `.or()`
@@ -771,6 +872,89 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
         'Falha ao consultar o resultado da operação $operacaoId',
         cause: e,
       );
+    }
+  }
+
+  @override
+  Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
+    String termo,
+  ) async {
+    // Protegido ENQUANTO a migration 3A.4 não estiver aplicada — ver o
+    // comentário de [historicoTombamentosDisponivel]. Nunca consulta a
+    // tabela quando a flag estiver `false` (o caminho comum hoje).
+    if (!historicoTombamentosDisponivel) return const [];
+
+    final chave = normalizarTombamentoParaComparacao(termo).chaveComparacao;
+    if (chave == null) return const [];
+
+    try {
+      // Embed de `patrimonios` a partir de `patrimonio_tombamentos_
+      // historico` (FK `patrimonio_id` — única FK dessa tabela para
+      // `patrimonios`, sem ambiguidade a desambiguar). `sequencia desc`
+      // (nunca `registrado_em`, que pode empatar dentro da mesma
+      // transação — ver migration 3A.2) garante que, se o MESMO
+      // patrimônio tiver mais de uma linha de histórico com a mesma chave
+      // normalizada (ex.: uma troca e volta), ficamos com a mais recente
+      // ao desduplicar abaixo.
+      final rows = await _client
+          .from('patrimonio_tombamentos_historico')
+          .select('numero_anterior, origem, sequencia, patrimonios!inner($_colunasComRelacionamentos)')
+          .eq('numero_anterior_normalizado', chave)
+          .order('sequencia', ascending: false);
+
+      final porPatrimonioId = <String, PatrimonioEncontradoPorAnterior>{};
+      for (final row in rows) {
+        final patrimonioJson = row['patrimonios'] as Map<String, dynamic>;
+        final detalhe = PatrimonioDetalhe.fromJson(patrimonioJson);
+        // `sequencia desc` + "primeira vez que vejo este id ganha" = a
+        // linha de histórico mais recente para cada patrimônio — nunca
+        // duplica o mesmo bem só porque ele trocou de/para esta chave mais
+        // de uma vez.
+        porPatrimonioId.putIfAbsent(
+          detalhe.patrimonio.id,
+          () => PatrimonioEncontradoPorAnterior(
+            patrimonio: detalhe,
+            numeroAnteriorEncontrado: (row['numero_anterior'] as String?) ?? termo,
+            origem: row['origem'] as String,
+          ),
+        );
+      }
+      return porPatrimonioId.values.toList();
+    } on PostgrestException catch (e) {
+      // 42P01 = undefined_table (Postgres) — a migration 3A.4 ainda não
+      // foi aplicada. Segunda camada de proteção, redundante com a flag
+      // [historicoTombamentosDisponivel] acima: nunca deixa a pesquisa
+      // principal quebrar por causa da tabela de histórico não existir,
+      // mesmo que a flag seja ligada por engano antes da hora.
+      if (e.code == '42P01') return const [];
+      throw AppException(mapPatrimonioErrorMessage(e), cause: e);
+    }
+  }
+
+  @override
+  Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
+    String patrimonioId,
+  ) async {
+    try {
+      final rows = await _client
+          .from('patrimonio_tombamentos_historico')
+          .select(
+            'sequencia, numero_anterior, numero_novo, origem, registrado_em, '
+            'data_efetiva_alteracao, observacao',
+          )
+          .eq('patrimonio_id', patrimonioId)
+          // Mais recente primeiro — mesma convenção de
+          // MovimentacaoRepositorySupabase.listarHistoricoPorPatrimonio.
+          // Nunca `registrado_em` isolado (pode empatar na mesma transação).
+          .order('sequencia', ascending: false);
+
+      return rows.map(TombamentoHistoricoItem.fromJson).toList();
+    } on PostgrestException catch (e) {
+      // 42P01 = undefined_table — mesma defesa de buscarPorTombamentoAnterior:
+      // esta seção da tela de detalhe nunca quebra por a tabela ainda não
+      // existir (ex.: ambiente sem a migration 3A.4 aplicada).
+      if (e.code == '42P01') return const [];
+      throw AppException(mapPatrimonioErrorMessage(e), cause: e);
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
@@ -42,8 +43,14 @@ class DashboardPage extends ConsumerWidget {
         ref.watch(authControllerProvider).value?.profile?.perfil ==
         ProfilePerfil.admin;
 
+    // Mobile (Fase 2 — densidade): mesma hierarquia de seções do desktop,
+    // só com padding/gaps verticais menores entre elas — nenhuma seção é
+    // removida/reordenada.
+    final mobile = context.screenSize == ScreenSize.mobile;
+    final gapEntreSecoes = mobile ? AppSpacing.md : AppSpacing.lg;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(mobile ? AppSpacing.md : AppSpacing.lg),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppSpacing.contentMaxWidth),
         child: Column(
@@ -54,15 +61,15 @@ class DashboardPage extends ConsumerWidget {
               subtitle: 'Visão geral do patrimônio da GETEC',
               actions: const [_UpdatedAtLabel()],
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: gapEntreSecoes),
             const DashboardKpiRow(),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: gapEntreSecoes),
             const QuickActionsCard(),
             if (isAdmin) ...[
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: gapEntreSecoes),
               const AdminAttentionCard(),
             ],
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: mobile ? AppSpacing.lg : AppSpacing.xl),
             _TwoColumnRow(
               leftFlex: 3,
               rightFlex: 2,
@@ -70,7 +77,7 @@ class DashboardPage extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const MovimentacoesRecentesCard(),
-                  const SizedBox(height: AppSpacing.xl),
+                  SizedBox(height: mobile ? AppSpacing.lg : AppSpacing.xl),
                   DistribuicaoAsyncCard(
                     builder: (d) => CategoriaBarrasCard(
                       titulo: 'Patrimônios por setor',
@@ -94,7 +101,7 @@ class DashboardPage extends ConsumerWidget {
                       mensagemVazio: 'Nenhum patrimônio cadastrado.',
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  SizedBox(height: mobile ? AppSpacing.lg : AppSpacing.xl),
                   DistribuicaoAsyncCard(
                     builder: (d) =>
                         TopLocalizacoesCard(itens: d.topLocalizacoes),
@@ -177,7 +184,14 @@ class _TwoColumnRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             left,
-            const SizedBox(height: AppSpacing.xl),
+            // Mobile (Fase 2 — densidade): gap menor entre as duas colunas
+            // empilhadas do que o usado quando é só o tablet empilhando
+            // (mobile já reduziu outros gaps da página, este acompanha).
+            SizedBox(
+              height: context.screenSize == ScreenSize.mobile
+                  ? AppSpacing.lg
+                  : AppSpacing.xl,
+            ),
             right,
           ],
         );

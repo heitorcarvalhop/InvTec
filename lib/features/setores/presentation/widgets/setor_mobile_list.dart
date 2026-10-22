@@ -63,7 +63,7 @@ class _SetorCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.smd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -93,7 +93,7 @@ class _SetorCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(setor.descricao!, style: theme.textTheme.bodyMedium),
             ],
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             // `Wrap` (não `Row`) para os rótulos não estourarem a largura em
             // telas estreitas quando as 3 ações cabem lado a lado.
             Wrap(

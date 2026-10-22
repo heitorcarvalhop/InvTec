@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/errors/app_exception.dart';
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -72,7 +73,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     ref.listen(authControllerProvider, (previous, next) {
-      final message = _denialMessage(next.value?.denialReason ?? AuthDenialReason.none);
+      final message = _denialMessage(
+        next.value?.denialReason ?? AuthDenialReason.none,
+      );
       if (message != null) _showMessage(message);
     });
 
@@ -121,9 +124,15 @@ class _LoginForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Mobile (Fase 2 — densidade): o mesmo formulário de login, só com
+    // menos respiro ao redor — nenhum campo/botão muda de tamanho.
+    final mobile = context.screenSize == ScreenSize.mobile;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: mobile ? AppSpacing.lg : AppSpacing.xl,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
         child: Column(
@@ -136,24 +145,32 @@ class _LoginForm extends StatelessWidget {
                 color: AppColors.seed.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              child: Icon(Icons.inventory_2_outlined, color: AppColors.seed, size: 28),
+              child: Icon(
+                Icons.inventory_2_outlined,
+                color: AppColors.seed,
+                size: 28,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
               'InvTec',
-              style: theme.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Sistema de Controle Patrimonial',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: mobile ? AppSpacing.lg : AppSpacing.xl),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: EdgeInsets.all(mobile ? AppSpacing.md : AppSpacing.lg),
                 child: Form(
                   key: formKey,
                   child: Column(
@@ -166,7 +183,10 @@ class _LoginForm extends StatelessWidget {
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
-                        decoration: const InputDecoration(labelText: 'E-mail', prefixIcon: Icon(Icons.mail_outline)),
+                        decoration: const InputDecoration(
+                          labelText: 'E-mail',
+                          prefixIcon: Icon(Icons.mail_outline),
+                        ),
                         validator: AppValidators.email,
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -180,7 +200,11 @@ class _LoginForm extends StatelessWidget {
                           labelText: 'Senha',
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            icon: Icon(obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
                             onPressed: onToggleObscure,
                           ),
                         ),
@@ -199,13 +223,17 @@ class _LoginForm extends StatelessWidget {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text('Entrar'),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       TextButton(
-                        onPressed: isSubmitting ? null : () => context.go('/cadastro'),
+                        onPressed: isSubmitting
+                            ? null
+                            : () => context.go('/cadastro'),
                         child: const Text('Criar conta'),
                       ),
                     ],

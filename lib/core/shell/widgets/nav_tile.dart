@@ -39,7 +39,9 @@ class _NavTileState extends State<NavTile> {
     final background = widget.selected
         ? AppColors.sidebarSelectedBackground
         : (_hovering ? AppColors.sidebarSurfaceHover : Colors.transparent);
-    final foreground = widget.selected ? AppColors.sidebarSelectedForeground : AppColors.sidebarForeground;
+    final foreground = widget.selected
+        ? AppColors.sidebarSelectedForeground
+        : AppColors.sidebarForeground;
 
     final content = widget.collapsed
         ? Center(child: Icon(widget.item.icon, size: 20, color: foreground))
@@ -53,7 +55,9 @@ class _NavTileState extends State<NavTile> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: foreground,
-                    fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: widget.selected
+                        ? FontWeight.w600
+                        : FontWeight.w500,
                     fontSize: 14,
                   ),
                 ),
@@ -74,9 +78,17 @@ class _NavTileState extends State<NavTile> {
             borderRadius: BorderRadius.circular(AppRadius.sm),
             onTap: widget.onTap,
             child: Padding(
+              // Auditado para a Fase 2 (densidade mobile): com
+              // `AppSpacing.smd` (12) de padding vertical + ícone de 20, a
+              // área de toque de cada item já fica em ~44dp (mínimo seguro
+              // de toque) — reduzir mais aqui furaria essa margem, então o
+              // Drawer mantém a mesma altura de item do desktop/tablet.
               padding: widget.collapsed
                   ? const EdgeInsets.symmetric(vertical: AppSpacing.smd)
-                  : const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.smd),
+                  : const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.smd,
+                    ),
               child: content,
             ),
           ),
@@ -84,6 +96,8 @@ class _NavTileState extends State<NavTile> {
       ),
     );
 
-    return widget.collapsed ? Tooltip(message: widget.item.label, child: tile) : tile;
+    return widget.collapsed
+        ? Tooltip(message: widget.item.label, child: tile)
+        : tile;
   }
 }

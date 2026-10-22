@@ -13,6 +13,7 @@ import 'patrimonio_detalhe_providers.dart';
 import 'widgets/patrimonio_edit_dialog.dart';
 import 'widgets/patrimonio_historico_timeline.dart';
 import 'widgets/patrimonio_status_chip.dart';
+import 'widgets/patrimonio_tombamento_historico_timeline.dart';
 
 class PatrimonioDetailPage extends ConsumerWidget {
   const PatrimonioDetailPage({super.key, required this.id});
@@ -208,7 +209,49 @@ class _Detalhe extends ConsumerWidget {
         Text('Histórico de movimentações', style: AppTypography.cardTitle(context)),
         const SizedBox(height: AppSpacing.sm),
         _HistoricoCard(patrimonioId: patrimonio.id),
+        const SizedBox(height: AppSpacing.lg),
+        Text('Histórico de tombamentos', style: AppTypography.cardTitle(context)),
+        const SizedBox(height: AppSpacing.sm),
+        _HistoricoTombamentoCard(patrimonioId: patrimonio.id),
       ],
+    );
+  }
+}
+
+class _HistoricoTombamentoCard extends ConsumerWidget {
+  const _HistoricoTombamentoCard({required this.patrimonioId});
+
+  final String patrimonioId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historicoAsync = ref.watch(patrimonioHistoricoTombamentosProvider(patrimonioId));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: historicoAsync.when(
+          data: (itens) {
+            if (itens.isEmpty) {
+              return const EmptyState(
+                icon: Icons.history_edu_outlined,
+                message: 'Nenhum tombamento anterior registrado para este patrimônio.',
+              );
+            }
+            return PatrimonioTombamentoHistoricoTimeline(itens: itens);
+          },
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, stackTrace) => EmptyState(
+            icon: Icons.error_outline,
+            message: 'Não foi possível carregar o histórico de tombamentos. Tente novamente.',
+            actionLabel: 'Tentar novamente',
+            onAction: () => ref.invalidate(patrimonioHistoricoTombamentosProvider(patrimonioId)),
+          ),
+        ),
+      ),
     );
   }
 }

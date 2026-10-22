@@ -36,7 +36,10 @@ class AppNavigationDrawer extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.smd,
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: UserProfileHeader(profile: profile, onDarkSurface: true),
@@ -49,7 +52,10 @@ class AppNavigationDrawer extends StatelessWidget {
             Expanded(
               child: Scrollbar(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
