@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/responsive/breakpoints.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../../../core/widgets/stat_card.dart';
@@ -73,12 +74,27 @@ class DashboardKpiRow extends ConsumerWidget {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final colunas = _colunas(constraints.maxWidth, cards.length);
-            final espacamentoTotal = AppSpacing.md * (colunas - 1);
+            // Mobile (melhoria de interface Android): a faixa de KPIs cabia
+            // em só 1 coluna em telas de celular reais (~360-412px — depois
+            // do padding da página, `constraints.maxWidth` fica abaixo dos
+            // 420px que `_colunas` normalmente exige para liberar 2
+            // colunas), empilhando até 5 cards em 5 linhas inteiras e
+            // ocupando espaço vertical excessivo. Em telas de celular,
+            // sempre 2 colunas (nunca a faixa de largura do desktop/tablet,
+            // que já funciona bem) — "Windows" não é afetado: a janela
+            // precisaria ser redimensionada para menos de 600px de largura
+            // para cair neste caso, o mesmo limiar que "Ações rápidas" já
+            // usa para a própria grade mobile.
+            final mobile = context.screenSize == ScreenSize.mobile;
+            final colunas = mobile
+                ? (cards.length <= 1 ? 1 : 2)
+                : _colunas(constraints.maxWidth, cards.length);
+            final espacamento = mobile ? AppSpacing.sm : AppSpacing.md;
+            final espacamentoTotal = espacamento * (colunas - 1);
             final largura = (constraints.maxWidth - espacamentoTotal) / colunas;
             return Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
+              spacing: espacamento,
+              runSpacing: espacamento,
               children: [for (final card in cards) SizedBox(width: largura, child: card)],
             );
           },

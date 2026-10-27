@@ -27,19 +27,35 @@ class PreflightCheckResult {
 class ImportPreflight {
   const ImportPreflight._();
 
-  /// Confirma que existe exatamente UMA gerência com [sigla] cadastrada E
-  /// ativa entre [setores] — falha tanto quando não há nenhuma quanto
-  /// quando há mais de uma (ambiguidade) ou quando a única encontrada está
-  /// inativa.
+  /// Confirma que existe exatamente UMA gerência cadastrada E ativa entre
+  /// [setores] — por SIGLA quando [sigla] vem preenchida (caminho usado
+  /// hoje pela GETEC, sem mudança de comportamento), OU por NOME
+  /// ADMINISTRATIVO COMPLETO (comparação exata após normalização — nunca
+  /// fuzzy/parcial) quando a unidade não tem sigla oficial (ex.:
+  /// coordenações de unidade de conservação) e [sigla] vem `null`/vazia —
+  /// nesse caso [nomeCompleto] é obrigatório. Falha tanto quando não há
+  /// nenhuma quanto quando há mais de uma (ambiguidade) ou quando a única
+  /// encontrada está inativa.
   static PreflightCheckResult validarGerenciaUnica({
     required List<Setor> setores,
-    required String sigla,
+    String? sigla,
+    String? nomeCompleto,
   }) {
-    final candidatos = setores.where((s) => s.sigla == sigla).toList();
+    final usaSigla = sigla != null && sigla.trim().isNotEmpty;
+    assert(
+      usaSigla || (nomeCompleto != null && nomeCompleto.trim().isNotEmpty),
+      'Informe sigla ou nomeCompleto para localizar a gerência.',
+    );
+    final identificador = usaSigla ? sigla : (nomeCompleto ?? '');
+    final rotulo = usaSigla ? 'sigla' : 'nome';
+    final candidatos = usaSigla
+        ? setores.where((s) => s.sigla == sigla).toList()
+        : setores.where((s) => normalizarTextoComparacao(s.nome) == normalizarTextoComparacao(identificador)).toList();
+
     if (candidatos.isEmpty) {
       return PreflightCheckResult(
         ok: false,
-        issues: [PreflightIssue("Nenhuma gerência com sigla '$sigla' encontrada no Supabase.")],
+        issues: [PreflightIssue("Nenhuma gerência com $rotulo '$identificador' encontrada no Supabase.")],
       );
     }
     if (candidatos.length > 1) {
@@ -47,7 +63,7 @@ class ImportPreflight {
         ok: false,
         issues: [
           PreflightIssue(
-            "Encontradas ${candidatos.length} gerências com sigla '$sigla' — "
+            "Encontradas ${candidatos.length} gerências com $rotulo '$identificador' — "
             'esperado exatamente 1. Ambiguidade não pode ser resolvida automaticamente.',
           ),
         ],
@@ -57,7 +73,7 @@ class ImportPreflight {
     if (!unica.ativo) {
       return PreflightCheckResult(
         ok: false,
-        issues: [PreflightIssue("A gerência '$sigla' existe, mas está inativa.")],
+        issues: [PreflightIssue("A gerência '$identificador' existe, mas está inativa.")],
       );
     }
     return const PreflightCheckResult(ok: true, issues: []);

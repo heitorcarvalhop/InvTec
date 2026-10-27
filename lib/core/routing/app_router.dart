@@ -19,6 +19,9 @@ import '../../features/movimentacoes/presentation/movimentacoes_page.dart';
 import '../../features/patrimonios/importacao/presentation/patrimonio_import_page.dart';
 import '../../features/patrimonios/presentation/patrimonio_detail_page.dart';
 import '../../features/patrimonios/presentation/patrimonio_form_page.dart';
+import '../../features/patrimonios/presentation/inventario_rapido_page.dart';
+import '../../features/patrimonios/presentation/patrimonio_scanner_page.dart';
+import '../../features/patrimonios/retificacao/presentation/retificacao_page.dart';
 import '../../features/patrimonios/presentation/patrimonios_page.dart';
 import '../../features/setores/domain/setor.dart';
 import '../../features/setores/presentation/setores_page.dart';
@@ -96,12 +99,35 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'novo',
                 name: 'patrimonio-novo',
-                builder: (context, state) => const PatrimonioFormPage(),
+                // `?tombamento=...` (leitor de câmera Android, quando o
+                // código escaneado não corresponde a nenhum patrimônio
+                // existente) pré-preenche o MESMO campo de número de
+                // patrimônio já existente — nunca grava nada por conta
+                // própria, só economiza digitação; revisão humana continua
+                // obrigatória antes de salvar.
+                builder: (context, state) => PatrimonioFormPage(
+                  numeroPatrimonioInicial: state.uri.queryParameters['tombamento'],
+                ),
               ),
               GoRoute(
                 path: 'importar',
                 name: 'patrimonio-importar',
                 builder: (context, state) => const PatrimonioImportPage(),
+              ),
+              GoRoute(
+                path: 'escanear',
+                name: 'patrimonio-escanear',
+                builder: (context, state) => const PatrimonioScannerPage(),
+              ),
+              GoRoute(
+                path: 'inventario-rapido',
+                name: 'patrimonio-inventario-rapido',
+                builder: (context, state) => const InventarioRapidoPage(),
+              ),
+              GoRoute(
+                path: 'retificar-unidade',
+                name: 'patrimonio-retificar-unidade',
+                builder: (context, state) => const RetificacaoPage(),
               ),
               GoRoute(
                 path: ':id',

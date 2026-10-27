@@ -58,6 +58,12 @@ bool tipoExigeDestino(MovimentacaoTipo tipo) {
     case MovimentacaoTipo.ajusteInventario:
     case MovimentacaoTipo.alteracaoResponsavel:
       return false;
+    // Nunca oferecida no formulário "Nova movimentação" (ver
+    // `tiposCompativeisComStatus`, que nunca a inclui) — só documentada
+    // aqui para a exaustividade do switch continuar refletindo a regra
+    // real da RPC `retificar_unidade_patrimonio`: destino SEMPRE exigido.
+    case MovimentacaoTipo.retificacaoCadastral:
+      return true;
   }
 }
 
@@ -84,6 +90,10 @@ bool tipoExigeDestinoDiferente(MovimentacaoTipo tipo) {
     case MovimentacaoTipo.ajusteInventario:
     case MovimentacaoTipo.alteracaoResponsavel:
       return false;
+    // A RPC exige destino SEMPRE diferente do atual (não existe
+    // "retificar para a mesma unidade") — nunca oferecida neste formulário.
+    case MovimentacaoTipo.retificacaoCadastral:
+      return true;
   }
 }
 

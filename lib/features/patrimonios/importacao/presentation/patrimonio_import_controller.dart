@@ -1,8 +1,13 @@
 import 'dart:typed_data';
 
+import 'package:file/file.dart';
+import 'package:file/local.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/config/env_config.dart';
 import '../../../../core/errors/app_exception.dart';
+import '../../../../core/utils/uuid_v4.dart';
 import '../../../auth/domain/profile.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../auth/presentation/current_permissions_controller.dart';
@@ -10,9 +15,10 @@ import '../../../localizacoes/domain/localizacao.dart';
 import '../../../localizacoes/presentation/localizacoes_providers.dart';
 import '../../../dashboard/presentation/dashboard_providers.dart';
 import '../../data/patrimonio_repository_supabase.dart';
-import '../../domain/patrimonio.dart';
+import '../../domain/patrimonio_detalhe.dart';
 import '../../domain/patrimonio_repository.dart';
 import '../../domain/tipo_patrimonio.dart';
+import '../../domain/tombamento_normalizacao.dart';
 import '../../presentation/patrimonio_reference_data.dart';
 import '../../presentation/patrimonios_controller.dart';
 import '../data/spreadsheet_parser.dart';
@@ -20,6 +26,9 @@ import '../domain/import_analyzer.dart';
 import '../domain/import_column_field.dart';
 import '../domain/import_column_mapping.dart';
 import '../domain/import_defaults.dart';
+import '../domain/import_lote_persistencia.dart';
+import '../domain/import_preflight.dart';
+import '../domain/import_report_export.dart';
 import '../domain/import_row.dart';
 import '../domain/patrimonio_comparacao.dart';
 import '../domain/patrimonio_decisao.dart';
@@ -51,6 +60,14 @@ const mensagemComparacaoBloqueadaPorExecucaoPendente =
 /// uma vez.
 const importConcorrenciaMaxima = 5;
 
+/// Resolução PADRÃO (produção) do diretório onde a sessão/relatório de
+/// importação em lote são persistidos — diretório de dados do app (sempre
+/// gravável, mesmo empacotado via MSIX), nunca a pasta de documentos do
+/// usuário. Testes injetam um diretório fixo (ver construtor de
+/// [PatrimonioImportController]), sem exercitar `path_provider` de
+/// verdade.
+Future<String> _diretorioPersistenciaPadrao() async => (await getApplicationSupportDirectory()).path;
+
 final patrimonioImportControllerProvider =
     NotifierProvider.autoDispose<PatrimonioImportController, PatrimonioImportState>(
       PatrimonioImportController.new,
@@ -63,6 +80,45 @@ final patrimonioImportControllerProvider =
 /// atualização de existente por `PatrimonioRepository.atualizar` (só
 /// metadados).
 class PatrimonioImportController extends Notifier<PatrimonioImportState> {
+  /// [importacaoLoteExecucaoHabilitada]/[fileSystem]/
+  /// [resolverDiretorioPersistencia] são injetáveis só para teste — mesmo
+  /// padrão de `ComparacaoExecucaoController`/`RetificacaoController`
+  /// (padrão real, nunca `true` fixo em produção): [importacaoLoteExecucaoHabilitada]
+  /// sempre [EnvConfig.importacaoLoteExecucaoHabilitada] por padrão.
+  PatrimonioImportController({
+    bool Function()? importacaoLoteExecucaoHabilitada,
+    FileSystem? fileSystem,
+    Future<String> Function()? resolverDiretorioPersistencia,
+  }) : _importacaoLoteExecucaoHabilitada =
+           importacaoLoteExecucaoHabilitada ?? (() => EnvConfig.importacaoLoteExecucaoHabilitada),
+       _fileSystem = fileSystem ?? const LocalFileSystem(),
+       _resolverDiretorioPersistencia = resolverDiretorioPersistencia ?? _diretorioPersistenciaPadrao;
+
+  /// GATE OBRIGATÓRIO (não remover nem contornar): enquanto `false`
+  /// (padrão — ver [EnvConfig.importacaoLoteExecucaoHabilitada]), NENHUMA
+  /// linha desta importação passa por `PatrimonioRepository.cadastrarLote`
+  /// (RPC `cadastrar_patrimonio_lote`, migration ainda não confirmada em
+  /// produção): [_executarLinha] usa exclusivamente o caminho CONVENCIONAL
+  /// de sempre (`PatrimonioRepository.cadastrar`), e nenhum `operacaoId`/
+  /// sessão retomável é gerado ou oferecido (ver [confirmarImportacao],
+  /// [_carregarLoteAnteriorPendente], [retomarLoteAnterior]) — a UI nunca
+  /// chega a oferecer "retomar" porque nada é persistido neste caminho.
+  final bool Function() _importacaoLoteExecucaoHabilitada;
+  final FileSystem _fileSystem;
+  final Future<String> Function() _resolverDiretorioPersistencia;
+
+  /// Exposição pública (read-only) do mesmo GATE acima — para a UI
+  /// (`ImportLotePendenteBanner`) decidir se oferece "Retomar" sem ler
+  /// [EnvConfig] diretamente (o que ignoraria a flag INJETADA neste
+  /// controller em teste — a instância ativa é sempre a fonte de verdade).
+  bool get importacaoLoteExecucaoHabilitada => _importacaoLoteExecucaoHabilitada();
+
+  Future<ImportLotePersistencia> _criarPersistenciaLote() async =>
+      ImportLotePersistencia(await _resolverDiretorioPersistencia(), fileSystem: _fileSystem);
+
+  Future<ImportReportPersistencia> _criarPersistenciaRelatorio() async =>
+      ImportReportPersistencia(await _resolverDiretorioPersistencia(), fileSystem: _fileSystem);
+
   Uint8List? _bytesArquivo;
   final List<ImportStep> _historico = [];
 
@@ -90,7 +146,42 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
       _bytesArquivo = null;
       state = PatrimonioImportState();
     });
+    // item 4 — persistência local de sessão/progresso: dispara em
+    // background (nunca bloqueia `build()`, que é SÍNCRONO); se houver uma
+    // sessão incompleta do usuário atual, preenche
+    // `PatrimonioImportState.loteAnteriorPendente` assim que resolver, sem
+    // sobrescrever nada que o usuário já tenha começado nesta sessão em
+    // memória enquanto isso resolvia.
+    _carregarLoteAnteriorPendente();
     return PatrimonioImportState();
+  }
+
+  /// Verifica, de forma assíncrona (ver [build]), se existe uma sessão de
+  /// importação incompleta persistida localmente para o usuário atual —
+  /// nunca é a fonte de verdade (a retomada de fato sempre revalida contra
+  /// o servidor, ver [retomarLoteAnterior]).
+  ///
+  /// GATE: enquanto [_importacaoLoteExecucaoHabilitada] for `false`
+  /// (padrão), nunca carrega nem oferece nenhuma sessão pendente — na
+  /// prática nunca haveria uma mesmo sem este `return` explícito (ver
+  /// [confirmarImportacao], que só persiste quando a flag está ligada),
+  /// mas o guard fica aqui como segunda camada do GATE OBRIGATÓRIO.
+  Future<void> _carregarLoteAnteriorPendente() async {
+    if (!_importacaoLoteExecucaoHabilitada()) return;
+    final usuarioId = _usuarioConhecido;
+    if (usuarioId == null) return;
+    try {
+      final persistencia = await _criarPersistenciaLote();
+      final sessao = persistencia.carregar(usuarioId);
+      if (sessao == null || sessao.completo) return;
+      // nunca sobrescreve um estado que já avançou (ex.: o usuário já
+      // carregou outro arquivo enquanto isto resolvia, ou o usuário mudou
+      // — `ref.listen` acima já reseta o estado inteiro nesse caso).
+      if (state.step != ImportStep.selecionarArquivo || _usuarioConhecido != usuarioId) return;
+      state = state.copyWith(loteAnteriorPendente: () => sessao);
+    } catch (_) {
+      // puramente auxiliar — ver docstring de `_persistirProgressoLote`.
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -100,7 +191,17 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   Future<void> carregarArquivo({required String nomeArquivo, required Uint8List bytes}) async {
     _historico.clear();
     _bytesArquivo = bytes;
-    state = PatrimonioImportState(nomeArquivo: nomeArquivo, carregando: true);
+    // Preserva [PatrimonioImportState.loteAnteriorPendente]: o fluxo de
+    // "Retomar" (ver `ImportLotePendenteBanner`) pede ao usuário para
+    // re-selecionar o MESMO arquivo original a partir deste mesmo passo —
+    // perder a sessão pendente aqui destruiria essa possibilidade antes
+    // mesmo da reanálise (ver [retomarLoteAnterior]).
+    final loteAnteriorPendente = state.loteAnteriorPendente;
+    state = PatrimonioImportState(
+      nomeArquivo: nomeArquivo,
+      carregando: true,
+      loteAnteriorPendente: loteAnteriorPendente,
+    );
 
     try {
       final arquivo = await SpreadsheetParser.parse(bytes, nomeArquivo);
@@ -237,8 +338,29 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   Future<void> avancarAposPadroes() async {
     if (state.perfilAtivo == ImportProfileId.getecLegado) {
       final setores = await ref.read(setoresAtivosParaPatrimonioProvider.future);
+
+      // Preflight formal (seção de pré-condições): mesma checagem que já
+      // era feita manualmente abaixo, agora via `ImportPreflight.
+      // validarGerenciaUnica` — cobre ausência, ambiguidade E inatividade
+      // com mensagens prontas, sem mudar o resultado observável para quem
+      // já usa este perfil hoje.
+      final preflightGerencia = ImportPreflight.validarGerenciaUnica(
+        setores: setores,
+        sigla: GetecImportProfile.siglaGerencia,
+      );
+      if (!preflightGerencia.ok) {
+        state = state.copyWith(
+          mensagemErro: () => preflightGerencia.issues.map((i) => i.mensagem).join('\n'),
+        );
+        return;
+      }
+
       final gerenciaGetec = GetecImportProfile.encontrarGerenciaGetec(setores);
       if (gerenciaGetec == null) {
+        // Defensivo: o preflight acima já garante exatamente uma gerência
+        // ativa com esta sigla, então este ramo não deveria ser alcançável
+        // na prática — preservado como segunda camada, nunca removendo a
+        // mensagem de erro conhecida.
         state = state.copyWith(
           mensagemErro: () =>
               "Gerência '${GetecImportProfile.siglaGerencia}' não encontrada (ou ambígua/inativa) "
@@ -246,6 +368,20 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
         );
         return;
       }
+
+      // NOTA (preflight de nomes de localização — seção da tarefa de
+      // generalização): `ImportPreflight.validarNomesEsperados` existe e é
+      // testado isoladamente, e [GetecImportProfile.perfil.
+      // nomesLocalizacoesOficiais] já expõe a lista dos 15 nomes oficiais —
+      // mas NÃO é chamado aqui como gate bloqueante. Testado e confirmado:
+      // o comportamento HOJE (intencional, com testes próprios —
+      // `localizacaoOficialAusente`) é deixar a planilha avançar e reportar
+      // uma localização oficial conhecida mas ausente do catálogo real
+      // como ERRO POR LINHA na revisão (bloqueando só aquela linha,
+      // permitindo revisar as demais) — nunca um erro global que impede
+      // toda a carga de ser analisada. Transformar isso num preflight
+      // bloqueante aqui regredira essa granularidade (e quebra os testes
+      // que a validam). Ver relatório da tarefa.
       _historico.add(state.step);
       state = state.copyWith(
         step: ImportStep.resolverLocalizacoes,
@@ -492,13 +628,18 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
         }
       }
 
-      final numerosCandidatos = _coletarCandidatos(linhasBrutas, ImportColumnField.numeroPatrimonio,
-          normalizador: normalizarNumeroPatrimonio);
+      // Candidatos consultados no banco pela mesma chave de COMPARAÇÃO usada
+      // em `ImportAnalyzer` (zeros à esquerda de um tombamento só numérico
+      // não fazem parte da identidade — ver tombamento_normalizacao.dart):
+      // sem isso, uma planilha com "000502510" nunca encontraria o
+      // "502510" já cadastrado no banco.
+      final numerosCandidatos = _coletarCandidatos(
+        linhasBrutas,
+        ImportColumnField.numeroPatrimonio,
+        normalizador: (texto) => normalizarTombamentoParaComparacao(texto).chaveComparacao,
+      );
       final existentes = await repositorio.buscarPorNumerosPatrimonio(numerosCandidatos.toList());
-      final existentesPorNumero = {
-        for (final item in existentes)
-          if (item.patrimonio.numeroPatrimonio != null) item.patrimonio.numeroPatrimonio!: item,
-      };
+      final existentesPorNumero = _existentesPorNumeroNormalizado(existentes);
 
       final numerosSerieCandidatos = _coletarCandidatos(linhasBrutas, ImportColumnField.numeroSerie);
       final numerosSerieExistentes =
@@ -796,6 +937,21 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     }
   }
 
+  /// Indexa [existentes] pela mesma chave de COMPARAÇÃO usada em
+  /// `linha.numeroPatrimonioNormalizado` (zeros à esquerda de um tombamento
+  /// só numérico não fazem parte da identidade — ver
+  /// `tombamento_normalizacao.dart`) — nunca pelo texto bruto de
+  /// `numero_patrimonio`, para que uma planilha com "000502510" encontre o
+  /// "502510" já cadastrado no banco.
+  Map<String, PatrimonioDetalhe> _existentesPorNumeroNormalizado(List<PatrimonioDetalhe> existentes) {
+    final resultado = <String, PatrimonioDetalhe>{};
+    for (final item in existentes) {
+      final chave = normalizarTombamentoParaComparacao(item.patrimonio.numeroPatrimonio).chaveComparacao;
+      if (chave != null) resultado[chave] = item;
+    }
+    return resultado;
+  }
+
   Set<String> _coletarCandidatos(
     List<List<Object?>> linhas,
     ImportColumnField campo, {
@@ -935,10 +1091,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     if (numeros.isNotEmpty) {
       final repositorio = ref.read(patrimonioRepositoryProvider);
       final existentesAgora = await repositorio.buscarPorNumerosPatrimonio(numeros);
-      final existentesPorNumero = {
-        for (final item in existentesAgora)
-          if (item.patrimonio.numeroPatrimonio != null) item.patrimonio.numeroPatrimonio!: item,
-      };
+      final existentesPorNumero = _existentesPorNumeroNormalizado(existentesAgora);
 
       final encontrados = <String>[];
       for (final linha in candidatos) {
@@ -963,15 +1116,45 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
   }
 
   Future<void> confirmarImportacao() async {
+    // item 3 — rastreabilidade estruturada: um `loteId` novo por RODADA de
+    // confirmação (nunca por linha), e um `operacaoId` por linha de
+    // cadastro NOVO, gerado aqui (nunca dentro de `_executarLinha`, que só
+    // reaproveita via `??=`) para já existir no snapshot inicial
+    // persistido abaixo (item 4) antes de qualquer chamada de rede.
+    //
+    // GATE: `operacaoId`/sessão retomável só fazem sentido junto do
+    // caminho em LOTE (`cadastrarLote`, idempotente por `operacaoId`) —
+    // enquanto [_importacaoLoteExecucaoHabilitada] for `false` (padrão),
+    // nenhuma linha recebe `operacaoId` aqui, e [_persistirProgressoLote]
+    // abaixo não tem nada para persistir (sempre limpa/no-op nesse caso):
+    // o caminho CONVENCIONAL (`cadastrar`, ver [_executarLinha]) continua
+    // funcionando exatamente como antes deste recurso existir.
+    final usaLote = _importacaoLoteExecucaoHabilitada();
+    final loteId = gerarUuidV4();
     final aEnviar = state.linhas.where((l) => l.seraEnviada).toList();
+    if (usaLote) {
+      for (final linha in aEnviar) {
+        if (linha.status != ImportRowStatus.atualizar) {
+          linha.operacaoId ??= gerarUuidV4();
+        }
+      }
+    }
+
     state = state.copyWith(
       step: ImportStep.importando,
       progressoAtual: 0,
       progressoTotal: aEnviar.length,
       cancelamentoSolicitado: false,
+      loteIdAtual: () => loteId,
+      loteAnteriorPendente: () => null,
     );
+    if (usaLote) await _persistirProgressoLote();
 
     await _executarLote(aEnviar);
+    if (usaLote) {
+      await _persistirProgressoLote();
+    }
+    await _persistirRelatorioFinal();
 
     state = state.copyWith(step: ImportStep.resultado, bumpRevisao: true);
     // seção 32: refresh do sistema — sem exigir reiniciar o aplicativo.
@@ -979,6 +1162,164 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     ref.invalidate(dashboardDistribuicoesProvider);
     ref.invalidate(dashboardMovimentacoesRecentesProvider);
     ref.invalidate(patrimoniosControllerProvider);
+  }
+
+  /// Retoma uma sessão de importação incompleta persistida (ver [build] /
+  /// [PatrimonioImportState.loteAnteriorPendente]) — só pode ser chamada
+  /// depois que o usuário já re-selecionou e reanalisou o MESMO arquivo
+  /// original (precisamos das linhas completas, com tipo/destino/etc. já
+  /// resolvidos; a persistência local nunca guarda isso, só
+  /// numeroLinha/operacaoId/status — ver `import_lote_persistencia.dart`).
+  /// Nunca confia no cache: revalida contra o servidor (mesmo padrão de
+  /// [revalidarAntesDeConfirmar]) antes de continuar, e processa só as
+  /// linhas que a sessão anterior ainda não tinha concluído com sucesso —
+  /// reenviando o MESMO `operacaoId` de cada linha (idempotência real,
+  /// nunca uma nova tentativa "do zero").
+  Future<void> retomarLoteAnterior() async {
+    // GATE (segunda camada — ver docstring de [_carregarLoteAnteriorPendente]):
+    // nunca executa o caminho em lote enquanto a flag estiver desligada.
+    if (!_importacaoLoteExecucaoHabilitada()) return;
+    final sessao = state.loteAnteriorPendente;
+    if (sessao == null) return;
+
+    await revalidarAntesDeConfirmar();
+
+    final persistidaPorLinha = {for (final l in sessao.linhas) l.numeroLinha: l};
+    for (final linha in state.linhas) {
+      final persistida = persistidaPorLinha[linha.numeroLinha];
+      if (persistida != null) linha.operacaoId = persistida.operacaoId;
+    }
+
+    final jaConcluidasComSucesso = sessao.linhas
+        .where((l) => l.status == ImportLoteLinhaPersistidaStatus.sucesso)
+        .map((l) => l.numeroLinha)
+        .toSet();
+    final aEnviar = state.linhas
+        .where((l) => l.seraEnviada && !jaConcluidasComSucesso.contains(l.numeroLinha))
+        .toList();
+
+    state = state.copyWith(
+      step: ImportStep.importando,
+      progressoAtual: 0,
+      progressoTotal: aEnviar.length,
+      cancelamentoSolicitado: false,
+      loteIdAtual: () => sessao.loteId,
+      loteAnteriorPendente: () => null,
+    );
+
+    await _executarLote(aEnviar);
+    await _persistirProgressoLote();
+    await _persistirRelatorioFinal();
+
+    state = state.copyWith(step: ImportStep.resultado, bumpRevisao: true);
+    ref.invalidate(dashboardKpisProvider);
+    ref.invalidate(dashboardDistribuicoesProvider);
+    ref.invalidate(dashboardMovimentacoesRecentesProvider);
+    ref.invalidate(patrimoniosControllerProvider);
+  }
+
+  /// Descarta a sessão incompleta oferecida para retomada — nunca apaga
+  /// nenhum patrimônio já criado (as linhas que já tinham sucesso
+  /// permanecem cadastradas); só remove a entrada de persistência local,
+  /// para a tela deixar de oferecer "retomar".
+  Future<void> descartarLoteAnterior() async {
+    final sessao = state.loteAnteriorPendente;
+    if (sessao == null) return;
+    try {
+      final persistencia = await _criarPersistenciaLote();
+      await persistencia.limpar(sessao.usuarioId, sessao.loteId);
+    } catch (_) {
+      // nunca bloqueia a UI por uma falha de armazenamento local — o pior
+      // caso é a sessão continuar oferecida numa próxima abertura.
+    }
+    state = state.copyWith(loteAnteriorPendente: () => null);
+  }
+
+  /// Grava (ou limpa, quando já tudo concluído) o progresso da rodada de
+  /// confirmação ATUAL em um arquivo JSON próprio (ver docstring de
+  /// [ImportLotePersistencia] sobre a decisão de armazenamento) — chamado
+  /// antes de iniciar a gravação (snapshot inicial, todas pendentes) e
+  /// depois de cada `_executarLote`/retry (snapshot final). Nunca inclui
+  /// dados sensíveis de negócio: só numeroLinha/operacaoId/status, o
+  /// suficiente para [retomarLoteAnterior] reconciliar contra linhas
+  /// recriadas de uma nova análise do MESMO arquivo. Puramente auxiliar:
+  /// qualquer falha de armazenamento local (ex.: diretório sem permissão
+  /// de escrita) é engolida — a importação REAL nunca pode falhar por
+  /// causa da persistência de retomada, só perde a capacidade de oferecer
+  /// "retomar" depois. Só chamado quando o GATE em lote está habilitado
+  /// (ver [confirmarImportacao]).
+  Future<void> _persistirProgressoLote() async {
+    final usuarioId = _usuarioConhecido;
+    final loteId = state.loteIdAtual;
+    if (usuarioId == null || loteId == null) return;
+
+    try {
+      final linhasComOperacao = state.linhas.where((l) => l.operacaoId != null).toList();
+      final persistencia = await _criarPersistenciaLote();
+      if (linhasComOperacao.isEmpty) {
+        await persistencia.limpar(usuarioId, loteId);
+        return;
+      }
+
+      final linhasPersistidas = [
+        for (final linha in linhasComOperacao)
+          ImportLoteLinhaPersistida(
+            numeroLinha: linha.numeroLinha,
+            operacaoId: linha.operacaoId!,
+            status: linha.resultado == null
+                ? ImportLoteLinhaPersistidaStatus.pendente
+                : (linha.resultado!.sucesso
+                      ? ImportLoteLinhaPersistidaStatus.sucesso
+                      : ImportLoteLinhaPersistidaStatus.falha),
+          ),
+      ];
+
+      if (linhasPersistidas.every((l) => l.status != ImportLoteLinhaPersistidaStatus.pendente)) {
+        await persistencia.limpar(usuarioId, loteId);
+        return;
+      }
+
+      await persistencia.salvar(
+        ImportLoteSessaoPersistida(
+          loteId: loteId,
+          usuarioId: usuarioId,
+          nomeArquivo: state.nomeArquivo,
+          criadoEm: DateTime.now(),
+          linhas: linhasPersistidas,
+        ),
+      );
+    } catch (_) {
+      // ver docstring: nunca propaga.
+    }
+  }
+
+  /// item 5 — relatório de lote persistido/exportável: grava, em um
+  /// arquivo JSON próprio, o relatório (linha/número/status/id gerado/
+  /// mensagem de erro) de TODAS as linhas desta rodada que já têm um
+  /// resultado definitivo — sobrevive a sair da tela, mesmo sem o usuário
+  /// exportar o CSV na hora (ver [gerarCsvRelatorioImportacao] para a
+  /// exportação em si). Puramente auxiliar, nunca bloqueia a importação
+  /// real por uma falha de armazenamento local. Diferente de
+  /// [_persistirProgressoLote]: funciona em QUALQUER caminho (convencional
+  /// ou em lote) — é só um registro do resultado já obtido, nunca algo que
+  /// dispara uma nova chamada de rede.
+  Future<void> _persistirRelatorioFinal() async {
+    final loteId = state.loteIdAtual;
+    if (loteId == null) return;
+    try {
+      final linhasConcluidas = state.linhas.where((l) => l.resultado != null).toList();
+      if (linhasConcluidas.isEmpty) return;
+      final persistencia = await _criarPersistenciaRelatorio();
+      await persistencia.salvar(
+        ImportReport.fromImportRows(
+          loteId: loteId,
+          nomeArquivo: state.nomeArquivo,
+          linhas: linhasConcluidas,
+        ),
+      );
+    } catch (_) {
+      // ver docstring de `_persistirProgressoLote`: nunca propaga.
+    }
   }
 
   Future<void> tentarNovamenteFalhas() async {
@@ -993,10 +1334,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
     final numeros = falhas.map((l) => l.numeroPatrimonioNormalizado).whereType<String>().toSet().toList();
     if (numeros.isNotEmpty) {
       final existentesAgora = await repositorio.buscarPorNumerosPatrimonio(numeros);
-      final existentesPorNumero = {
-        for (final item in existentesAgora)
-          if (item.patrimonio.numeroPatrimonio != null) item.patrimonio.numeroPatrimonio!: item,
-      };
+      final existentesPorNumero = _existentesPorNumeroNormalizado(existentesAgora);
       for (final linha in falhas) {
         final numero = linha.numeroPatrimonioNormalizado;
         if (numero != null && linha.existenteNoBanco == null && existentesPorNumero.containsKey(numero)) {
@@ -1018,6 +1356,8 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
       cancelamentoSolicitado: false,
     );
     await _executarLote(aReenviar);
+    await _persistirProgressoLote();
+    await _persistirRelatorioFinal();
     state = state.copyWith(bumpRevisao: true);
   }
 
@@ -1042,7 +1382,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
         // nenhum — atualizar() não tem esses parâmetros.
         final atualizado = await repositorio.atualizar(
           id: existente.id,
-          numeroPatrimonio: linha.numeroPatrimonio ?? existente.numeroPatrimonio,
+          numeroPatrimonio: linha.numeroPatrimonioNormalizado ?? existente.numeroPatrimonio,
           numeroSerie: linha.numeroSerie ?? existente.numeroSerie,
           tipoId: linha.tipoIdResolvido ?? existente.tipoId,
           marca: linha.marca ?? existente.marca,
@@ -1052,11 +1392,62 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
           dataAquisicao: linha.dataAquisicao ?? existente.dataAquisicao,
         );
         linha.resultado = ImportRowResult(sucesso: true, patrimonioId: atualizado.id);
-      } else {
-        final criado = await repositorio.cadastrar(
+      } else if (_importacaoLoteExecucaoHabilitada()) {
+        // item 3 — rastreabilidade estruturada: cadastro NOVO via
+        // `cadastrarLote`, com `operacaoId` (gerado uma única vez por linha
+        // — `??=` aqui é só uma segunda camada de segurança, já que
+        // `confirmarImportacao`/`retomarLoteAnterior` já garantem isso
+        // antes de chamar `_executarLote`) e `loteId` da rodada atual, mais
+        // origemArquivo/origemLinha para auditoria. `jaExecutado: true`
+        // (retry seguro após uma falha de rede anterior) NUNCA é tratado
+        // como erro — é exatamente o resultado esperado.
+        //
+        // GATE OBRIGATÓRIO: só alcançável com
+        // [EnvConfig.importacaoLoteExecucaoHabilitada] ligado (não em
+        // produção, até a migration da RPC ser confirmada aplicada lá) —
+        // ver docstring de [_importacaoLoteExecucaoHabilitada].
+        final operacaoId = linha.operacaoId ??= gerarUuidV4();
+        final resultado = await repositorio.cadastrarLote(
           tipoId: linha.tipoIdResolvido!,
           destinoId: linha.destinoIdResolvido!,
-          numeroPatrimonio: linha.numeroPatrimonio,
+          operacaoId: operacaoId,
+          loteId: state.loteIdAtual ?? gerarUuidV4(),
+          // Valor ENVIADO ao banco é a chave normalizada (sem zeros à
+          // esquerda de um tombamento só numérico — ver
+          // tombamento_normalizacao.dart), nunca o texto bruto da planilha:
+          // `linha.numeroPatrimonio` continua intacto só para exibição e
+          // rastreabilidade (relatórios/telas de revisão).
+          numeroPatrimonio: linha.numeroPatrimonioNormalizado,
+          numeroSerie: linha.numeroSerie,
+          marca: linha.marca,
+          modelo: linha.modelo,
+          descricao: linha.descricao,
+          observacao: linha.observacao,
+          dataAquisicao: linha.dataAquisicao,
+          origemId: linha.origemIdResolvido,
+          localizacaoDestinoId: linha.localizacaoIdResolvida,
+          responsavelDestino: linha.responsavelDestino,
+          motivo: linha.motivo,
+          dataMovimentacao: linha.dataEntrada,
+          origemArquivo: state.nomeArquivo,
+          origemLinha: linha.numeroLinha,
+        );
+        linha.resultado = ImportRowResult(sucesso: true, patrimonioId: resultado.patrimonio.id);
+      } else {
+        // Caminho CONVENCIONAL de sempre (GATE desligado — padrão em
+        // produção): cadastro novo via `cadastrar` simples, sem
+        // `operacaoId`/`loteId`/rastreabilidade por linha — exatamente como
+        // funcionava antes do caminho em lote existir. Uma falha de rede
+        // aqui é tratada pelo mecanismo de retry já existente
+        // ([tentarNovamenteFalhas], que revalida contra o servidor antes
+        // de reenviar), nunca pela idempotência por `operacaoId`.
+        final resultado = await repositorio.cadastrar(
+          tipoId: linha.tipoIdResolvido!,
+          destinoId: linha.destinoIdResolvido!,
+          // Mesma regra do caminho em lote acima: envia a chave normalizada
+          // (sem zeros à esquerda de tombamento só numérico), nunca o texto
+          // bruto da planilha.
+          numeroPatrimonio: linha.numeroPatrimonioNormalizado,
           numeroSerie: linha.numeroSerie,
           marca: linha.marca,
           modelo: linha.modelo,
@@ -1069,7 +1460,7 @@ class PatrimonioImportController extends Notifier<PatrimonioImportState> {
           motivo: linha.motivo,
           dataMovimentacao: linha.dataEntrada,
         );
-        linha.resultado = ImportRowResult(sucesso: true, patrimonioId: criado.id);
+        linha.resultado = ImportRowResult(sucesso: true, patrimonioId: resultado.id);
       }
     } on AppException catch (e) {
       linha.resultado = ImportRowResult(sucesso: false, mensagemErro: e.message);

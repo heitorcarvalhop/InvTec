@@ -9,7 +9,12 @@ enum MovimentacaoTipo {
   baixa('BAIXA'),
   ajusteInventario('AJUSTE_INVENTARIO'),
   // Não representa deslocamento físico: mesmo setor, novo responsável.
-  alteracaoResponsavel('ALTERACAO_RESPONSAVEL');
+  alteracaoResponsavel('ALTERACAO_RESPONSAVEL'),
+  // Correção administrativa de unidade (setor) — nunca uma transferência
+  // física: responsável e status nunca mudam. Nunca oferecida no formulário
+  // "Nova movimentação" (ver `tiposCompativeisComStatus`); só a RPC
+  // dedicada `retificar_unidade_patrimonio` a produz.
+  retificacaoCadastral('RETIFICACAO_CADASTRAL');
 
   const MovimentacaoTipo(this.value);
 
@@ -49,6 +54,8 @@ extension MovimentacaoTipoLabel on MovimentacaoTipo {
         return 'Ajuste de inventário';
       case MovimentacaoTipo.alteracaoResponsavel:
         return 'Alteração de responsável';
+      case MovimentacaoTipo.retificacaoCadastral:
+        return 'Retificação cadastral';
     }
   }
 }

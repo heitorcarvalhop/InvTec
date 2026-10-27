@@ -5,6 +5,7 @@ import '../../../core/domain/ordenacao_direcao.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/utils/postgrest_filter.dart';
 import '../domain/patrimonio.dart';
+import '../domain/patrimonio_cadastro_lote.dart';
 import '../domain/patrimonio_detalhe.dart';
 import '../domain/patrimonio_ordenacao.dart';
 import '../domain/patrimonio_repository.dart';
@@ -13,6 +14,7 @@ import '../domain/patrimonios_resultado.dart';
 import '../domain/tombamento_historico_item.dart';
 import '../domain/tombamento_normalizacao.dart';
 import '../importacao/domain/comparacao_execucao.dart';
+import '../retificacao/domain/retificacao_execucao.dart';
 import 'patrimonio_error_mapper.dart';
 
 /// `true` quando [texto] é composto só por dígitos (após `trim`) — usado
@@ -142,6 +144,38 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
           .maybeSingle();
       return row == null ? null : Patrimonio.fromJson(row);
     } on PostgrestException catch (e) {
+      throw AppException(mapPatrimonioErrorMessage(e), cause: e);
+    }
+  }
+
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(
+    String codigo,
+  ) async {
+    final normalizado = normalizarTombamentoParaComparacao(codigo);
+    final chave = normalizado.chaveComparacao;
+    if (chave == null) return const [];
+
+    try {
+      final query = _client.from('patrimonios').select(_colunasComRelacionamentos);
+      // Zeros à esquerda equivalentes (regra do projeto), mas NUNCA
+      // substring: `match` é regex (Postgres `~`), ancorada em `^0*` +
+      // fim de string (`$`) — ao contrário de [listar] (ILIKE '%...%',
+      // pensado para o humano revisar uma lista de candidatos e, por
+      // isso, sujeito a paginação), este método decide IDENTIDADE
+      // automaticamente (leitor de câmera), então não pode depender de
+      // nenhuma página: a chamada devolve TODAS as linhas que batem,
+      // sem limit/order algum. Chave só numérica é garantida por
+      // [TombamentoTipo.numerico] (nunca contém caractere de regex).
+      final filtrada = normalizado.tipo == TombamentoTipo.numerico
+          ? query.filter('numero_patrimonio', 'match', '^0*$chave\$')
+          : query.eq('numero_patrimonio', chave);
+      final rows = await filtrada;
+      return rows.map(PatrimonioDetalhe.fromJson).toList();
+    } on PostgrestException catch (e) {
+      if (e.code == '42501') {
+        throw AcessoInsuficienteException(mapPatrimonioErrorMessage(e), cause: e);
+      }
       throw AppException(mapPatrimonioErrorMessage(e), cause: e);
     }
   }
@@ -712,6 +746,75 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
   }
 
   @override
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
+  }) async {
+    try {
+      // ÚNICA chamada: `cadastrar_patrimonio_lote` faz o mesmo que
+      // `cadastrar_patrimonio` (cadastro + movimentação inicial ENTRADA,
+      // atomicamente), mais a idempotência por `p_operacao_id`/`p_lote_id`
+      // e a rastreabilidade de origem — mesma disciplina já usada por
+      // `aplicar_decisao_comparacao_patrimonio`/`retificar_unidade_patrimonio`.
+      final row = await _client.rpc(
+        operacaoCadastrarPatrimonioLote,
+        params: {
+          'p_tipo_id': tipoId,
+          'p_destino_id': destinoId,
+          'p_numero_patrimonio': numeroPatrimonio,
+          'p_numero_serie': numeroSerie,
+          'p_marca': _semEspacosOuNulo(marca),
+          'p_modelo': _semEspacosOuNulo(modelo),
+          'p_descricao': _semEspacosOuNulo(descricao),
+          'p_observacao': _semEspacosOuNulo(observacao),
+          if (dataAquisicao != null)
+            'p_data_aquisicao': dataAquisicao.toIso8601String().substring(
+              0,
+              10,
+            ),
+          'p_origem_id': origemId,
+          'p_responsavel_origem': responsavelOrigem,
+          'p_responsavel_destino': responsavelDestino,
+          'p_motivo': _semEspacosOuNulo(motivo),
+          'p_observacao_movimentacao': _semEspacosOuNulo(
+            observacaoMovimentacao,
+          ),
+          if (dataMovimentacao != null)
+            'p_data_movimentacao': dataMovimentacao.toIso8601String(),
+          'p_localizacao_destino_id': localizacaoDestinoId,
+          'p_localizacao_origem_id': localizacaoOrigemId,
+          'p_operacao_id': operacaoId,
+          'p_lote_id': loteId,
+          'p_origem_arquivo': origemArquivo,
+          'p_origem_linha': origemLinha,
+        },
+      );
+      return ResultadoCadastroLote.fromJson(row as Map<String, dynamic>);
+    } on PostgrestException catch (e) {
+      throw AppException(mapPatrimonioErrorMessage(e), cause: e);
+    }
+  }
+
+  @override
   Future<Patrimonio> atualizar({
     required String id,
     String? numeroPatrimonio,
@@ -785,6 +888,48 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       return resultado;
     } on PostgrestException catch (e) {
       throw AppException(mapPatrimonioErrorMessage(e), cause: e);
+    }
+  }
+
+  @override
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
+  ) async {
+    try {
+      // ÚNICA chamada: `retificar_unidade_patrimonio` trava o patrimônio,
+      // revalida tombamento/versão esperados e chama `registrar_movimentacao`
+      // (`RETIFICACAO_CADASTRAL`) por dentro, tudo na MESMA transação no
+      // servidor — ver migration `20261022140000_add_retificacao_cadastral_
+      // unidade.sql`.
+      final row = await _client.rpc(
+        operacaoRetificarUnidade,
+        params: {
+          'p_operacao_id': item.operacaoId,
+          'p_lote_id': item.loteId,
+          'p_patrimonio_id': item.patrimonioId,
+          'p_tombamento_esperado': item.tombamentoEsperado,
+          'p_versao_esperada': item.versaoEsperada.toIso8601String(),
+          'p_setor_origem_esperado': item.setorOrigemEsperadoId,
+          'p_setor_destino_id': item.setorDestinoId,
+          'p_justificativa': item.justificativa,
+          'p_localizacao_destino_id': item.localizacaoDestinoId,
+        },
+      );
+      return ResultadoRetificacaoUnidade.fromJson(row as Map<String, dynamic>);
+    } on PostgrestException catch (e) {
+      // Mesma distinção de `aplicarDecisaoComparacao`: uma falha de
+      // transporte (proxy/gateway) nunca vira
+      // [RetificacaoExecucaoFalhouException] — passa adiante sem
+      // tratamento, para quem chama tratar como resultado DESCONHECIDO
+      // (preserva `item`, nunca gera um novo operacaoId).
+      if (ehFalhaDeTransporteRetificacao(e.code)) rethrow;
+      throw falhaDeExecucaoRetificacao(
+        codigo: e.code,
+        mensagemDoServidor: e.message,
+        detalhes: e.details?.toString(),
+        dica: e.hint,
+        cause: e,
+      );
     }
   }
 
@@ -927,6 +1072,12 @@ class PatrimonioRepositorySupabase implements PatrimonioRepository {
       // principal quebrar por causa da tabela de histórico não existir,
       // mesmo que a flag seja ligada por engano antes da hora.
       if (e.code == '42P01') return const [];
+      // Mesma distinção de [buscarPorTombamentoAtualExato]: falta de
+      // permissão nunca pode ser confundida com "não encontrado" nem com
+      // uma falha de rede comum por quem chama (ex.: o leitor de câmera).
+      if (e.code == '42501') {
+        throw AcessoInsuficienteException(mapPatrimonioErrorMessage(e), cause: e);
+      }
       throw AppException(mapPatrimonioErrorMessage(e), cause: e);
     }
   }

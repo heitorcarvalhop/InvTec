@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/config/platform_info.dart';
 import 'package:invtec/core/errors/app_exception.dart';
 import 'package:invtec/core/theme/app_theme.dart';
 import 'package:invtec/features/administracao/data/usuario_admin_repository_supabase.dart';
@@ -22,6 +23,7 @@ import 'package:invtec/features/notificacoes/domain/app_notification.dart';
 import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_cadastro_lote.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
@@ -29,6 +31,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart'
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
 import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
+import 'package:invtec/features/patrimonios/retificacao/domain/retificacao_execucao.dart';
 import 'package:go_router/go_router.dart';
 
 import '../administracao/fake_usuario_admin_repository.dart';
@@ -97,6 +100,10 @@ class _PatrimonioRepositorioTravado implements PatrimonioRepository {
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       throw UnimplementedError();
   @override
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(
+    String codigo,
+  ) => throw UnimplementedError();
+  @override
   Future<PatrimoniosResultado> listar({
     int limit = 25,
     int offset = 0,
@@ -138,6 +145,30 @@ class _PatrimonioRepositorioTravado implements PatrimonioRepository {
     DateTime? dataMovimentacao,
   }) => throw UnimplementedError();
   @override
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
+  }) => throw UnimplementedError();
+  @override
   Future<Patrimonio> atualizar({
     required String id,
     String? numeroPatrimonio,
@@ -163,6 +194,10 @@ class _PatrimonioRepositorioTravado implements PatrimonioRepository {
   @override
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
+  ) => throw UnimplementedError();
+  @override
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
   ) => throw UnimplementedError();
   @override
   Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
@@ -204,6 +239,10 @@ class _RepositorioComFalhaNaPrimeiraPrefixo implements PatrimonioRepository {
   @override
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       _delegado.buscarPorNumeroPatrimonio(numeroPatrimonio);
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(
+    String codigo,
+  ) => _delegado.buscarPorTombamentoAtualExato(codigo);
   @override
   Future<PatrimoniosResultado> listar({
     int limit = 25,
@@ -265,6 +304,30 @@ class _RepositorioComFalhaNaPrimeiraPrefixo implements PatrimonioRepository {
     DateTime? dataMovimentacao,
   }) => throw UnimplementedError();
   @override
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
+  }) => throw UnimplementedError();
+  @override
   Future<Patrimonio> atualizar({
     required String id,
     String? numeroPatrimonio,
@@ -292,6 +355,10 @@ class _RepositorioComFalhaNaPrimeiraPrefixo implements PatrimonioRepository {
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
   @override
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
+  ) => _delegado.retificarUnidadePatrimonio(item);
+  @override
   Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
     String termo,
   ) => _delegado.buscarPorTombamentoAnterior(termo);
@@ -309,6 +376,7 @@ Future<void> _pumpDashboard(
   ThemeData? theme,
   List<Profile> solicitacoesPendentes = const [],
   List<AppNotification> notificacoes = const [],
+  bool isAndroid = false,
 }) async {
   final fakeAuth = FakeAuthRepository(
     initialUserId: 'fake-user-id',
@@ -338,6 +406,7 @@ Future<void> _pumpDashboard(
         appNotificationRepositoryProvider.overrideWithValue(
           FakeAppNotificationRepository(notificacoes: notificacoes),
         ),
+        isAndroidProvider.overrideWithValue(isAndroid),
       ],
       child: MaterialApp(
         theme: theme,
@@ -685,9 +754,81 @@ void main() {
 
       expect(find.text('Consultar patrimônio'), findsNothing);
     });
+
+    testWidgets(
+      'Android: "Escanear patrimônio" aparece como a primeira ação',
+      (tester) async {
+        await _pumpDashboard(tester, isAndroid: true);
+
+        expect(find.text('Escanear patrimônio'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Windows (não Android): "Escanear patrimônio" nunca aparece',
+      (tester) async {
+        await _pumpDashboard(tester);
+
+        expect(find.text('Escanear patrimônio'), findsNothing);
+      },
+    );
   });
 
   group('ações rápidas — navegação direta', () {
+    testWidgets(
+      'Android: "Escanear patrimônio" navega para /patrimonios/escanear '
+      '(mesma rota/página do scanner avulso)',
+      (tester) async {
+        final fakeAuth = FakeAuthRepository(
+          initialUserId: 'u',
+          profileResolver: (_) => _profile(ProfilePerfil.admin),
+        );
+        addTearDown(fakeAuth.dispose);
+        final router = GoRouter(
+          initialLocation: '/dashboard',
+          routes: [
+            GoRoute(
+              path: '/dashboard',
+              builder: (context, state) =>
+                  const Scaffold(body: DashboardPage()),
+            ),
+            GoRoute(
+              path: '/patrimonios/escanear',
+              builder: (context, state) =>
+                  const Scaffold(body: Text('TELA_SCANNER')),
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authRepositoryProvider.overrideWithValue(fakeAuth),
+              permissionsRepositoryProvider.overrideWithValue(
+                FakePermissionsRepository.paraPerfil(ProfilePerfil.admin),
+              ),
+              dashboardRepositoryProvider.overrideWithValue(
+                FakeDashboardRepository(),
+              ),
+              usuarioAdminRepositoryProvider.overrideWithValue(
+                FakeUsuarioAdminRepository(),
+              ),
+              appNotificationRepositoryProvider.overrideWithValue(
+                FakeAppNotificationRepository(),
+              ),
+              isAndroidProvider.overrideWithValue(true),
+            ],
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Escanear patrimônio'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('TELA_SCANNER'), findsOneWidget);
+      },
+    );
+
     testWidgets(
       '"Registrar movimentação" navega para /movimentacoes com acao=nova',
       (tester) async {
@@ -1272,10 +1413,37 @@ void main() {
       );
     }
 
-    testWidgets('mobile (390x844): 1 coluna, sem overflow', (tester) async {
-      await pumpEm(tester, const Size(390, 844));
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'mobile (390x844): KPIs em grade de 2 colunas, sem overflow',
+      (tester) async {
+        await pumpEm(tester, const Size(390, 844));
+        expect(tester.takeException(), isNull);
+
+        // "Patrimônios" e "Setores" (1o e 2o KPI) ficam lado a lado na
+        // mesma linha — grade de 2 colunas, nunca os 5 KPIs empilhados em
+        // 5 linhas (melhoria de interface Android: seção "Visão Geral"
+        // compacta).
+        final topoPatrimonios = tester
+            .getTopLeft(find.text('Patrimônios'))
+            .dy;
+        final topoSetores = tester.getTopLeft(find.text('Setores')).dy;
+        expect(
+          topoPatrimonios,
+          closeTo(topoSetores, 2),
+          reason: '1o e 2o KPI deveriam estar na mesma linha (2 colunas)',
+        );
+
+        // "Localizações" (3o KPI) cai para a linha seguinte.
+        final topoLocalizacoes = tester
+            .getTopLeft(find.text('Localizações'))
+            .dy;
+        expect(
+          topoLocalizacoes,
+          greaterThan(topoPatrimonios + 10),
+          reason: '3o KPI deveria estar numa linha abaixo dos 2 primeiros',
+        );
+      },
+    );
   });
 
   group('dark/light', () {

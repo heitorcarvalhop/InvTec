@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:file/file.dart';
+import 'package:file/memory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/core/domain/ordenacao_direcao.dart';
@@ -10,6 +12,7 @@ import 'package:invtec/features/dashboard/data/dashboard_repository_supabase.dar
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/data/tipo_patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_cadastro_lote.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
@@ -18,6 +21,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
 import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
 import 'package:invtec/features/patrimonios/domain/tipo_patrimonio.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
+import 'package:invtec/features/patrimonios/retificacao/domain/retificacao_execucao.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/import_column_field.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/import_defaults.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/import_row.dart';
@@ -140,6 +144,56 @@ class _RepositorioComFalhaSeletiva implements PatrimonioRepository {
   }
 
   @override
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
+  }) async {
+    if (numerosParaFalhar.contains(numeroPatrimonio)) {
+      throw const AppException('Falha simulada de rede.');
+    }
+    return _delegado.cadastrarLote(
+      tipoId: tipoId,
+      destinoId: destinoId,
+      operacaoId: operacaoId,
+      loteId: loteId,
+      numeroPatrimonio: numeroPatrimonio,
+      numeroSerie: numeroSerie,
+      marca: marca,
+      modelo: modelo,
+      descricao: descricao,
+      observacao: observacao,
+      dataAquisicao: dataAquisicao,
+      origemId: origemId,
+      responsavelOrigem: responsavelOrigem,
+      responsavelDestino: responsavelDestino,
+      motivo: motivo,
+      observacaoMovimentacao: observacaoMovimentacao,
+      dataMovimentacao: dataMovimentacao,
+      origemArquivo: origemArquivo,
+      origemLinha: origemLinha,
+    );
+  }
+
+  @override
   Future<Patrimonio> atualizar({
     required String id,
     String? numeroPatrimonio,
@@ -174,6 +228,10 @@ class _RepositorioComFalhaSeletiva implements PatrimonioRepository {
   @override
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       _delegado.buscarPorNumeroPatrimonio(numeroPatrimonio);
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(
+    String codigo,
+  ) => _delegado.buscarPorTombamentoAtualExato(codigo);
 
   @override
   Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
@@ -221,6 +279,10 @@ class _RepositorioComFalhaSeletiva implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  @override
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
+  ) => _delegado.retificarUnidadePatrimonio(item);
   @override
   Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
     String termo,
@@ -282,6 +344,56 @@ class _RepositorioComPortoes implements PatrimonioRepository {
   }
 
   @override
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
+  }) async {
+    final portao = Completer<void>();
+    portoesAbertos.add(portao);
+    await portao.future;
+    return _delegado.cadastrarLote(
+      tipoId: tipoId,
+      destinoId: destinoId,
+      operacaoId: operacaoId,
+      loteId: loteId,
+      numeroPatrimonio: numeroPatrimonio,
+      numeroSerie: numeroSerie,
+      marca: marca,
+      modelo: modelo,
+      descricao: descricao,
+      observacao: observacao,
+      dataAquisicao: dataAquisicao,
+      origemId: origemId,
+      responsavelOrigem: responsavelOrigem,
+      responsavelDestino: responsavelDestino,
+      motivo: motivo,
+      observacaoMovimentacao: observacaoMovimentacao,
+      dataMovimentacao: dataMovimentacao,
+      origemArquivo: origemArquivo,
+      origemLinha: origemLinha,
+    );
+  }
+
+  @override
   Future<Patrimonio> atualizar({
     required String id,
     String? numeroPatrimonio,
@@ -314,6 +426,10 @@ class _RepositorioComPortoes implements PatrimonioRepository {
   @override
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       _delegado.buscarPorNumeroPatrimonio(numeroPatrimonio);
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(
+    String codigo,
+  ) => _delegado.buscarPorTombamentoAtualExato(codigo);
 
   @override
   Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
@@ -362,6 +478,10 @@ class _RepositorioComPortoes implements PatrimonioRepository {
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
   @override
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
+  ) => _delegado.retificarUnidadePatrimonio(item);
+  @override
   Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
     String termo,
   ) => _delegado.buscarPorTombamentoAnterior(termo);
@@ -371,9 +491,18 @@ class _RepositorioComPortoes implements PatrimonioRepository {
   ) => _delegado.buscarHistoricoTombamentosPorId(patrimonioId);
 }
 
+/// [importacaoLoteExecucaoHabilitada] padrão `true` nesta suíte: a MAIORIA
+/// dos testes aqui exercita o caminho em lote (`cadastrarLote`/
+/// `operacaoId`/sessão retomável) que já existia antes do GATE — os testes
+/// dedicados ao GATE em si (`EnvConfig.importacaoLoteExecucaoHabilitada`
+/// desligado por padrão) passam `importacaoLoteExecucaoHabilitada: false`
+/// explicitamente (ver grupo "PatrimonioImportController — gate do
+/// caminho em lote").
 ProviderContainer _criarContainer(
   PatrimonioRepository repositorio, {
   FakeLocalizacaoRepository? repositorioLocalizacoes,
+  bool importacaoLoteExecucaoHabilitada = true,
+  FileSystem? fileSystem,
 }) {
   final container = ProviderContainer(
     overrides: [
@@ -389,6 +518,13 @@ ProviderContainer _criarContainer(
             FakeLocalizacaoRepository(localizacoes: _localizacoes),
       ),
       dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
+      patrimonioImportControllerProvider.overrideWith(
+        () => PatrimonioImportController(
+          importacaoLoteExecucaoHabilitada: () => importacaoLoteExecucaoHabilitada,
+          fileSystem: fileSystem ?? MemoryFileSystem(),
+          resolverDiretorioPersistencia: () async => '/import-test',
+        ),
+      ),
     ],
   );
   // mantém o NotifierProvider.autoDispose vivo durante todo o teste
@@ -549,7 +685,11 @@ void main() {
         final existente = PatrimonioDetalhe(
           patrimonio: Patrimonio(
             id: 'existing-1',
-            numeroPatrimonio: '00000001',
+            // Sem zero à esquerda — mesma convenção real de produção (ver
+            // tombamento_normalizacao.dart): a linha da planilha abaixo traz
+            // "00000001" (com zeros) e precisa ser detectada como o MESMO
+            // número, não um cadastro novo.
+            numeroPatrimonio: '1',
             tipoId: 'tipo-notebook',
             status: PatrimonioStatus.disponivel,
             setorAtualId: 'setor-getec',
@@ -584,6 +724,96 @@ void main() {
       },
     );
   });
+
+  group(
+    'PatrimonioImportController — normalização de zeros à esquerda do tombamento',
+    () {
+      test(
+        'planilha com zeros à esquerda ("000502510") envia ao repositório o número SEM zeros '
+        '("502510"), preservando o texto bruto só para exibição',
+        () async {
+          final repo = FakePatrimonioRepository();
+          final container = _criarContainer(repo);
+          addTearDown(container.dispose);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
+
+          const csv =
+              'Patrimônio;Tipo;Marca;Serial;Setor\n000502510;Notebook;Dell;AAA1;GETEC\n';
+          await _avancarAteRevisao(controller, bytes: _csv(csv));
+
+          final linha = container
+              .read(patrimonioImportControllerProvider)
+              .linhas
+              .single;
+          // Texto bruto da planilha preservado para exibição/rastreabilidade
+          // — nunca descartado.
+          expect(linha.numeroPatrimonio, '000502510');
+          // Chave de comparação normalizada (sem zeros à esquerda).
+          expect(linha.numeroPatrimonioNormalizado, '502510');
+          expect(linha.status, ImportRowStatus.pronto);
+
+          await controller.confirmarImportacao();
+
+          expect(repo.cadastrarLoteCallCount, 1);
+          // Valor REALMENTE enviado ao repositório/RPC é o normalizado, não
+          // o texto bruto com zeros.
+          expect(repo.ultimoCadastroLote!['numeroPatrimonio'], '502510');
+        },
+      );
+
+      test(
+        'planilha com zeros à esquerda ("000502510") é detectada como colisão contra um '
+        'numero_patrimonio JÁ EXISTENTE no banco sem zeros ("502510") — nunca passa como novo',
+        () async {
+          final existente = PatrimonioDetalhe(
+            patrimonio: Patrimonio(
+              id: 'existing-zero-esquerda',
+              // Convenção real de produção: banco nunca guarda zero à
+              // esquerda (ver export_patrimonios.csv) — mesmo valor da
+              // planilha, só sem o padding.
+              numeroPatrimonio: '502510',
+              tipoId: 'tipo-notebook',
+              status: PatrimonioStatus.disponivel,
+              setorAtualId: 'setor-getec',
+              dataCadastro: DateTime(2025, 1, 1),
+              atualizadoEm: DateTime(2025, 1, 1),
+            ),
+            tipoNome: 'Notebook',
+            setorNome: 'GETEC',
+          );
+          final repo = FakePatrimonioRepository(itens: [existente]);
+          final container = _criarContainer(repo);
+          addTearDown(container.dispose);
+          final controller = container.read(
+            patrimonioImportControllerProvider.notifier,
+          );
+
+          const csv =
+              'Patrimônio;Tipo;Marca;Serial;Setor\n000502510;Notebook;Dell Novo;ZZZ;GETEC\n';
+          await _avancarAteRevisao(controller, bytes: _csv(csv));
+
+          final linha = container
+              .read(patrimonioImportControllerProvider)
+              .linhas
+              .single;
+          // NUNCA tratado como cadastro novo por causa da diferença de
+          // zeros à esquerda — é o MESMO número patrimonial.
+          expect(linha.existenteNoBanco, isNotNull);
+          expect(linha.existenteNoBanco!.patrimonio.id, 'existing-zero-esquerda');
+          expect(linha.status, ImportRowStatus.existente);
+          expect(linha.status, isNot(ImportRowStatus.pronto));
+
+          await controller.confirmarImportacao();
+          // Nenhum cadastro novo foi disparado — só existe a decisão
+          // "manter existente" (padrão) ou "atualizar metadados".
+          expect(repo.cadastrarLoteCallCount, 0);
+          expect(repo.cadastrarCallCount, 0);
+        },
+      );
+    },
+  );
 
   group('PatrimonioImportController — decisões manuais', () {
     test(
@@ -697,8 +927,8 @@ void main() {
 
         await controller.confirmarImportacao();
 
-        expect(repo.cadastrarCallCount, 1);
-        expect(repo.ultimoCadastro!.containsKey('status'), isFalse);
+        expect(repo.cadastrarLoteCallCount, 1);
+        expect(repo.ultimoCadastroLote!.containsKey('status'), isFalse);
         expect(
           container.read(patrimonioImportControllerProvider).step,
           ImportStep.resultado,
@@ -736,7 +966,7 @@ void main() {
 
       await controller.confirmarImportacao();
 
-      expect(delegado.cadastrarCallCount, 12);
+      expect(delegado.cadastrarLoteCallCount, 12);
       expect(maximoObservado, lessThanOrEqualTo(importConcorrenciaMaxima));
       expect(maximoObservado, greaterThan(1));
     });
@@ -771,7 +1001,7 @@ void main() {
           hasLength(1),
         );
         expect(
-          delegado.cadastrarCallCount,
+          delegado.cadastrarLoteCallCount,
           2,
         ); // a que falhou não chegou a chamar o delegado
 
@@ -782,7 +1012,72 @@ void main() {
             .read(patrimonioImportControllerProvider)
             .linhas;
         expect(linhasFinal.every((l) => l.resultado?.sucesso == true), isTrue);
-        expect(delegado.cadastrarCallCount, 3);
+        expect(delegado.cadastrarLoteCallCount, 3);
+      },
+    );
+
+    test(
+      'repositório: reenviar o mesmo operacaoId nunca cria um segundo patrimônio — '
+      'ja_executado=true é o resultado esperado, nunca um erro',
+      () async {
+        final repo = FakePatrimonioRepository();
+        const operacaoId = 'operacao-fixa-teste';
+
+        final primeiro = await repo.cadastrarLote(
+          tipoId: 'tipo-notebook',
+          destinoId: 'setor-getec',
+          operacaoId: operacaoId,
+          loteId: 'lote-1',
+          numeroPatrimonio: '50001',
+        );
+        expect(primeiro.jaExecutado, isFalse);
+        expect(repo.cadastrarLoteCallCount, 1);
+
+        final segundo = await repo.cadastrarLote(
+          tipoId: 'tipo-notebook',
+          destinoId: 'setor-getec',
+          operacaoId: operacaoId,
+          loteId: 'lote-1',
+          numeroPatrimonio: '50001',
+        );
+        expect(segundo.jaExecutado, isTrue);
+        expect(segundo.patrimonio.id, primeiro.patrimonio.id);
+        expect(repo.cadastrarLoteCallCount, 2);
+
+        final existentes = await repo.buscarPorNumerosPatrimonio(['50001']);
+        expect(existentes, hasLength(1)); // nunca um segundo cadastro.
+      },
+    );
+
+    test(
+      'operacaoId de uma linha sobrevive a tentarNovamenteFalhas (nunca recriado no retry)',
+      () async {
+        final delegado = FakePatrimonioRepository();
+        final repo = _RepositorioComFalhaSeletiva(delegado)
+          ..numerosParaFalhar = {'40002'};
+        final container = _criarContainer(repo);
+        addTearDown(container.dispose);
+        final controller = container.read(
+          patrimonioImportControllerProvider.notifier,
+        );
+
+        const csv = 'Patrimônio;Tipo;Marca;Serial;Setor\n40002;Notebook;Dell;S1;GETEC\n';
+        await _avancarAteRevisao(controller, bytes: _csv(csv));
+
+        await controller.confirmarImportacao();
+        var linha = container.read(patrimonioImportControllerProvider).linhas.single;
+        expect(linha.resultado?.sucesso, isFalse);
+        final operacaoIdAposFalha = linha.operacaoId;
+        expect(operacaoIdAposFalha, isNotNull);
+
+        repo.numerosParaFalhar = {};
+        await controller.tentarNovamenteFalhas();
+
+        linha = container.read(patrimonioImportControllerProvider).linhas.single;
+        expect(linha.resultado?.sucesso, isTrue);
+        // nunca um operacaoId novo no retry.
+        expect(linha.operacaoId, operacaoIdAposFalha);
+        expect(delegado.ultimoCadastroLote!['operacaoId'], operacaoIdAposFalha);
       },
     );
 
@@ -815,7 +1110,7 @@ void main() {
         }
         await futuro;
 
-        expect(delegado.cadastrarCallCount, 5);
+        expect(delegado.cadastrarLoteCallCount, 5);
         expect(
           container
               .read(patrimonioImportControllerProvider)
@@ -1104,8 +1399,11 @@ void main() {
         // nem aceita status como parâmetro, então isso é estruturalmente
         // impossível, mas confirmamos aqui o estado final mesmo assim.
         await controller.confirmarImportacao();
-        expect(repo.ultimoCadastro!.containsKey('status'), isFalse);
-        final criado = await repo.buscarPorNumeroPatrimonio('00012347');
+        expect(repo.ultimoCadastroLote!.containsKey('status'), isFalse);
+        // Valor gravado é o normalizado (sem zeros à esquerda — ver
+        // normalizarTombamentoParaComparacao): a planilha trouxe "00012347".
+        expect(repo.ultimoCadastroLote!['numeroPatrimonio'], '12347');
+        final criado = await repo.buscarPorNumeroPatrimonio('12347');
         expect(criado?.status, isNot(PatrimonioStatus.baixado));
         expect(criado?.status, PatrimonioStatus.disponivel);
       },
@@ -1717,7 +2015,11 @@ void main() {
           final existente = PatrimonioDetalhe(
             patrimonio: Patrimonio(
               id: 'existing-8-10',
-              numeroPatrimonio: '00012345',
+              // Sem zero à esquerda — mesma convenção real de produção (ver
+              // tombamento_normalizacao.dart); a planilha GETEC usada aqui
+              // traz "00012345" (com zeros) e precisa colidir com este
+              // registro já existente, não ser tratada como cadastro novo.
+              numeroPatrimonio: '12345',
               tipoId: 'tipo-notebook',
               status: PatrimonioStatus.disponivel,
               setorAtualId: 'setor-getec',
@@ -1861,7 +2163,7 @@ void main() {
           );
 
           await controller.confirmarImportacao();
-          expect(repo.ultimoCadastro!['destinoId'], 'setor-getec');
+          expect(repo.ultimoCadastroLote!['destinoId'], 'setor-getec');
         },
       );
 
@@ -1967,6 +2269,65 @@ void main() {
           expect(state.mensagemErro, isNotNull);
         },
       );
+
+      test(
+        'gerência GETEC ambígua (duas sigla GETEC ativas) bloqueia via ImportPreflight — '
+        'nunca escolhe uma automaticamente',
+        () async {
+          final repo = FakePatrimonioRepository();
+          final container = ProviderContainer(
+            overrides: [
+              patrimonioRepositoryProvider.overrideWithValue(repo),
+              tipoPatrimonioRepositoryProvider.overrideWithValue(
+                FakeTipoPatrimonioRepository(tipos: _tipos),
+              ),
+              setorRepositoryProvider.overrideWithValue(
+                FakeSetorRepository(
+                  setores: [
+                    Setor(
+                      id: 'setor-getec-1',
+                      nome: 'GETEC 1',
+                      sigla: 'GETEC',
+                      ativo: true,
+                      criadoEm: DateTime(2026, 1, 1),
+                    ),
+                    Setor(
+                      id: 'setor-getec-2',
+                      nome: 'GETEC 2',
+                      sigla: 'GETEC',
+                      ativo: true,
+                      criadoEm: DateTime(2026, 1, 1),
+                    ),
+                  ],
+                ),
+              ),
+              localizacaoRepositoryProvider.overrideWithValue(
+                FakeLocalizacaoRepository(localizacoes: _localizacoes),
+              ),
+              dashboardRepositoryProvider.overrideWithValue(
+                FakeDashboardRepository(),
+              ),
+            ],
+          );
+          container.listen(patrimonioImportControllerProvider, (_, _) {});
+          addTearDown(container.dispose);
+          final controller = await carregarAteMapeamentoGetec(container);
+          controller.ativarPerfilGetec();
+          controller.avancarParaPadroes();
+          controller.definirPadroes(
+            ImportDefaults(dataPadrao: DateTime(2026, 1, 1)),
+          );
+
+          await controller.avancarAposPadroes();
+
+          final state = container.read(patrimonioImportControllerProvider);
+          // não avançou de passo — ficou em configurarPadroes.
+          expect(state.step, ImportStep.configurarPadroes);
+          expect(state.mensagemErro, isNotNull);
+          expect(state.mensagemErro, contains('GETEC'));
+          expect(state.mensagemErro, contains('2'));
+        },
+      );
     });
   });
 }
@@ -2019,6 +2380,57 @@ class _RepositorioContadorConcorrencia implements PatrimonioRepository {
   }
 
   @override
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
+  }) {
+    return _wrap(
+      () => _delegado
+          .cadastrarLote(
+            tipoId: tipoId,
+            destinoId: destinoId,
+            operacaoId: operacaoId,
+            loteId: loteId,
+            numeroPatrimonio: numeroPatrimonio,
+            numeroSerie: numeroSerie,
+            marca: marca,
+            modelo: modelo,
+            descricao: descricao,
+            observacao: observacao,
+            dataAquisicao: dataAquisicao,
+            origemId: origemId,
+            responsavelOrigem: responsavelOrigem,
+            responsavelDestino: responsavelDestino,
+            motivo: motivo,
+            observacaoMovimentacao: observacaoMovimentacao,
+            dataMovimentacao: dataMovimentacao,
+            origemArquivo: origemArquivo,
+            origemLinha: origemLinha,
+          )
+          .then((r) => r.patrimonio),
+    ).then((p) => ResultadoCadastroLote(patrimonio: p, jaExecutado: false));
+  }
+
+  @override
   Future<Patrimonio> atualizar({
     required String id,
     String? numeroPatrimonio,
@@ -2051,6 +2463,10 @@ class _RepositorioContadorConcorrencia implements PatrimonioRepository {
   @override
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       _delegado.buscarPorNumeroPatrimonio(numeroPatrimonio);
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(
+    String codigo,
+  ) => _delegado.buscarPorTombamentoAtualExato(codigo);
 
   @override
   Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
@@ -2098,6 +2514,10 @@ class _RepositorioContadorConcorrencia implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  @override
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
+  ) => _delegado.retificarUnidadePatrimonio(item);
   @override
   Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
     String termo,

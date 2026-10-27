@@ -1,5 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Leitor de patrimônio pela câmera (InvTec 4.0) — `required="false"`
+         porque o resto do app funciona normalmente num dispositivo sem
+         câmera; a tela de scanner é a única que fica indisponível. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
         android:label="invtec"

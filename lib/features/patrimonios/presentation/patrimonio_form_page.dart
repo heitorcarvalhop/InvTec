@@ -23,7 +23,14 @@ import 'widgets/date_only_field.dart';
 /// campos em duas seções — ver [_DadosEquipamentoSection] e
 /// [_EntradaInicialSection].
 class PatrimonioFormPage extends ConsumerStatefulWidget {
-  const PatrimonioFormPage({super.key});
+  const PatrimonioFormPage({super.key, this.numeroPatrimonioInicial});
+
+  /// Presente só quando a rota é `/patrimonios/novo?tombamento=...` (leitor
+  /// de câmera Android — ver `PatrimonioScannerPage`) — pré-preenche o
+  /// campo de número de patrimônio com o código lido, exatamente como veio
+  /// (zeros à esquerda preservados), mas nunca grava nada por conta
+  /// própria: revisão/edição humana continua obrigatória antes de salvar.
+  final String? numeroPatrimonioInicial;
 
   @override
   ConsumerState<PatrimonioFormPage> createState() => _PatrimonioFormPageState();
@@ -78,6 +85,7 @@ class _PatrimonioFormPageState extends ConsumerState<PatrimonioFormPage> {
               setoresAsync: setoresAsync,
               formStateKey: _formStateKey,
               onCancelar: _sair,
+              numeroPatrimonioInicial: widget.numeroPatrimonioInicial,
             ),
           ],
         ),
@@ -92,12 +100,14 @@ class _Conteudo extends ConsumerWidget {
     required this.setoresAsync,
     required this.formStateKey,
     required this.onCancelar,
+    this.numeroPatrimonioInicial,
   });
 
   final AsyncValue<List<TipoPatrimonio>> tiposAsync;
   final AsyncValue<List<Setor>> setoresAsync;
   final GlobalKey<_PatrimonioFormState> formStateKey;
   final VoidCallback onCancelar;
+  final String? numeroPatrimonioInicial;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -154,6 +164,7 @@ class _Conteudo extends ConsumerWidget {
       tipos: tipos,
       setores: setores,
       onCancelar: onCancelar,
+      numeroPatrimonioInicial: numeroPatrimonioInicial,
     );
   }
 }
@@ -206,10 +217,12 @@ class _PatrimonioForm extends ConsumerStatefulWidget {
     required this.tipos,
     required this.setores,
     required this.onCancelar,
+    this.numeroPatrimonioInicial,
   });
 
   final List<TipoPatrimonio> tipos;
   final List<Setor> setores;
+  final String? numeroPatrimonioInicial;
 
   /// Mesma função de saída usada pelo botão "Voltar" do cabeçalho — aqui
   /// alimentada pelo botão "Cancelar" do rodapé. Nunca `context.pop()`
@@ -245,6 +258,15 @@ class _PatrimonioFormState extends ConsumerState<_PatrimonioForm> {
 
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final inicial = widget.numeroPatrimonioInicial?.trim();
+    if (inicial != null && inicial.isNotEmpty) {
+      _numeroController.text = inicial;
+    }
+  }
 
   /// `true` quando qualquer campo de texto foi preenchido ou qualquer
   /// seleção foi feita — consultado sob demanda (ao tentar sair), nunca

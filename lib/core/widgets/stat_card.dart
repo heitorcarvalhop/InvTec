@@ -73,11 +73,11 @@ class InvTecStatCard extends StatelessWidget {
     // (`AppTypography.metric`) e o rótulo continuam do mesmo tamanho de
     // fonte, legibilidade preservada.
     final mobile = context.screenSize == ScreenSize.mobile;
-    final iconBoxSize = mobile ? 28.0 : 36.0;
-    final iconSize = mobile ? 15.0 : 18.0;
+    final iconBoxSize = mobile ? 24.0 : 36.0;
+    final iconSize = mobile ? 13.0 : 18.0;
 
     final conteudo = Padding(
-      padding: EdgeInsets.all(mobile ? AppSpacing.smd : AppSpacing.md),
+      padding: EdgeInsets.all(mobile ? AppSpacing.sm : AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

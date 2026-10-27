@@ -1,6 +1,6 @@
-import '../../domain/patrimonio.dart';
 import '../../domain/patrimonio_detalhe.dart';
 import '../../domain/tipo_patrimonio.dart';
+import '../../domain/tombamento_normalizacao.dart';
 import '../../../setores/domain/setor.dart';
 import 'import_column_field.dart';
 import 'import_column_mapping.dart';
@@ -295,7 +295,16 @@ class ImportAnalyzer {
     }
 
     linha.numeroPatrimonio = linha.celulas[ImportColumnField.numeroPatrimonio];
-    linha.numeroPatrimonioNormalizado = normalizarNumeroPatrimonio(linha.numeroPatrimonio);
+    // Chave de COMPARAÇÃO (nunca de exibição — `numeroPatrimonio` acima
+    // preserva o texto bruto da planilha, com zeros à esquerda se houver):
+    // usa a mesma regra de negócio de `tombamento_normalizacao.dart` (zeros
+    // à esquerda de um tombamento só numérico não fazem parte da
+    // identidade), para que duplicidade dentro do arquivo e colisão com o
+    // banco (`existentesPorNumero`, montado pelo controller com a mesma
+    // normalização) sejam detectadas mesmo quando a planilha traz zeros
+    // (ex. "000502510") e o banco não (ex. "502510").
+    linha.numeroPatrimonioNormalizado =
+        normalizarTombamentoParaComparacao(linha.numeroPatrimonio).chaveComparacao;
     linha.numeroSerie = linha.celulas[ImportColumnField.numeroSerie];
     linha.marca = linha.celulas[ImportColumnField.marca];
     linha.modelo = linha.celulas[ImportColumnField.modelo];

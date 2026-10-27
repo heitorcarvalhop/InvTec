@@ -16,6 +16,7 @@ import 'widgets/import_comparacao_resumo_step.dart';
 import 'widgets/import_comparacao_step.dart';
 import 'widgets/import_defaults_step.dart';
 import 'widgets/import_locations_step.dart';
+import 'widgets/import_lote_pendente_banner.dart';
 import 'widgets/import_mapping_step.dart';
 import 'widgets/import_progress_step.dart';
 import 'widgets/import_result_step.dart';
@@ -47,6 +48,13 @@ class PatrimonioImportPage extends ConsumerWidget {
               const SizedBox(height: AppSpacing.lg),
               if (state.mensagemErro != null) ...[
                 _ErroBanner(mensagem: state.mensagemErro!),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              // Só no passo inicial: oferecer "retomar"/"descartar" antes
+              // do usuário escolher um novo arquivo — nunca compete com o
+              // progresso de uma importação já em andamento.
+              if (state.step == ImportStep.selecionarArquivo && state.loteAnteriorPendente != null) ...[
+                ImportLotePendenteBanner(sessao: state.loteAnteriorPendente!),
                 const SizedBox(height: AppSpacing.md),
               ],
               _Conteudo(state: state),

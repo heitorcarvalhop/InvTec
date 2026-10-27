@@ -20,6 +20,10 @@ class EnvConfig {
   static const String _defineSupabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const String _defineSupabasePublishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
   static const String _defineComparacaoExecucaoHabilitada = String.fromEnvironment('COMPARACAO_EXECUCAO_HABILITADA');
+  static const String _defineRetificacaoExecucaoHabilitada = String.fromEnvironment('RETIFICACAO_EXECUCAO_HABILITADA');
+  static const String _defineImportacaoLoteExecucaoHabilitada = String.fromEnvironment(
+    'IMPORTACAO_LOTE_EXECUCAO_HABILITADA',
+  );
 
   /// true quando o ambiente foi selecionado explicitamente via
   /// `--dart-define-from-file` — nesse caso [supabaseUrl]/
@@ -100,6 +104,59 @@ class EnvConfig {
   static String get _comparacaoExecucaoHabilitadaDotenv {
     try {
       return (dotenv.env['COMPARACAO_EXECUCAO_HABILITADA'] ?? '').trim().toLowerCase();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Mesma trava operacional de [comparacaoExecucaoHabilitada], para a
+  /// campanha de retificação cadastral de unidade (plano de reclassificação
+  /// SEMAD): desabilitada por padrão, só liga com
+  /// `RETIFICACAO_EXECUCAO_HABILITADA` explicitamente igual a `"true"`.
+  /// Independente de a migration `retificar_unidade_patrimonio` já existir
+  /// no banco — nenhuma execução real é disparada enquanto isto for
+  /// `false`, mesmo que a sessão seja ADMIN/GESTOR com a permissão
+  /// `patrimonio.rectify_unit`. A prévia/comparação (sempre só leitura)
+  /// nunca passa por aqui.
+  static bool get retificacaoExecucaoHabilitada {
+    final valor = usaDartDefine
+        ? _defineRetificacaoExecucaoHabilitada.trim().toLowerCase()
+        : _retificacaoExecucaoHabilitadaDotenv;
+    return valor == 'true';
+  }
+
+  static String get _retificacaoExecucaoHabilitadaDotenv {
+    try {
+      return (dotenv.env['RETIFICACAO_EXECUCAO_HABILITADA'] ?? '').trim().toLowerCase();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Mesma trava operacional de [comparacaoExecucaoHabilitada]/
+  /// [retificacaoExecucaoHabilitada], para o NOVO caminho de importação em
+  /// LOTE com rastreabilidade/idempotência (`PatrimonioRepository
+  /// .cadastrarLote`, RPC `cadastrar_patrimonio_lote`) — desabilitada por
+  /// padrão, só liga com `IMPORTACAO_LOTE_EXECUCAO_HABILITADA`
+  /// explicitamente igual a `"true"`.
+  ///
+  /// Enquanto `false` (padrão, inclusive em produção até a migration da
+  /// RPC ser CONFIRMADA aplicada lá — ver `docs/database.md`), o assistente
+  /// de importação usa exclusivamente o caminho CONVENCIONAL de sempre
+  /// (`PatrimonioRepository.cadastrar`, sem `operacaoId`/`loteId`/sessão
+  /// retomável) — exatamente como funcionava antes deste caminho em lote
+  /// existir. Nunca ligar isto em produção sem confirmar antes que a
+  /// migration foi aplicada e testada no banco real.
+  static bool get importacaoLoteExecucaoHabilitada {
+    final valor = usaDartDefine
+        ? _defineImportacaoLoteExecucaoHabilitada.trim().toLowerCase()
+        : _importacaoLoteExecucaoHabilitadaDotenv;
+    return valor == 'true';
+  }
+
+  static String get _importacaoLoteExecucaoHabilitadaDotenv {
+    try {
+      return (dotenv.env['IMPORTACAO_LOTE_EXECUCAO_HABILITADA'] ?? '').trim().toLowerCase();
     } catch (_) {
       return '';
     }

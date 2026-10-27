@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/features/patrimonios/data/patrimonio_repository_supabase.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_cadastro_lote.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
@@ -12,6 +13,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonio_search_field.dart'
 import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
 import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
+import 'package:invtec/features/patrimonios/retificacao/domain/retificacao_execucao.dart';
 import 'package:invtec/features/patrimonios/presentation/patrimonios_controller.dart';
 
 import 'fake_patrimonio_repository.dart';
@@ -127,6 +129,10 @@ class _RepositorioComPortoesListar implements PatrimonioRepository {
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio) =>
       _delegado.buscarPorNumeroPatrimonio(numeroPatrimonio);
   @override
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(
+    String codigo,
+  ) => _delegado.buscarPorTombamentoAtualExato(codigo);
+  @override
   Future<List<PatrimonioDetalhe>> buscarPorPrefixoNumeroPatrimonio(
     String prefixo, {
     int limit = 6,
@@ -150,6 +156,30 @@ class _RepositorioComPortoesListar implements PatrimonioRepository {
     String? motivo,
     String? observacaoMovimentacao,
     DateTime? dataMovimentacao,
+  }) => throw UnimplementedError();
+  @override
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
   }) => throw UnimplementedError();
   @override
   Future<Patrimonio> atualizar({
@@ -178,6 +208,10 @@ class _RepositorioComPortoesListar implements PatrimonioRepository {
   Future<ResultadoAplicacaoDecisao?> buscarExecucaoComparacaoPorOperacaoId(
     String operacaoId,
   ) => _delegado.buscarExecucaoComparacaoPorOperacaoId(operacaoId);
+  @override
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
+  ) => _delegado.retificarUnidadePatrimonio(item);
   @override
   Future<List<PatrimonioEncontradoPorAnterior>> buscarPorTombamentoAnterior(
     String termo,

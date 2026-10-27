@@ -75,7 +75,10 @@ void main() {
         padroes: ImportDefaults(origemPadraoId: 'setor-almoxarifado'),
         tiposAtivos: _tipos,
         setoresAtivos: _setores,
-        existentesPorNumero: {'00000001': _existente('00000001')},
+        // Chave normalizada para COMPARAÇÃO (sem zeros à esquerda — mesma
+        // regra de tombamento_normalizacao.dart; é assim que o controller
+        // monta este mapa na prática), não o texto bruto da planilha.
+        existentesPorNumero: {'1': _existente('00000001')},
         numerosSerieExistentesNoBanco: {'DBSER1'},
       );
     });

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:file/memory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -88,6 +89,18 @@ ProviderContainer _criarContainer({
       dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
       authRepositoryProvider.overrideWithValue(auth),
       permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(perfil)),
+      // `true` nesta suíte: o único teste que confirma uma importação de
+      // verdade (ver linha com `cadastrarLoteCallCount`) continua
+      // exercitando o caminho em lote já testado em
+      // `patrimonio_import_controller_test.dart` — o GATE em si (padrão
+      // desligado) tem sua própria suíte dedicada.
+      patrimonioImportControllerProvider.overrideWith(
+        () => PatrimonioImportController(
+          importacaoLoteExecucaoHabilitada: () => true,
+          fileSystem: MemoryFileSystem(),
+          resolverDiretorioPersistencia: () async => '/import-test',
+        ),
+      ),
     ],
   );
   container.listen(patrimonioImportControllerProvider, (_, _) {});
@@ -546,7 +559,7 @@ void main() {
       expect(state.modoComparacaoAdmin, isFalse);
 
       await controller.confirmarImportacao();
-      expect(repo.cadastrarCallCount, 1);
+      expect(repo.cadastrarLoteCallCount, 1);
       expect(repo.atualizarCallCount, 0);
     });
   });

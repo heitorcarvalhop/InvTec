@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/config/platform_info.dart';
 import '../../../../core/responsive/breakpoints.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -29,8 +30,23 @@ class QuickActionsCard extends ConsumerWidget {
     final podeVerPatrimonio = ref.hasPermission('patrimonio.view');
     final podeRegistrarMovimentacao = ref.hasPermission('movimentacao.create');
     final podeGerenciarSei = ref.hasPermission('sei.manage');
+    // Android apenas (leitor de câmera — InvTec 4.0): mesmo gate de
+    // `/patrimonios` (ver `PatrimoniosPage._escanearPatrimonio`), nunca
+    // aparece no Windows desktop. `isAndroidProvider` em vez de
+    // `Platform.isAndroid` direto só existe para isto ser testável em
+    // widget test — ver lib/core/config/platform_info.dart.
+    final podeEscanear = ref.watch(isAndroidProvider);
 
     final acoes = <_AcaoRapida>[
+      // Primeiro da lista (prioridade de acesso rápido ao scanner, pedido
+      // explícito desta melhoria) — a MESMA rota/página do scanner avulso
+      // já usada em `/patrimonios`, nenhuma navegação nova.
+      if (podeEscanear)
+        _AcaoRapida(
+          icon: Icons.qr_code_scanner_outlined,
+          label: 'Escanear patrimônio',
+          onPressed: () => context.push('/patrimonios/escanear'),
+        ),
       if (podeCriarPatrimonio)
         _AcaoRapida(
           icon: Icons.add_circle_outline,

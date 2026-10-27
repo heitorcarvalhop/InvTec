@@ -21,6 +21,9 @@ class FakePermissionsRepository implements PermissionsRepository {
     // ADMIN-only, mesmo critério de patrimonio.compare_update — ver
     // migration 20261019120000 (ainda não aplicada em produção).
     'patrimonio.import_historico',
+    // ADMIN E GESTOR (nunca OPERADOR/CONSULTA) — ver migration local
+    // 20261022140000_add_retificacao_cadastral_unidade.sql, seção 2.
+    'patrimonio.rectify_unit',
     'movimentacao.view',
     'movimentacao.create',
     'setor.view',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invtec/core/config/platform_info.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
 import 'package:invtec/features/auth/data/permissions_repository_supabase.dart';
 import 'package:invtec/features/auth/domain/profile.dart';
@@ -71,6 +72,7 @@ Future<void> _pumpPatrimoniosPage(
   FakeLocalizacaoRepository? localizacaoRepo,
   List<Setor>? setores,
   String? buscaInicial,
+  bool isAndroid = false,
 }) async {
   // Janela desktop "comum" (mesmo padrão usado por outras suítes de página
   // inteira do projeto, ex.: sidebar/tema) — estes são testes de
@@ -106,6 +108,7 @@ Future<void> _pumpPatrimoniosPage(
         localizacaoRepositoryProvider.overrideWithValue(
           localizacaoRepo ?? FakeLocalizacaoRepository(),
         ),
+        isAndroidProvider.overrideWithValue(isAndroid),
       ],
       child: MaterialApp(
         home: Scaffold(body: PatrimoniosPage(buscaInicial: buscaInicial)),
@@ -682,6 +685,43 @@ void main() {
         findsOneWidget,
       );
     });
+  });
+
+  group('botão "Escanear patrimônio" (Android apenas — leitor de câmera)', () {
+    testWidgets(
+      'nunca aparece fora do Android, mesmo para ADMIN',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.admin,
+          patrimonioRepo: FakePatrimonioRepository(),
+          isAndroid: false,
+        );
+
+        expect(
+          find.widgetWithText(OutlinedButton, 'Escanear patrimônio'),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
+      'aparece no Android para qualquer perfil (a pesquisa em si não tem '
+      'gate de permissão — só "Cadastrar patrimônio" depois de não achar)',
+      (tester) async {
+        await _pumpPatrimoniosPage(
+          tester,
+          perfil: ProfilePerfil.consulta,
+          patrimonioRepo: FakePatrimonioRepository(),
+          isAndroid: true,
+        );
+
+        expect(
+          find.widgetWithText(OutlinedButton, 'Escanear patrimônio'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 
   group('siglas de setor na tabela e no filtro', () {

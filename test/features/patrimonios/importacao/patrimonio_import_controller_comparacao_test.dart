@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:file/memory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invtec/features/auth/data/auth_repository_supabase.dart';
@@ -91,6 +92,18 @@ ProviderContainer _criarContainer({required FakePatrimonioRepository repositorio
       dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
       authRepositoryProvider.overrideWithValue(auth),
       permissionsRepositoryProvider.overrideWithValue(FakePermissionsRepository.paraPerfil(perfil)),
+      // `true` nesta suíte: os testes de modo ADMIN "Comparar e Atualizar"
+      // que também confirmam uma importação convencional (sem nunca
+      // chamar `compararParaAdmin`) continuam exercitando o caminho em
+      // lote já testado em `patrimonio_import_controller_test.dart` — o
+      // GATE em si (padrão desligado) tem sua própria suíte dedicada.
+      patrimonioImportControllerProvider.overrideWith(
+        () => PatrimonioImportController(
+          importacaoLoteExecucaoHabilitada: () => true,
+          fileSystem: MemoryFileSystem(),
+          resolverDiretorioPersistencia: () async => '/import-test',
+        ),
+      ),
     ],
   );
   container.listen(patrimonioImportControllerProvider, (_, _) {});
@@ -310,7 +323,7 @@ void main() {
         expect(state.comparacao, isNull);
 
         await controller.confirmarImportacao();
-        expect(repo.cadastrarCallCount, 1);
+        expect(repo.cadastrarLoteCallCount, 1);
         expect(repo.atualizarCallCount, 0);
       },
     );

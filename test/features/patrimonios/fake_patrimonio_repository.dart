@@ -1,6 +1,7 @@
 import 'package:invtec/core/domain/ordenacao_direcao.dart';
 import 'package:invtec/core/errors/app_exception.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio.dart';
+import 'package:invtec/features/patrimonios/domain/patrimonio_cadastro_lote.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_detalhe.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_ordenacao.dart';
 import 'package:invtec/features/patrimonios/domain/patrimonio_repository.dart';
@@ -9,6 +10,7 @@ import 'package:invtec/features/patrimonios/domain/patrimonios_resultado.dart';
 import 'package:invtec/features/patrimonios/domain/tombamento_historico_item.dart';
 import 'package:invtec/features/patrimonios/domain/tombamento_normalizacao.dart';
 import 'package:invtec/features/patrimonios/importacao/domain/comparacao_execucao.dart';
+import 'package:invtec/features/patrimonios/retificacao/domain/retificacao_execucao.dart';
 
 /// Exceção genérica (nunca [AppException]/
 /// [ComparacaoExecucaoFalhouException]) usada por [FakePatrimonioRepository]
@@ -52,6 +54,11 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     this.erroHistoricoAnterior,
     this.historicoTombamentosPorId = const {},
     this.erroHistoricoTombamentosPorId,
+    this.erroBuscarTombamentoAtualExato,
+    this.errosRetificacaoPorPatrimonioId = const {},
+    this.operacaoIdsRetificacaoComFalhaDeRedeSemEscrita = const {},
+    this.operacaoIdsCadastroLoteComFalhaDeRedeSemEscrita = const {},
+    this.operacaoIdsCadastroLoteComRespostaPerdida = const {},
   }) : _itens = [...?itens];
 
   final List<PatrimonioDetalhe> _itens;
@@ -83,6 +90,14 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   /// consultar — simula falha de leitura (nunca deve derrubar a tela de
   /// detalhe; a seção mostra "tentar novamente").
   final Object? erroHistoricoTombamentosPorId;
+
+  /// Quando definido, [buscarPorTombamentoAtualExato] lança em vez de
+  /// consultar — simula falha de rede/permissão nesta busca específica
+  /// (ex.: [AcessoInsuficienteException], para provar que o leitor de
+  /// câmera nunca confunde isso com "não encontrado").
+  final Object? erroBuscarTombamentoAtualExato;
+
+  int buscarPorTombamentoAtualExatoCallCount = 0;
 
   /// Quem "executou" cada [aplicarDecisaoComparacao] (grava
   /// como `criado_por`). Mesmo papel de `autorId` em
@@ -129,6 +144,30 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   int cadastrarCallCount = 0;
   int atualizarCallCount = 0;
 
+  /// Quantas vezes [cadastrarLote] foi chamada (idempotência incluída —
+  /// mesmo papel de [aplicarDecisaoComparacaoCallCount] para o recurso
+  /// irmão de importação em lote).
+  int cadastrarLoteCallCount = 0;
+
+  /// Parâmetros da última chamada a [cadastrarLote] — usado para verificar
+  /// o que foi enviado à "RPC" (operacaoId/loteId/origemArquivo/origemLinha
+  /// inclusive).
+  Map<String, Object?>? ultimoCadastroLote;
+
+  /// operacaoId → simula uma falha de rede ANTES de qualquer escrita (nada
+  /// é gravado; um retry com o mesmo operacaoId executa a operação pela
+  /// primeira vez de verdade).
+  final Set<String> operacaoIdsCadastroLoteComFalhaDeRedeSemEscrita;
+
+  /// operacaoId → a escrita é efetivada normalmente (fica registrada,
+  /// pronta para idempotência), mas a chamada LANÇA em vez de devolver —
+  /// simula "a resposta se perdeu depois que o servidor já gravou". Um
+  /// retry com o MESMO operacaoId encontra a execução já registrada e
+  /// devolve `jaExecutado: true`, sem nenhuma nova escrita.
+  final Set<String> operacaoIdsCadastroLoteComRespostaPerdida;
+
+  final Map<String, Patrimonio> _cadastrosLotePorOperacaoId = {};
+
   /// Quantas vezes [aplicarDecisaoComparacao] foi chamada
   /// (idempotência incluída: uma chamada repetida com o mesmo operacaoId
   /// AINDA conta aqui, mas não soma a [decisoesAplicadas] nem gera uma
@@ -143,6 +182,27 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   final Map<String, ResultadoAplicacaoDecisao> _execucoesPorOperacaoId = {};
   final Map<String, String> _criadoPorPorOperacaoId = {};
   final Map<String, DecisaoItemParaExecutar> _decisaoOriginalPorOperacaoId = {};
+
+  /// patrimonioId → exceção lançada ANTES de qualquer escrita em
+  /// [retificarUnidadePatrimonio] (mesma garantia de
+  /// [RetificacaoExecucaoFalhouException]: recusa síncrona, nada gravado).
+  final Map<String, Object> errosRetificacaoPorPatrimonioId;
+
+  /// operacaoId → simula falha de rede ANTES de qualquer escrita (nada é
+  /// gravado; um retry com o mesmo operacaoId executa pela primeira vez).
+  final Set<String> operacaoIdsRetificacaoComFalhaDeRedeSemEscrita;
+
+  /// Quantas vezes [retificarUnidadePatrimonio] foi chamada (idempotência
+  /// incluída — ver [aplicarDecisaoComparacaoCallCount] para o mesmo papel
+  /// no recurso irmão "Comparar e Atualizar").
+  int retificarUnidadePatrimonioCallCount = 0;
+
+  /// Uma entrada por escrita EFETIVA (nunca por retorno idempotente
+  /// repetido).
+  final List<ItemRetificacaoParaExecutar> retificacoesAplicadas = [];
+
+  final Map<String, ResultadoRetificacaoUnidade> _retificacoesPorOperacaoId = {};
+  final Map<String, ItemRetificacaoParaExecutar> _retificacaoOriginalPorOperacaoId = {};
 
   /// Quantas vezes cada consulta em lote foi chamada — usado para provar
   /// que a comparação de tombamentos da planilha com o banco faz UMA
@@ -239,6 +299,27 @@ class FakePatrimonioRepository implements PatrimonioRepository {
       if (item.patrimonio.numeroPatrimonio == numero) return item.patrimonio;
     }
     return null;
+  }
+
+  /// Reproduz [PatrimonioRepositorySupabase.buscarPorTombamentoAtualExato]:
+  /// igualdade normalizada (zeros à esquerda equivalentes), NUNCA
+  /// substring, e NUNCA sujeita a paginação — percorre todo [_itens], sem
+  /// nenhum `limit`/`offset`, de propósito (é exatamente a garantia que
+  /// esse método precisa dar).
+  @override
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(
+    String codigo,
+  ) async {
+    buscarPorTombamentoAtualExatoCallCount++;
+    final erroConfigurado = erroBuscarTombamentoAtualExato;
+    if (erroConfigurado != null) throw erroConfigurado;
+
+    return _itens
+        .where(
+          (item) =>
+              tombamentosSaoEquivalentes(item.patrimonio.numeroPatrimonio, codigo),
+        )
+        .toList();
   }
 
   @override
@@ -718,6 +799,115 @@ class FakePatrimonioRepository implements PatrimonioRepository {
   }
 
   @override
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
+  }) async {
+    cadastrarLoteCallCount++;
+    ultimoCadastroLote = {
+      'tipoId': tipoId,
+      'destinoId': destinoId,
+      'operacaoId': operacaoId,
+      'loteId': loteId,
+      'numeroPatrimonio': numeroPatrimonio,
+      'numeroSerie': numeroSerie,
+      'marca': marca,
+      'modelo': modelo,
+      'descricao': descricao,
+      'observacao': observacao,
+      'dataAquisicao': dataAquisicao,
+      'origemId': origemId,
+      'localizacaoOrigemId': localizacaoOrigemId,
+      'localizacaoDestinoId': localizacaoDestinoId,
+      'responsavelOrigem': responsavelOrigem,
+      'responsavelDestino': responsavelDestino,
+      'motivo': motivo,
+      'observacaoMovimentacao': observacaoMovimentacao,
+      'dataMovimentacao': dataMovimentacao,
+      'origemArquivo': origemArquivo,
+      'origemLinha': origemLinha,
+    };
+
+    // Idempotência: um `operacaoId` já processado nunca gera uma nova
+    // escrita — devolve o MESMO patrimônio já criado, com `jaExecutado:
+    // true` (nunca tratado como erro por quem chama).
+    final jaCriado = _cadastrosLotePorOperacaoId[operacaoId];
+    if (jaCriado != null) {
+      return ResultadoCadastroLote(patrimonio: jaCriado, jaExecutado: true);
+    }
+
+    if (operacaoIdsCadastroLoteComFalhaDeRedeSemEscrita.contains(operacaoId)) {
+      throw const FalhaDeRedeSimulada();
+    }
+
+    if (erro != null) throw erro!;
+
+    final numero = normalizarNumeroPatrimonio(numeroPatrimonio);
+    if (numero != null &&
+        _itens.any((item) => item.patrimonio.numeroPatrimonio == numero)) {
+      throw const AppException('Já existe um patrimônio com este número.');
+    }
+
+    final responsavel =
+        (responsavelDestino == null || responsavelDestino.trim().isEmpty)
+        ? null
+        : responsavelDestino.trim();
+
+    final novo = Patrimonio(
+      id: 'novo-lote-${_itens.length + 1}',
+      numeroPatrimonio: numero,
+      numeroSerie: numeroSerie,
+      tipoId: tipoId,
+      marca: marca,
+      modelo: modelo,
+      descricao: descricao,
+      observacao: observacao,
+      status: responsavel == null
+          ? PatrimonioStatus.disponivel
+          : PatrimonioStatus.emUso,
+      setorAtualId: destinoId,
+      responsavelAtual: responsavel,
+      dataAquisicao: dataAquisicao,
+      dataCadastro: DateTime.now(),
+      criadoPor: 'fake-user-id',
+      atualizadoEm: DateTime.now(),
+    );
+    _itens.add(
+      PatrimonioDetalhe(
+        patrimonio: novo,
+        tipoNome: 'Tipo Fake',
+        setorNome: 'Setor Fake',
+      ),
+    );
+    _cadastrosLotePorOperacaoId[operacaoId] = novo;
+
+    if (operacaoIdsCadastroLoteComRespostaPerdida.contains(operacaoId)) {
+      throw const FalhaDeRedeSimulada();
+    }
+
+    return ResultadoCadastroLote(patrimonio: novo, jaExecutado: false);
+  }
+
+  @override
   Future<Patrimonio> atualizar({
     required String id,
     String? numeroPatrimonio,
@@ -923,6 +1113,126 @@ class FakePatrimonioRepository implements PatrimonioRepository {
     if (operacaoIdsComRespostaPerdida.contains(decisao.operacaoId)) {
       throw const FalhaDeRedeSimulada();
     }
+
+    return resultado;
+  }
+
+  @override
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
+  ) async {
+    retificarUnidadePatrimonioCallCount++;
+
+    final jaExecutado = _retificacoesPorOperacaoId[item.operacaoId];
+    if (jaExecutado != null) {
+      final original = _retificacaoOriginalPorOperacaoId[item.operacaoId]!;
+      final identico =
+          original.patrimonioId == item.patrimonioId &&
+          original.tombamentoEsperado == item.tombamentoEsperado &&
+          original.versaoEsperada == item.versaoEsperada &&
+          original.setorOrigemEsperadoId == item.setorOrigemEsperadoId &&
+          original.setorDestinoId == item.setorDestinoId &&
+          original.localizacaoDestinoId == item.localizacaoDestinoId &&
+          original.justificativa == item.justificativa;
+      if (!identico) {
+        throw falhaDeExecucaoRetificacao(
+          codigo: 'P0041',
+          mensagemDoServidor: 'operacao_id já foi utilizado com parâmetros ou usuário diferentes',
+        );
+      }
+      return ResultadoRetificacaoUnidade(
+        patrimonioId: jaExecutado.patrimonioId,
+        setorOrigemId: jaExecutado.setorOrigemId,
+        setorDestinoId: jaExecutado.setorDestinoId,
+        jaExecutado: true,
+        movimentacaoId: jaExecutado.movimentacaoId,
+        concluidoEm: jaExecutado.concluidoEm,
+      );
+    }
+
+    if (operacaoIdsRetificacaoComFalhaDeRedeSemEscrita.contains(item.operacaoId)) {
+      throw const FalhaDeRedeSimulada();
+    }
+
+    final erroDeclarado = errosRetificacaoPorPatrimonioId[item.patrimonioId];
+    if (erroDeclarado != null) throw erroDeclarado;
+
+    final index = _itens.indexWhere((linha) => linha.patrimonio.id == item.patrimonioId);
+    if (index < 0) {
+      throw falhaDeExecucaoRetificacao(codigo: 'P0002', mensagemDoServidor: 'Patrimônio não encontrado');
+    }
+    final atual = _itens[index];
+
+    if (atual.patrimonio.atualizadoEm != item.versaoEsperada) {
+      throw falhaDeExecucaoRetificacao(
+        codigo: 'P0040',
+        mensagemDoServidor: 'O patrimônio foi alterado por outra operação desde a exportação do plano',
+      );
+    }
+    if (!tombamentosSaoEquivalentes(atual.patrimonio.numeroPatrimonio, item.tombamentoEsperado)) {
+      throw falhaDeExecucaoRetificacao(
+        codigo: 'P0044',
+        mensagemDoServidor: 'Tombamento divergente do plano exportado',
+      );
+    }
+    if (atual.patrimonio.setorAtualId != item.setorOrigemEsperadoId) {
+      throw falhaDeExecucaoRetificacao(
+        codigo: 'P0046',
+        mensagemDoServidor: 'Unidade atual divergente do plano exportado',
+      );
+    }
+    if (item.setorDestinoId == atual.patrimonio.setorAtualId) {
+      throw falhaDeExecucaoRetificacao(
+        codigo: 'P0045',
+        mensagemDoServidor: 'Patrimônio já pertence à unidade de destino informada',
+      );
+    }
+
+    retificacoesAplicadas.add(item);
+
+    // Mesma regra já homologada dentro de RETIFICACAO_CADASTRAL/
+    // registrar_movimentacao: responsável e status NUNCA mudam; a
+    // localização é sempre limpa (nunca deixada presa à unidade anterior),
+    // já que esta campanha nunca resolve uma localização de destino.
+    final setorOrigemId = atual.patrimonio.setorAtualId;
+    final patrimonioAtualizado = Patrimonio(
+      id: atual.patrimonio.id,
+      numeroPatrimonio: atual.patrimonio.numeroPatrimonio,
+      numeroSerie: atual.patrimonio.numeroSerie,
+      tipoId: atual.patrimonio.tipoId,
+      marca: atual.patrimonio.marca,
+      modelo: atual.patrimonio.modelo,
+      descricao: atual.patrimonio.descricao,
+      observacao: atual.patrimonio.observacao,
+      status: atual.patrimonio.status,
+      setorAtualId: item.setorDestinoId,
+      localizacaoAtualId: item.localizacaoDestinoId,
+      responsavelAtual: atual.patrimonio.responsavelAtual,
+      dataAquisicao: atual.patrimonio.dataAquisicao,
+      dataCadastro: atual.patrimonio.dataCadastro,
+      criadoPor: atual.patrimonio.criadoPor,
+      atualizadoEm: DateTime.now(),
+    );
+
+    _itens[index] = PatrimonioDetalhe(
+      patrimonio: patrimonioAtualizado,
+      tipoNome: atual.tipoNome,
+      setorNome: item.setorDestinoNomeExibicao ?? atual.setorNome,
+      setorSigla: null,
+      localizacaoNome: item.localizacaoDestinoId != null ? 'Localização fake' : null,
+      criadoPorNome: atual.criadoPorNome,
+    );
+
+    final resultado = ResultadoRetificacaoUnidade(
+      patrimonioId: item.patrimonioId,
+      setorOrigemId: setorOrigemId,
+      setorDestinoId: item.setorDestinoId,
+      jaExecutado: false,
+      movimentacaoId: 'movimentacao-fake-${item.operacaoId}',
+      concluidoEm: DateTime.now(),
+    );
+    _retificacoesPorOperacaoId[item.operacaoId] = resultado;
+    _retificacaoOriginalPorOperacaoId[item.operacaoId] = item;
 
     return resultado;
   }

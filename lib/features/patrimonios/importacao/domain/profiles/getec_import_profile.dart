@@ -3,224 +3,158 @@ import '../../../../setores/domain/setor.dart';
 import '../import_column_field.dart';
 import '../import_column_mapping.dart';
 import '../text_similarity.dart';
+import 'unit_import_profile.dart';
 
 /// Regras específicas da planilha real usada pela GETEC ("aba
 /// RelatorioBemPermanente") — nada aqui é usado a menos que o perfil seja
 /// explicitamente detectado E ativado pelo usuário; o importador genérico
 /// (`ImportAnalyzer`, `ImportColumnField`) nunca importa nada deste arquivo
 /// e continua funcionando de forma idêntica sem ele.
+///
+/// Fachada concreta sobre [UnitImportProfile] (estrutura genérica,
+/// orientada a dados, pronta para outras unidades): toda a lógica de
+/// detecção/mapeamento/resolução de localização mora em [perfil]; esta
+/// classe só expõe os mesmos métodos estáticos de sempre, delegando a ele,
+/// mais as regras de negócio exclusivas da GETEC (tombamento anterior,
+/// "BAIXAS LOCALIZADAS") que não fazem parte da estrutura genérica.
 class GetecImportProfile {
   const GetecImportProfile._();
-
-  static const mensagemDeteccao = 'Formato de inventário GETEC reconhecido.';
-
-  /// Sugestão de UX — nunca aplicada por cima de um motivo que o usuário
-  /// já tenha digitado. Deixa explícito no próprio motivo da
-  /// movimentação que a origem histórica é desconhecida, já que a planilha
-  /// não tem nenhuma coluna de origem.
-  static const motivoPadraoSugerido =
-      'Carga inicial do inventário patrimonial da GETEC - origem histórica não informada.';
-
-  /// Sigla usada para identificar a gerência GETEC entre os setores ativos
-  /// carregados do Supabase — mesmo critério já usado no preflight real
-  /// (`ImportPreflight.validarGerenciaUnica(sigla: 'GETEC')`).
-  static const siglaGerencia = 'GETEC';
-
-  /// Encontra a gerência GETEC entre [setoresAtivos] — por SIGLA, nunca por
-  /// UUID hardcoded (quem chamar recebe o `Setor` real, com o id
-  /// verdadeiro). `null` quando não há exatamente UMA gerência com essa
-  /// sigla entre os setores ativos: para este perfil, todo bem da carga
-  /// pertence à GETEC, então uma ausência ou ambiguidade é bloqueante, nunca
-  /// resolvida silenciosamente.
-  static Setor? encontrarGerenciaGetec(List<Setor> setoresAtivos) {
-    final alvo = normalizarTextoComparacao(siglaGerencia);
-    final candidatos = setoresAtivos.where(
-      (s) => normalizarTextoComparacao(s.sigla ?? '') == alvo,
-    ).toList();
-    return candidatos.length == 1 ? candidatos.single : null;
-  }
-
-  /// Cabeçalhos reais da planilha, já como texto normalizado (sem
-  /// acento/maiúsculas/pontuação) → campo do InvTec correspondente.
-  static const _cabecalhosAlvo = <ImportColumnField, String>{
-    ImportColumnField.numeroPatrimonio: 'tombamento',
-    ImportColumnField.tombamentoAnterior: 'tomb anterior',
-    ImportColumnField.descricao: 'descricao',
-    // A coluna "localizacao" da planilha é a Localização dentro da
-    // gerência GETEC — NUNCA o setor/gerência em si. A gerência da carga
-    // inteira é fixa (destino padrão da importação, configurado pelo
-    // usuário como GETEC), nunca derivada desta coluna.
-    ImportColumnField.localizacao: 'localizacao',
-    ImportColumnField.marca: 'marca',
-    ImportColumnField.numeroSerie: 'n serie',
-  };
 
   /// Campos em que "10" é um marcador legado de "não informado" — só se
   /// aplica quando este perfil está ativo, nunca globalmente.
   static const camposComSentinela10 = {ImportColumnField.numeroSerie, ImportColumnField.tombamentoAnterior};
 
-  static String _normalizarCabecalho(Object? valor) {
-    final texto = valor?.toString() ?? '';
-    return normalizarTextoComparacao(
-      texto,
-    ).replaceAll('.', '').replaceAll('_', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
+  /// Os 15 nomes OFICIAIS de localização física cadastrados no InvTec para
+  /// a gerência GETEC, tal como devem existir em `Localizacao.nome`.
+  static const _nomesLocalizacoesOficiais = [
+    'GETEC - UNIVERSITÁRIO',
+    'SEDE - PARQUE AMAZÔNIA - PISO I',
+    'HOME OFFICE',
+    'PARQUE AMAZÔNIA - RACK PISO II',
+    'GETEC-PPLT',
+    'DATACENTER - UNIVERSITÁRIO',
+    'PARQUE AMAZÔNIA - RACK GABINETE',
+    'SITUAÇÃO/SITUADA - PA',
+    'SEDE - PARQUE AMAZÔNIA PISO II',
+    'GETEC - LOBO GUARA',
+    'GETEC - CORUJA SUINDARA',
+    'GETEC - ONÇA PINTADA',
+    'SALA DOS INSERVÍVEIS',
+    'GETEC - CANIDÉ',
+    'SEMAD - UNIVERSITÁRIO',
+  ];
+
+  /// Instância concreta da estrutura genérica [UnitImportProfile] com todas
+  /// as regras da GETEC — sigla, cabeçalhos reais, localizações oficiais,
+  /// apelido conhecido e valores sem localização. `static final` (não
+  /// `const`): [UnitImportProfile] pré-computa mapas normalizados no
+  /// construtor.
+  static final UnitImportProfile perfil = UnitImportProfile(
+    sigla: 'GETEC',
+    nomeCompleto: 'GERÊNCIA DE TECNOLOGIA',
+    // Cabeçalhos reais da planilha, já como texto normalizado (sem
+    // acento/maiúsculas/pontuação) → campo do InvTec correspondente. A
+    // coluna "localizacao" da planilha é a Localização dentro da gerência
+    // GETEC — NUNCA o setor/gerência em si: a gerência da carga inteira é
+    // fixa (destino padrão da importação), nunca derivada desta coluna.
+    cabecalhosAlvo: const {
+      ImportColumnField.numeroPatrimonio: 'tombamento',
+      ImportColumnField.tombamentoAnterior: 'tomb anterior',
+      ImportColumnField.descricao: 'descricao',
+      ImportColumnField.localizacao: 'localizacao',
+      ImportColumnField.marca: 'marca',
+      ImportColumnField.numeroSerie: 'n serie',
+    },
+    // Exige as duas colunas mais distintivas (tombamento + descrição) e ao
+    // menos 4 das 6 colunas conhecidas — suficiente para não disparar em
+    // falso numa planilha genérica que só por acaso tenha uma coluna
+    // "Descrição" ou "Marca".
+    cabecalhosObrigatoriosDeteccao: const {'tombamento', 'descricao'},
+    minimoCamposReconhecidosDeteccao: 4,
+    camposComSentinelaAusencia: camposComSentinela10,
+    ehSentinelaAusencia: (valor) =>
+        (valor is num && valor == 10) || (valor is String && valor.trim() == '10'),
+    nomesLocalizacoesOficiais: _nomesLocalizacoesOficiais,
+    // Forma antiga/alternativa usada na planilha para um nome oficial já
+    // listado acima — hoje só "SITUAÇÃO - PA" (planilha) → "SITUAÇÃO/
+    // SITUADA - PA" (nome oficial cadastrado; PA = Parque Amazônia).
+    apelidosLocalizacao: const {'SITUAÇÃO - PA': 'SITUAÇÃO/SITUADA - PA'},
+    // Valores da coluna "localizacao" que a GETEC usa para dizer
+    // explicitamente que aquele registro NÃO tem localização física
+    // associada — nunca tratados como pendência nem erro.
+    valoresSemLocalizacaoConhecidos: const ['INTANGÍVEIS', 'TI - SOFTWARE', 'BAIXAS LOCALIZADAS'],
+    motivoPadraoSugerido:
+        'Carga inicial do inventário patrimonial da GETEC - origem histórica não informada.',
+    mensagemDeteccao: 'Formato de inventário GETEC reconhecido.',
+  );
+
+  static String get mensagemDeteccao => perfil.mensagemDeteccao;
+
+  /// Sugestão de UX — nunca aplicada por cima de um motivo que o usuário
+  /// já tenha digitado.
+  static String get motivoPadraoSugerido => perfil.motivoPadraoSugerido;
+
+  /// Sigla usada para identificar a gerência GETEC entre os setores ativos
+  /// carregados do Supabase — a GETEC sempre tem sigla oficial cadastrada.
+  static String get siglaGerencia => perfil.sigla!;
+
+  /// Encontra a gerência GETEC entre [setoresAtivos] — por SIGLA, nunca por
+  /// UUID hardcoded. `null` quando não há exatamente UMA gerência com essa
+  /// sigla entre os setores ativos: para este perfil, todo bem da carga
+  /// pertence à GETEC, então uma ausência ou ambiguidade é bloqueante, nunca
+  /// resolvida silenciosamente.
+  static Setor? encontrarGerenciaGetec(List<Setor> setoresAtivos) => perfil.encontrarGerencia(setoresAtivos);
 
   /// Reconhece o formato pelo CONJUNTO de cabeçalhos, nunca pelo nome da
-  /// aba. Exige as duas colunas mais distintivas (tombamento + descrição) e
-  /// ao menos 4 das 6 colunas conhecidas — suficiente para não disparar em
-  /// falso numa planilha genérica que só por acaso tenha uma coluna
-  /// "Descrição" ou "Marca".
-  static bool detectar(List<Object?> cabecalho) {
-    final normalizados = cabecalho.map(_normalizarCabecalho).toSet();
-
-    var encontrados = 0;
-    for (final alvo in _cabecalhosAlvo.values) {
-      if (normalizados.contains(alvo)) encontrados++;
-    }
-
-    return normalizados.contains('tombamento') && normalizados.contains('descricao') && encontrados >= 4;
-  }
+  /// aba.
+  static bool detectar(List<Object?> cabecalho) => perfil.detectar(cabecalho);
 
   /// Mapeamento automático sugerido — ainda passa pela etapa de revisão do
   /// usuário como qualquer outra sugestão de mapeamento.
-  static ImportColumnMapping mapeamentoSugerido(List<Object?> cabecalho) {
-    var mapeamento = ImportColumnMapping.vazio;
-    for (var coluna = 0; coluna < cabecalho.length; coluna++) {
-      final normalizado = _normalizarCabecalho(cabecalho[coluna]);
-      for (final entry in _cabecalhosAlvo.entries) {
-        if (entry.value == normalizado) {
-          mapeamento = mapeamento.definindo(entry.key, coluna);
-          break;
-        }
-      }
-    }
-    return mapeamento;
-  }
+  static ImportColumnMapping mapeamentoSugerido(List<Object?> cabecalho) => perfil.mapeamentoSugerido(cabecalho);
 
   /// Valor textual/numericamente equivalente a "10" vira ausência de
   /// informação nos campos [camposComSentinela10].
-  static Object? limparSentinela10(Object? valor) {
-    if (valor == null) return null;
-    if (valor is num && valor == 10) return null;
-    if (valor is String && valor.trim() == '10') return null;
-    return valor;
-  }
+  static Object? limparSentinela10(Object? valor) => perfil.limparSentinela(valor);
 
   // ---------------------------------------------------------------------
   // Mapeamento oficial de localizações
   // ---------------------------------------------------------------------
 
-  /// Os 15 nomes OFICIAIS de localização física cadastrados no InvTec para
-  /// a gerência GETEC, tal como devem existir em `Localizacao.nome`. Chave
-  /// já normalizada (ver `normalizarTextoComparacao`) para comparação; o
-  /// valor é o nome oficial exato — usado só para PROCURAR pelo nome entre
-  /// as localizações carregadas do Supabase, nunca um UUID hardcoded (a
-  /// resolução real de UUID acontece em [resolverLocalizacao], contra a
-  /// lista de `Localizacao` já carregada da gerência).
-  static final Map<String, String> _nomesOficiaisConhecidos = {
-    for (final nome in const [
-      'GETEC - UNIVERSITÁRIO',
-      'SEDE - PARQUE AMAZÔNIA - PISO I',
-      'HOME OFFICE',
-      'PARQUE AMAZÔNIA - RACK PISO II',
-      'GETEC-PPLT',
-      'DATACENTER - UNIVERSITÁRIO',
-      'PARQUE AMAZÔNIA - RACK GABINETE',
-      'SITUAÇÃO/SITUADA - PA',
-      'SEDE - PARQUE AMAZÔNIA PISO II',
-      'GETEC - LOBO GUARA',
-      'GETEC - CORUJA SUINDARA',
-      'GETEC - ONÇA PINTADA',
-      'SALA DOS INSERVÍVEIS',
-      'GETEC - CANIDÉ',
-      'SEMAD - UNIVERSITÁRIO',
-    ])
-      normalizarTextoComparacao(nome): nome,
-  };
-
-  /// Formas antigas/alternativas usadas na planilha para um nome oficial já
-  /// listado em [_nomesOficiaisConhecidos] — hoje só "SITUAÇÃO - PA"
-  /// (planilha) → "SITUAÇÃO/SITUADA - PA" (nome oficial cadastrado no
-  /// InvTec; PA = Parque Amazônia). Chave também normalizada.
-  static final Map<String, String> _apelidosConhecidos = {
-    normalizarTextoComparacao('SITUAÇÃO - PA'): 'SITUAÇÃO/SITUADA - PA',
-  };
-
-  /// Valores da coluna "localizacao" que a GETEC usa para dizer
-  /// explicitamente que aquele registro NÃO tem localização física
-  /// associada — nunca tratados como pendência nem erro: a ausência de
-  /// localização é a decisão CONHECIDA e correta para eles.
-  static final Set<String> _semLocalizacaoConhecidos = {
-    for (final texto in const ['INTANGÍVEIS', 'TI - SOFTWARE', 'BAIXAS LOCALIZADAS']) normalizarTextoComparacao(texto),
-  };
-
   /// `true` quando [texto] é um dos valores conhecidos que explicitamente
   /// NÃO representam uma localização física — usado para decidir
-  /// `localizacaoDestinoId = null` sem gerar pendência nem erro (nunca um
-  /// caso "não resolvido").
-  static bool ehValorSemLocalizacaoConhecido(String texto) =>
-      _semLocalizacaoConhecidos.contains(normalizarTextoComparacao(texto));
+  /// `localizacaoDestinoId = null` sem gerar pendência nem erro.
+  static bool ehValorSemLocalizacaoConhecido(String texto) => perfil.ehValorSemLocalizacaoConhecido(texto);
 
   static final String _baixasLocalizadasNormalizado = normalizarTextoComparacao('BAIXAS LOCALIZADAS');
 
   /// `true` quando [texto] é especificamente "BAIXAS LOCALIZADAS" — nunca os
-  /// outros dois valores de [_semLocalizacaoConhecidos] (INTANGÍVEIS/TI -
+  /// outros dois valores de "sem localização conhecida" (INTANGÍVEIS/TI -
   /// SOFTWARE). Usado só para decidir quando anexar a nota de recuperação em
   /// `observacao` — decisão de negócio confirmada: um bem nesta localização
   /// foi baixado por não localização no passado, mas foi encontrado e
-  /// retornou à GETEC, então NÃO indica baixa atual.
+  /// retornou à GETEC, então NÃO indica baixa atual. Regra exclusiva da
+  /// GETEC, fora da estrutura genérica de [UnitImportProfile].
   static bool ehBaixasLocalizadas(String texto) => normalizarTextoComparacao(texto) == _baixasLocalizadasNormalizado;
 
-  /// Nome OFICIAL cadastrado no InvTec para [texto], se ele for um dos 15
+  /// Nome OFICIAL cadastrado no InvTec para [texto], se ele for um dos
   /// valores conhecidos da planilha (identidade) ou um apelido conhecido
   /// (ex.: "SITUAÇÃO - PA" → "SITUAÇÃO/SITUADA - PA") — `null` se [texto]
-  /// não é um valor de localização física conhecido. Nunca aproxima nem
-  /// adivinha: só reconhece o conjunto explicitamente listado acima.
-  static String? nomeOficialConhecido(String texto) {
-    final chave = normalizarTextoComparacao(texto);
-    return _apelidosConhecidos[chave] ?? _nomesOficiaisConhecidos[chave];
-  }
+  /// não é um valor de localização física conhecido.
+  static String? nomeOficialConhecido(String texto) => perfil.nomeOficialConhecido(texto);
 
   /// Pré-processa as linhas brutas da planilha (uma única passagem, sem
   /// N+1) antes de entregá-las ao `ImportAnalyzer` genérico: aplica a regra
   /// do "10". Não mexe na coluna de localização em si: a resolução contra
   /// `Localizacao` acontece depois, fora do `ImportAnalyzer` genérico (ver
   /// `PatrimonioImportController`).
-  ///
-  /// Nunca sinaliza "possível baixa" pela localização conter a palavra
-  /// "baixa": para a GETEC, "BAIXAS LOCALIZADAS" é uma decisão de negócio
-  /// conhecida (bem recuperado/relocalizado, nunca baixado atualmente). Ver
-  /// `ehBaixasLocalizadas`.
   static GetecLinhasPreparadas prepararLinhas({
     required List<List<Object?>> linhas,
     required int indiceCabecalho,
     required ImportColumnMapping mapeamento,
   }) {
-    final colunaSerie = mapeamento.colunaDe(ImportColumnField.numeroSerie);
-    final colunaTombAnterior = mapeamento.colunaDe(ImportColumnField.tombamentoAnterior);
-
-    final resultado = <List<Object?>>[];
-
-    for (var i = 0; i < linhas.length; i++) {
-      if (i <= indiceCabecalho) {
-        resultado.add(linhas[i]);
-        continue;
-      }
-
-      final nova = List<Object?>.from(linhas[i]);
-
-      if (colunaSerie != null && colunaSerie < nova.length) {
-        nova[colunaSerie] = limparSentinela10(nova[colunaSerie]);
-      }
-      if (colunaTombAnterior != null && colunaTombAnterior < nova.length) {
-        nova[colunaTombAnterior] = limparSentinela10(nova[colunaTombAnterior]);
-      }
-
-      resultado.add(nova);
-    }
-
-    return GetecLinhasPreparadas(linhas: resultado);
+    final preparo = perfil.prepararLinhas(linhas: linhas, indiceCabecalho: indiceCabecalho, mapeamento: mapeamento);
+    return GetecLinhasPreparadas(linhas: preparo.linhas);
   }
 
   /// Localizações únicas da planilha com sua contagem — uma única
@@ -230,69 +164,34 @@ class GetecImportProfile {
     required int indiceCabecalho,
     required int colunaLocalizacao,
   }) {
-    final contagemPorChave = <String, int>{};
-    final textoOriginalPorChave = <String, String>{};
-
-    for (var i = indiceCabecalho + 1; i < linhas.length; i++) {
-      final linha = linhas[i];
-      if (colunaLocalizacao >= linha.length) continue;
-      final texto = linha[colunaLocalizacao]?.toString().trim();
-      if (texto == null || texto.isEmpty) continue;
-
-      final chave = normalizarTextoComparacao(texto);
-      contagemPorChave.update(chave, (valor) => valor + 1, ifAbsent: () => 1);
-      textoOriginalPorChave.putIfAbsent(chave, () => texto);
-    }
-
-    final resultado = contagemPorChave.entries
-        .map(
-          (entry) => GetecLocalizacaoEncontrada(texto: textoOriginalPorChave[entry.key]!, contagem: entry.value),
-        )
-        .toList()
-      ..sort((a, b) => b.contagem.compareTo(a.contagem));
-    return resultado;
+    final resultado = UnitImportProfile.localizacoesUnicas(
+      linhas: linhas,
+      indiceCabecalho: indiceCabecalho,
+      colunaLocalizacao: colunaLocalizacao,
+    );
+    return resultado.map((r) => GetecLocalizacaoEncontrada(texto: r.texto, contagem: r.contagem)).toList();
   }
 
   /// Resolve [texto] contra uma `Localizacao` ativa (por nome ou sigla)
-  /// dentro da gerência já carregada — usado tanto para marcar "OK" no
-  /// resumo de localizações quanto para achar automaticamente as que já
-  /// existem, sem exigir mapeamento manual repetido.
-  static Localizacao? resolverLocalizacao(String texto, List<Localizacao> localizacoesDaGerencia) {
-    // Canonicaliza um apelido/forma antiga conhecida (ex.: "SITUAÇÃO - PA")
-    // para o nome oficial ANTES de comparar — nunca resolve para um UUID
-    // direto, só troca o texto a procurar entre as localizações já
-    // carregadas da gerência.
-    final chave = normalizarTextoComparacao(nomeOficialConhecido(texto) ?? texto);
-    for (final localizacao in localizacoesDaGerencia) {
-      if (normalizarTextoComparacao(localizacao.nome) == chave) return localizacao;
-      final sigla = localizacao.sigla;
-      if (sigla != null && sigla.trim().isNotEmpty && normalizarTextoComparacao(sigla) == chave) {
-        return localizacao;
-      }
-    }
-    return null;
-  }
+  /// dentro da gerência já carregada.
+  static Localizacao? resolverLocalizacao(String texto, List<Localizacao> localizacoesDaGerencia) =>
+      perfil.resolverLocalizacao(texto, localizacoesDaGerencia);
 
   /// `true` se [texto] já resolve sozinho contra uma localização ativa da
   /// gerência, já tem um mapeamento manual escolhido, ou já foi
-  /// explicitamente decidido "importar sem localização" — usado só para
-  /// marcar "OK" no resumo de localizações, sem decidir nada sozinho.
+  /// explicitamente decidido "importar sem localização".
   static bool localizacaoResolvida(
     String texto,
     List<Localizacao> localizacoesDaGerencia,
     Map<String, String> mapeamentoLocalizacoes,
     Set<String> localizacoesSemMapeamento,
-  ) {
-    final chave = normalizarTextoComparacao(texto);
-    if (mapeamentoLocalizacoes.containsKey(chave)) return true;
-    if (localizacoesSemMapeamento.contains(chave)) return true;
-    if (ehValorSemLocalizacaoConhecido(texto)) return true;
-    return resolverLocalizacao(texto, localizacoesDaGerencia) != null;
-  }
+  ) => perfil.localizacaoResolvida(texto, localizacoesDaGerencia, mapeamentoLocalizacoes, localizacoesSemMapeamento);
 
   /// Preserva o tombamento anterior em `observacao`, combinando de forma
   /// legível com qualquer observação já existente e sem duplicar a mesma
-  /// anotação (nem ao atualizar um patrimônio já existente).
+  /// anotação (nem ao atualizar um patrimônio já existente). Regra
+  /// exclusiva da GETEC (a planilha tem uma coluna "Tomb anterior" própria),
+  /// fora da estrutura genérica.
   static String? mesclarObservacaoComTombamentoAnterior({
     required String? observacaoBase,
     required String? tombamentoAnteriorTexto,

@@ -1,6 +1,8 @@
 import '../../../core/domain/ordenacao_direcao.dart';
 import '../importacao/domain/comparacao_execucao.dart';
+import '../retificacao/domain/retificacao_execucao.dart';
 import 'patrimonio.dart';
+import 'patrimonio_cadastro_lote.dart';
 import 'patrimonio_detalhe.dart';
 import 'patrimonio_ordenacao.dart';
 import 'patrimonio_search_field.dart';
@@ -30,6 +32,28 @@ abstract class PatrimonioRepository {
   Future<PatrimonioDetalhe?> buscarDetalhePorId(String id);
 
   Future<Patrimonio?> buscarPorNumeroPatrimonio(String numeroPatrimonio);
+
+  /// Busca EXATA (nunca substring, nunca sujeita a paginação) por [codigo]
+  /// no tombamento ATUAL — mesma igualdade normalizada de zeros à esquerda
+  /// usada em todo o projeto (ver `normalizarTombamentoParaComparacao`).
+  ///
+  /// Ao contrário de [listar] (ILIKE `%...%`, pensado para o humano
+  /// revisar uma LISTA de candidatos, com paginação — então um
+  /// `numero_patrimonio` existente mas fora da página retornada pode
+  /// nunca aparecer) e de [buscarPorPrefixoNumeroPatrimonio] (prefixo, com
+  /// teto fixo de resultados), este método existe para decidir IDENTIDADE
+  /// automaticamente (leitor de código de barras): nunca pode perder a
+  /// correspondência verdadeira só porque ela "não coube" em uma página.
+  ///
+  /// Devolve TODOS os patrimônios cuja chave normalizada bate com
+  /// [codigo] — 0 ou 1 no caso comum; mais de 1 é uma anomalia de dados
+  /// (duplicidade), nunca resolvida/escolhida automaticamente aqui.
+  ///
+  /// Lança [AcessoInsuficienteException] (nunca [AppException] genérica)
+  /// quando a própria consulta é recusada por falta de permissão — quem
+  /// chama precisa diferenciar isso de "não encontrado" e de uma falha de
+  /// rede comum.
+  Future<List<PatrimonioDetalhe>> buscarPorTombamentoAtualExato(String codigo);
 
   /// Busca rápida por PREFIXO de `numero_patrimonio` (ex.: "3636" encontra
   /// "3636001"/"3636127", nunca "1236360") — usada pelo diálogo "Consultar
@@ -142,6 +166,41 @@ abstract class PatrimonioRepository {
     DateTime? dataMovimentacao,
   });
 
+  /// Cadastra um patrimônio novo dentro de uma IMPORTAÇÃO EM LOTE, via
+  /// `cadastrar_patrimonio_lote` — os mesmos efeitos de [cadastrar]
+  /// (cadastro + movimentação inicial ENTRADA, atomicamente), mais
+  /// [operacaoId] (idempotência: reenviar a MESMA chamada após um resultado
+  /// de rede desconhecido é seguro — nunca cadastra duas vezes; ver
+  /// [ResultadoCadastroLote.jaExecutado]), [loteId] (agrupa todas as linhas
+  /// de uma mesma rodada de confirmação da importação) e
+  /// [origemArquivo]/[origemLinha] (rastreabilidade: de qual arquivo/linha
+  /// da planilha este patrimônio veio). [operacaoId] deve ser gerado UMA
+  /// única vez por linha e reenviado IDÊNTICO em qualquer retry — nunca
+  /// recriado.
+  Future<ResultadoCadastroLote> cadastrarLote({
+    required String tipoId,
+    required String destinoId,
+    required String operacaoId,
+    required String loteId,
+    String? numeroPatrimonio,
+    String? numeroSerie,
+    String? marca,
+    String? modelo,
+    String? descricao,
+    String? observacao,
+    DateTime? dataAquisicao,
+    String? origemId,
+    String? localizacaoOrigemId,
+    String? localizacaoDestinoId,
+    String? responsavelOrigem,
+    String? responsavelDestino,
+    String? motivo,
+    String? observacaoMovimentacao,
+    DateTime? dataMovimentacao,
+    String? origemArquivo,
+    int? origemLinha,
+  });
+
   /// Atualiza somente metadados (nunca status/setor/responsável — esses só
   /// mudam por movimentação registrada, ver docs/database.md).
   Future<Patrimonio> atualizar({
@@ -233,5 +292,21 @@ abstract class PatrimonioRepository {
   /// si, então nenhum gate adicional é necessário no cliente.
   Future<List<TombamentoHistoricoItem>> buscarHistoricoTombamentosPorId(
     String patrimonioId,
+  );
+
+  /// Aplica UMA retificação cadastral de unidade (um patrimônio) via
+  /// `retificar_unidade_patrimonio`, dentro de uma única transação no
+  /// servidor: valida tombamento/versão esperados contra o estado REAL e
+  /// delega a mudança de setor a `registrar_movimentacao`
+  /// (`RETIFICACAO_CADASTRAL`) — nunca um UPDATE direto. Idempotente por
+  /// [ItemRetificacaoParaExecutar.operacaoId] — mesma semântica de
+  /// [aplicarDecisaoComparacao]: reenviar o MESMO [item] após um resultado
+  /// de rede desconhecido é seguro.
+  ///
+  /// Uma [RetificacaoExecucaoFalhouException] significa recusa síncrona do
+  /// servidor (nada foi escrito). Qualquer OUTRA exceção tem resultado
+  /// DESCONHECIDO — quem chama precisa preservar [item] para um retry.
+  Future<ResultadoRetificacaoUnidade> retificarUnidadePatrimonio(
+    ItemRetificacaoParaExecutar item,
   );
 }

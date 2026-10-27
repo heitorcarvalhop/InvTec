@@ -19,5 +19,9 @@ import '../../domain/movimentacao.dart';
     MovimentacaoTipo.transferencia => (Icons.swap_horiz, AppStatusKind.info),
     MovimentacaoTipo.ajusteInventario => (Icons.tune, AppStatusKind.info),
     MovimentacaoTipo.alteracaoResponsavel => (Icons.person_outline, AppStatusKind.info),
+    // Distinto de transferencia (swap_horiz) e ajusteInventario (tune) —
+    // nunca uma movimentação física, uma correção administrativa de
+    // vínculo.
+    MovimentacaoTipo.retificacaoCadastral => (Icons.fact_check_outlined, AppStatusKind.info),
   };
 }

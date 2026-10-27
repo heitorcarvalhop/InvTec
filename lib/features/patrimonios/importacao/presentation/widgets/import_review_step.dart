@@ -71,7 +71,11 @@ class ImportReviewStep extends ConsumerWidget {
               onPressed: resumo.totalParaEnviar == 0
                   ? null
                   : () => _iniciarConfirmacao(context, ref, controller),
-              child: Text('Importar (${resumo.totalParaEnviar})'),
+              child: Text(
+                state.loteAnteriorPendente != null
+                    ? 'Retomar importação (${resumo.totalParaEnviar})'
+                    : 'Importar (${resumo.totalParaEnviar})',
+              ),
             ),
           ],
         ),
@@ -158,7 +162,17 @@ class ImportReviewStep extends ConsumerWidget {
       ),
     );
     if (confirmar == true) {
-      await controller.confirmarImportacao();
+      // Fluxo de retomada (ver `ImportLotePendenteBanner`): o usuário
+      // re-selecionou e reanalisou o MESMO arquivo original de uma sessão
+      // interrompida — `loteAnteriorPendente` continua preenchido até aqui
+      // (ver `PatrimonioImportController.carregarArquivo`), então a
+      // confirmação chama `retomarLoteAnterior` (idempotente por
+      // `operacaoId`) em vez de uma rodada nova do zero.
+      if (estadoAtual.loteAnteriorPendente != null) {
+        await controller.retomarLoteAnterior();
+      } else {
+        await controller.confirmarImportacao();
+      }
     }
   }
 }

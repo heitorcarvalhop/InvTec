@@ -41,6 +41,7 @@ Future<void> _pumpFormPage(
   List<TipoPatrimonio>? tipos,
   List<Setor>? setores,
   List<Localizacao>? localizacoes,
+  String? numeroPatrimonioInicial,
 }) async {
   final fakeAuth = FakeAuthRepository(
     initialUserId: 'fake-user-id',
@@ -57,8 +58,11 @@ Future<void> _pumpFormPage(
       ),
       GoRoute(
         path: '/patrimonios/novo',
-        builder: (context, state) =>
-            const Scaffold(body: PatrimonioFormPage()),
+        builder: (context, state) => Scaffold(
+          body: PatrimonioFormPage(
+            numeroPatrimonioInicial: numeroPatrimonioInicial,
+          ),
+        ),
       ),
       GoRoute(
         path: '/patrimonios/:id',
@@ -288,6 +292,23 @@ void main() {
     );
     expect(find.byType(TextFormField), findsNothing);
   });
+
+  testWidgets(
+    'numeroPatrimonioInicial (leitor de câmera Android — ver '
+    'PatrimonioScannerPage) pré-preenche o campo de número, zeros à '
+    'esquerda intactos, mas nunca cadastra nada por conta própria',
+    (tester) async {
+      final repo = FakePatrimonioRepository();
+      await _pumpFormPage(
+        tester,
+        patrimonioRepo: repo,
+        numeroPatrimonioInicial: '03583777',
+      );
+
+      expect(find.text('03583777'), findsOneWidget);
+      expect(repo.cadastrarCallCount, 0);
+    },
+  );
 
   testWidgets('valida tipo e destino obrigatórios', (tester) async {
     final repo = FakePatrimonioRepository();

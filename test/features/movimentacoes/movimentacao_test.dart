@@ -46,7 +46,7 @@ void main() {
     );
   });
 
-  test('todos os 10 tipos de movimentação são reconhecidos', () {
+  test('todos os 11 tipos de movimentação são reconhecidos', () {
     const valores = [
       'ENTRADA',
       'SAIDA',
@@ -58,12 +58,41 @@ void main() {
       'BAIXA',
       'AJUSTE_INVENTARIO',
       'ALTERACAO_RESPONSAVEL',
+      'RETIFICACAO_CADASTRAL',
     ];
 
     for (final valor in valores) {
       expect(MovimentacaoTipo.fromValue(valor).value, valor);
     }
+    // Lista acima precisa cobrir TODOS os valores do enum — nenhum deixado
+    // de fora por engano (foi exatamente isso que faltou quando
+    // RETIFICACAO_CADASTRAL foi adicionada ao enum do Postgres sem
+    // atualizar o lado Dart: Movimentacao.fromJson teria lançado
+    // ArgumentError ao carregar o histórico de QUALQUER patrimônio
+    // retificado — auditoria da migration 20261022140000).
+    expect(valores, hasLength(MovimentacaoTipo.values.length));
   });
+
+  test(
+    'RETIFICACAO_CADASTRAL nunca lança ao desserializar — regressão da '
+    'auditoria da migration retificar_unidade_patrimonio (Movimentacao.'
+    'fromJson throwia ArgumentError antes desta correção, quebrando o '
+    'histórico de qualquer patrimônio retificado)',
+    () {
+      final movimentacao = Movimentacao.fromJson({
+        ...json,
+        'tipo': 'RETIFICACAO_CADASTRAL',
+        'destino_id': json['destino_id'],
+        // responsável NUNCA muda por este tipo — origem e destino idênticos,
+        // mesmo padrão já usado por AJUSTE_INVENTARIO.
+        'responsavel_origem': 'Fulano',
+        'responsavel_destino': 'Fulano',
+      });
+
+      expect(movimentacao.tipo, MovimentacaoTipo.retificacaoCadastral);
+      expect(movimentacao.responsavelOrigem, movimentacao.responsavelDestino);
+    },
+  );
 
   test(
     'ALTERACAO_RESPONSAVEL preserva o setor (origem = destino) e troca o responsável',
@@ -83,7 +112,7 @@ void main() {
     },
   );
 
-  test('MovimentacaoTipoLabel traduz todos os 10 tipos para PT-BR', () {
+  test('MovimentacaoTipoLabel traduz todos os 11 tipos para PT-BR', () {
     for (final tipo in MovimentacaoTipo.values) {
       expect(tipo.label, isNotEmpty);
     }
@@ -93,5 +122,6 @@ void main() {
       MovimentacaoTipo.alteracaoResponsavel.label,
       'Alteração de responsável',
     );
+    expect(MovimentacaoTipo.retificacaoCadastral.label, 'Retificação cadastral');
   });
 }

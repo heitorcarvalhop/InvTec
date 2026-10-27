@@ -211,6 +211,69 @@ void main() {
     );
   });
 
+  group('Dashboard mobile — Visão geral (KPIs) em 2 colunas, sem overflow', () {
+    for (final largura in _largurasMobile) {
+      testWidgets(
+        'em ${largura}px, todos os 5 KPIs continuam visíveis',
+        (tester) async {
+          await _pumpDashboardSemOverflow(tester, largura);
+
+          expect(find.text('Patrimônios'), findsOneWidget);
+          expect(find.text('Setores'), findsOneWidget);
+          expect(find.text('Localizações'), findsOneWidget);
+          expect(find.text('Tipos'), findsOneWidget);
+          expect(find.text('Movimentações (30 dias)'), findsOneWidget);
+          expect(find.text('1414'), findsOneWidget);
+        },
+      );
+    }
+
+    testWidgets(
+      'em ${_largurasMobile.first}px, os KPIs formam uma grade de 2 colunas '
+      '(não 5 linhas empilhadas)',
+      (tester) async {
+        await _pumpDashboardSemOverflow(tester, _largurasMobile.first);
+
+        // "Patrimônios" e "Setores" (1o e 2o KPI) ficam lado a lado.
+        final topo1 = tester.getTopLeft(find.text('Patrimônios')).dy;
+        final topo2 = tester.getTopLeft(find.text('Setores')).dy;
+        expect(
+          topo1,
+          closeTo(topo2, 2),
+          reason: '1o e 2o KPI deveriam estar na mesma linha (2 colunas)',
+        );
+
+        // "Localizações" (3o KPI) cai para a linha seguinte.
+        final topo3 = tester.getTopLeft(find.text('Localizações')).dy;
+        expect(
+          topo3,
+          greaterThan(topo1 + 10),
+          reason: '3o KPI deveria estar numa linha abaixo dos 2 primeiros',
+        );
+      },
+    );
+
+    testWidgets(
+      'em desktop (${_larguraDesktop}px), os KPIs continuam na mesma linha '
+      '(nenhuma regressão na grade larga)',
+      (tester) async {
+        await _pumpDashboardSemOverflow(tester, _larguraDesktop);
+
+        final topo1 = tester.getTopLeft(find.text('Patrimônios')).dy;
+        final topo5 = tester
+            .getTopLeft(find.text('Movimentações (30 dias)'))
+            .dy;
+        expect(
+          topo1,
+          closeTo(topo5, 2),
+          reason:
+              'os 5 KPIs deveriam estar todos na mesma linha em desktop, '
+              'como antes desta melhoria',
+        );
+      },
+    );
+  });
+
   group('Dashboard mobile — Movimentações recentes sem perder informação', () {
     for (final largura in _largurasMobile) {
       testWidgets(

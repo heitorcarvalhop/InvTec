@@ -176,6 +176,15 @@ class ImportRow {
   ImportRowStatus status = ImportRowStatus.pronto;
   ImportRowResult? resultado;
 
+  /// Id de operação (UUID v4) gerado UMA única vez para esta linha, na
+  /// primeira tentativa de CADASTRO NOVO (nunca para `atualizar`, que não
+  /// usa idempotência por operação) — reenviado IDÊNTICO em qualquer retry
+  /// (`PatrimonioImportController.tentarNovamenteFalhas`), nunca recriado:
+  /// é o que permite ao servidor (`cadastrar_patrimonio_lote`) reconhecer
+  /// com segurança que um retry após falha de rede é a MESMA tentativa,
+  /// nunca um cadastro duplicado.
+  String? operacaoId;
+
   bool get temErro => issues.any((i) => i.severity == ImportIssueSeverity.erro);
   bool get temAviso => issues.any((i) => i.severity == ImportIssueSeverity.aviso);
 

@@ -1,6 +1,7 @@
 import '../data/spreadsheet_parser.dart';
 import '../domain/import_column_mapping.dart';
 import '../domain/import_defaults.dart';
+import '../domain/import_lote_persistencia.dart';
 import '../domain/import_row.dart';
 import '../domain/import_summary.dart';
 import '../domain/patrimonio_comparacao.dart';
@@ -161,6 +162,8 @@ class PatrimonioImportState {
     this.decisoes = const {},
     this.filtroComparacao = ComparacaoFiltroRevisao.todos,
     this.buscaNumeroPatrimonio = '',
+    this.loteIdAtual,
+    this.loteAnteriorPendente,
   }) : padroes = padroes ?? ImportDefaults();
 
   final ImportStep step;
@@ -291,6 +294,20 @@ class PatrimonioImportState {
   /// texto de busca por número patrimonial na
   /// lista de revisão do modo ADMIN (contains, sem diferenciar caixa).
   final String buscaNumeroPatrimonio;
+
+  /// Id da rodada de confirmação de importação atual — gerado UMA única
+  /// vez em [PatrimonioImportController.confirmarImportacao] (ou herdado
+  /// de uma sessão retomada, ver [loteAnteriorPendente]), nunca recriado
+  /// durante a mesma rodada: agrupa todas as linhas desta confirmação para
+  /// fins de rastreabilidade (`cadastrar_patrimonio_lote`) e persistência
+  /// local de progresso. `null` antes da primeira confirmação.
+  final String? loteIdAtual;
+
+  /// Sessão de importação incompleta encontrada ao abrir o controller
+  /// (ver [PatrimonioImportController.build]) — `null` quando não há
+  /// nenhuma pendente para o usuário atual. A UI pode oferecer "retomar"
+  /// ([PatrimonioImportController.retomarLoteAnterior]) ou descartar.
+  final ImportLoteSessaoPersistida? loteAnteriorPendente;
 
   /// Decisão atual de um campo — [DecisaoCampoValor.pendente] quando ainda
   /// não há entrada em [decisoes] (nunca lança, nunca exige inicialização
@@ -465,6 +482,8 @@ class PatrimonioImportState {
     Map<ChaveDecisaoCampo, DecisaoCampoValor>? decisoes,
     ComparacaoFiltroRevisao? filtroComparacao,
     String? buscaNumeroPatrimonio,
+    String? Function()? loteIdAtual,
+    ImportLoteSessaoPersistida? Function()? loteAnteriorPendente,
   }) {
     return PatrimonioImportState(
       step: step ?? this.step,
@@ -502,6 +521,8 @@ class PatrimonioImportState {
       decisoes: decisoes ?? this.decisoes,
       filtroComparacao: filtroComparacao ?? this.filtroComparacao,
       buscaNumeroPatrimonio: buscaNumeroPatrimonio ?? this.buscaNumeroPatrimonio,
+      loteIdAtual: loteIdAtual != null ? loteIdAtual() : this.loteIdAtual,
+      loteAnteriorPendente: loteAnteriorPendente != null ? loteAnteriorPendente() : this.loteAnteriorPendente,
     );
   }
 }

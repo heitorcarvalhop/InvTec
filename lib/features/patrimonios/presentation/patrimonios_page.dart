@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/platform_info.dart';
 import '../../../core/domain/ordenacao_direcao.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -94,6 +95,12 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
 
   void _importarPlanilha() => context.push('/patrimonios/importar');
 
+  void _escanearPatrimonio() => context.push('/patrimonios/escanear');
+
+  void _inventarioRapido() => context.push('/patrimonios/inventario-rapido');
+
+  void _retificarUnidade() => context.push('/patrimonios/retificar-unidade');
+
   void _abrirDetalhe(String id) => context.push('/patrimonios/$id');
 
   Future<void> _editar(PatrimonioDetalhe detalhe) async {
@@ -141,6 +148,42 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
             label: const Text('Importar planilha'),
           )
         : null;
+
+    // Android apenas (leitor de câmera — InvTec 4.0): nunca aparece no
+    // Windows desktop. `isAndroidProvider` (em vez de `Platform.isAndroid`
+    // direto) só existe para isto ser testável em widget test — ver
+    // lib/core/config/platform_info.dart.
+    final escanearButton = ref.watch(isAndroidProvider)
+        ? OutlinedButton.icon(
+            onPressed: _escanearPatrimonio,
+            icon: const Icon(Icons.qr_code_scanner_outlined),
+            label: const Text('Escanear patrimônio'),
+          )
+        : null;
+
+    // Inventário Rápido (InvTec 4.0) — mesmo gate Android-only do leitor
+    // avulso; evolução dele, nunca uma funcionalidade independente.
+    final inventarioRapidoButton = ref.watch(isAndroidProvider)
+        ? OutlinedButton.icon(
+            onPressed: _inventarioRapido,
+            icon: const Icon(Icons.inventory_2_outlined),
+            label: const Text('Inventário rápido'),
+          )
+        : null;
+
+    // Retificação cadastral de unidade (InvTec 4.0) — operação
+    // administrativa de qualquer plataforma (nunca Android-only, diferente
+    // do scanner/inventário): só aparece para quem tem
+    // `patrimonio.rectify_unit` (ADMIN/GESTOR). A execução real continua
+    // travada por EnvConfig.retificacaoExecucaoHabilitada dentro da
+    // própria tela.
+    final retificarUnidadeButton = ref.hasPermission('patrimonio.rectify_unit')
+        ? OutlinedButton.icon(
+            onPressed: _retificarUnidade,
+            icon: const Icon(Icons.fact_check_outlined),
+            label: const Text('Retificar unidade'),
+          )
+        : null;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: ConstrainedBox(
@@ -174,7 +217,12 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
               primaryActionLabel: canManage ? 'Novo patrimônio' : null,
               primaryActionIcon: canManage ? Icons.add : null,
               onPrimaryAction: canManage ? _novoPatrimonio : null,
-              secondaryActions: [?importarButton],
+              secondaryActions: [
+                ?importarButton,
+                ?escanearButton,
+                ?inventarioRapidoButton,
+                ?retificarUnidadeButton,
+              ],
             ),
             if (_filtrosExpandidos) ...[
               const SizedBox(height: AppSpacing.sm),
