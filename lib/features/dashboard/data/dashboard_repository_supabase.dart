@@ -11,6 +11,7 @@ import '../domain/movimentacao_resumo.dart';
 /// patrimônios" — os setores (hoje poucos) aparecem todos, sem corte.
 const _topTipos = 8;
 const _topLocalizacoes = 5;
+const _tamanhoPagina = 1000;
 
 class DashboardRepositorySupabase implements DashboardRepository {
   DashboardRepositorySupabase(this._client);
@@ -84,20 +85,32 @@ class DashboardRepositorySupabase implements DashboardRepository {
   @override
   Future<DashboardDistribuicoes> carregarDistribuicoes() async {
     try {
-      // UMA única consulta: só as colunas de agrupamento + o nome
-      // embutido de cada categoria (nunca `select('*')`, nunca uma
-      // consulta por setor/tipo/localização). O Postgrest não expõe
-      // `GROUP BY` sem uma view/RPC dedicada (fora do escopo desta
-      // etapa — ver relatório) — a agregação é feita aqui, em memória,
-      // sobre um volume hoje pequeno (~1 KB por patrimônio nestas 3
-      // colunas) e tratável mesmo com um crescimento de vários múltiplos.
-      final rows = await _client
-          .from('patrimonios')
-          .select(
-            'setor_atual_id, setores(nome, sigla), '
-            'tipo_id, tipos_patrimonio(nome), '
-            'localizacao_atual_id, localizacoes(nome)',
-          );
+      // Só as colunas de agrupamento + o nome embutido de cada categoria
+      // (nunca `select('*')`). O Postgrest não expõe `GROUP BY` sem uma
+      // view/RPC dedicada, então a agregação é feita aqui, em memória.
+      //
+      // IMPORTANTE: o Supabase corta qualquer resposta em `max_rows`
+      // (1000 por padrão). Sem paginar, com milhares de patrimônios só as
+      // primeiras 1000 linhas (sem ordem definida) eram contadas e os
+      // setores/percentuais saíam errados. Por isso lemos em páginas, com
+      // ordem estável por `id`, até esgotar a tabela.
+      final rows = <Map<String, dynamic>>[];
+      var inicio = 0;
+      while (true) {
+        final pagina = await _client
+            .from('patrimonios')
+            .select(
+              'setor_atual_id, setores(nome, sigla), '
+              'tipo_id, tipos_patrimonio(nome), '
+              'localizacao_atual_id, localizacoes(nome)',
+            )
+            .order('id')
+            .range(inicio, inicio + _tamanhoPagina - 1);
+        rows.addAll(pagina);
+        // Página curta = fim da tabela.
+        if (pagina.length < _tamanhoPagina) break;
+        inicio += _tamanhoPagina;
+      }
 
       final porSetor = <String, _Contagem>{};
       final porTipo = <String, _Contagem>{};

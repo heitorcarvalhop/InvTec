@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/routing/nav_location.dart';
 
 import '../../../../core/config/platform_info.dart';
 import '../../../../core/responsive/breakpoints.dart';
@@ -45,13 +46,13 @@ class QuickActionsCard extends ConsumerWidget {
         _AcaoRapida(
           icon: Icons.qr_code_scanner_outlined,
           label: 'Escanear patrimônio',
-          onPressed: () => context.push('/patrimonios/escanear'),
+          onPressed: () => context.pushUnico('/patrimonios/escanear'),
         ),
       if (podeCriarPatrimonio)
         _AcaoRapida(
           icon: Icons.add_circle_outline,
           label: 'Novo patrimônio',
-          onPressed: () => context.push('/patrimonios/novo'),
+          onPressed: () => context.pushUnico('/patrimonios/novo'),
         ),
       if (podeRegistrarMovimentacao)
         _AcaoRapida(
@@ -66,7 +67,7 @@ class QuickActionsCard extends ConsumerWidget {
         _AcaoRapida(
           icon: Icons.upload_file_outlined,
           label: 'Importar patrimônios',
-          onPressed: () => context.push('/patrimonios/importar'),
+          onPressed: () => context.pushUnico('/patrimonios/importar'),
         ),
       if (podeVerPatrimonio)
         _AcaoRapida(

@@ -98,13 +98,14 @@ void main() {
   ) async {
     await _pumpAuthenticated(tester, windowSize: const Size(390, 844));
 
-    // Sidebar fixa não está visível; itens ficam dentro do Drawer fechado.
-    expect(find.text('Patrimônios'), findsNothing);
+    // Sidebar fixa não está visível; "Setores" só existe no Drawer fechado
+    // (a barra inferior só tem destinos principais).
+    expect(find.text('Sair'), findsNothing);
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
 
-    expect(find.text('Patrimônios'), findsOneWidget);
+    expect(find.text('Sair'), findsOneWidget);
     expect(find.text('Heitor Pereira'), findsOneWidget);
   });
 
@@ -149,11 +150,18 @@ void main() {
       await tester.tap(find.byIcon(Icons.menu));
       await tester.pumpAndSettle();
 
-      await tester.dragUntilVisible(find.text('Sair'), find.byType(Scrollable).first, const Offset(0, -50));
+      await tester.dragUntilVisible(
+        find.text('Sair'),
+        find.byType(Scrollable).first,
+        const Offset(0, -50),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Sair'), findsOneWidget);
-      expect(tester.getBottomRight(find.text('Sair')).dy, lessThanOrEqualTo(150));
+      expect(
+        tester.getBottomRight(find.text('Sair')).dy,
+        lessThanOrEqualTo(150),
+      );
       expect(tester.takeException(), isNull);
     },
   );

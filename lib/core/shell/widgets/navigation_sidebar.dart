@@ -61,7 +61,8 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
       setState(() => _mostrarRotulos = false);
     } else {
       Future.delayed(NavigationSidebar._duracaoAnimacao, () {
-        if (mounted && !widget.collapsed) setState(() => _mostrarRotulos = true);
+        if (mounted && !widget.collapsed)
+          setState(() => _mostrarRotulos = true);
       });
     }
   }
@@ -74,7 +75,9 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
     return AnimatedContainer(
       duration: NavigationSidebar._duracaoAnimacao,
       curve: Curves.easeInOut,
-      width: collapsed ? AppSpacing.sidebarWidthCollapsed : AppSpacing.sidebarWidth,
+      width: collapsed
+          ? AppSpacing.sidebarWidthCollapsed
+          : AppSpacing.sidebarWidth,
       decoration: const BoxDecoration(
         color: AppColors.sidebarBackground,
         border: Border(right: BorderSide(color: AppColors.sidebarBorder)),
@@ -97,7 +100,11 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
             Expanded(
               child: Scrollbar(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: mostrarConteudoRecolhido ? AppSpacing.xs : AppSpacing.sm),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: mostrarConteudoRecolhido
+                        ? AppSpacing.xs
+                        : AppSpacing.sm,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -113,11 +120,16 @@ class _NavigationSidebarState extends State<NavigationSidebar> {
                       const SizedBox(height: AppSpacing.sm),
                       NavTile(
                         item: configuracoesItem,
-                        selected: configuracoesItem.ativoPara(widget.currentRoute),
+                        selected: configuracoesItem.ativoPara(
+                          widget.currentRoute,
+                        ),
                         onTap: () => widget.onNavigate(configuracoesItem.route),
                         collapsed: mostrarConteudoRecolhido,
                       ),
-                      _SignOutTile(onTap: widget.onLogout, collapsed: mostrarConteudoRecolhido),
+                      _SignOutTile(
+                        onTap: widget.onLogout,
+                        collapsed: mostrarConteudoRecolhido,
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                     ],
                   ),
@@ -172,7 +184,12 @@ class _BrandHeader extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.sm, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.sm,
+      ),
       child: Row(
         children: [
           const _BrandMark(),
@@ -184,9 +201,19 @@ class _BrandHeader extends StatelessWidget {
               children: [
                 Text(
                   'InvTec',
-                  style: TextStyle(color: AppColors.sidebarForeground, fontWeight: FontWeight.w700, fontSize: 20),
+                  style: TextStyle(
+                    color: AppColors.sidebarForeground,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                  ),
                 ),
-                Text('Gestão de Patrimônio', style: TextStyle(color: AppColors.sidebarForegroundMuted, fontSize: 12)),
+                Text(
+                  'Gestão de Patrimônio',
+                  style: TextStyle(
+                    color: AppColors.sidebarForegroundMuted,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -214,7 +241,11 @@ class _BrandMark extends StatelessWidget {
       ),
       child: const Text(
         'I',
-        style: TextStyle(color: AppColors.sidebarSelectedForeground, fontWeight: FontWeight.w700, fontSize: 16),
+        style: TextStyle(
+          color: AppColors.sidebarSelectedForeground,
+          fontWeight: FontWeight.w700,
+          fontSize: 16,
+        ),
       ),
     );
   }
@@ -250,14 +281,33 @@ class _SignOutTileState extends State<_SignOutTile> {
           child: Padding(
             padding: widget.collapsed
                 ? const EdgeInsets.symmetric(vertical: AppSpacing.smd)
-                : const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.smd),
+                : const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.smd,
+                  ),
             child: widget.collapsed
-                ? const Center(child: Icon(Icons.logout, size: 20, color: AppColors.sidebarForegroundMuted))
+                ? const Center(
+                    child: Icon(
+                      Icons.logout,
+                      size: 20,
+                      color: AppColors.sidebarForegroundMuted,
+                    ),
+                  )
                 : const Row(
                     children: [
-                      Icon(Icons.logout, size: 20, color: AppColors.sidebarForegroundMuted),
+                      Icon(
+                        Icons.logout,
+                        size: 20,
+                        color: AppColors.sidebarForegroundMuted,
+                      ),
                       SizedBox(width: AppSpacing.smd),
-                      Text('Sair', style: TextStyle(color: AppColors.sidebarForegroundMuted, fontSize: 14)),
+                      Text(
+                        'Sair',
+                        style: TextStyle(
+                          color: AppColors.sidebarForegroundMuted,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
           ),

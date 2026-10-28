@@ -66,28 +66,36 @@ class _PatrimonioFormPageState extends ConsumerState<PatrimonioFormPage> {
     // `AppSpacing.md`/`lg`) não mudam, nem o tamanho dos campos/botões.
     final paginaMobile = context.screenSize == ScreenSize.mobile;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(paginaMobile ? AppSpacing.md : AppSpacing.lg),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1040),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InvTecPageHeader(
-              title: 'Novo patrimônio',
-              subtitle:
-                  'Cadastre um novo equipamento e registre sua entrada inicial.',
-              onBack: _sair,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _Conteudo(
-              tiposAsync: tiposAsync,
-              setoresAsync: setoresAsync,
-              formStateKey: _formStateKey,
-              onCancelar: _sair,
-              numeroPatrimonioInicial: widget.numeroPatrimonioInicial,
-            ),
-          ],
+    // Voltar do sistema (botão/gesto do Android) passa pela MESMA checagem de
+    // dados não salvos do cabeçalho e do "Cancelar" — nunca descarta em silêncio.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _sair();
+      },
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(paginaMobile ? AppSpacing.md : AppSpacing.lg),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1040),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InvTecPageHeader(
+                title: 'Novo patrimônio',
+                subtitle:
+                    'Cadastre um novo equipamento e registre sua entrada inicial.',
+                onBack: _sair,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _Conteudo(
+                tiposAsync: tiposAsync,
+                setoresAsync: setoresAsync,
+                formStateKey: _formStateKey,
+                onCancelar: _sair,
+                numeroPatrimonioInicial: widget.numeroPatrimonioInicial,
+              ),
+            ],
+          ),
         ),
       ),
     );

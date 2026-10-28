@@ -20,8 +20,7 @@ class Breakpoints {
 }
 
 extension BreakpointsContext on BuildContext {
-  ScreenSize get screenSize =>
-      Breakpoints.of(MediaQuery.sizeOf(this).width);
+  ScreenSize get screenSize => Breakpoints.of(MediaQuery.sizeOf(this).width);
 
   /// Sidebar fixa (tablet/desktop) em vez de Drawer sob demanda (mobile).
   bool get usesPermanentSidebar => screenSize != ScreenSize.mobile;

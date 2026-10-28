@@ -16,14 +16,21 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class EnvConfig {
   EnvConfig._();
 
-  static const String _defineSupabaseEnv = String.fromEnvironment('SUPABASE_ENV');
-  static const String _defineSupabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  static const String _defineSupabasePublishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
-  static const String _defineComparacaoExecucaoHabilitada = String.fromEnvironment('COMPARACAO_EXECUCAO_HABILITADA');
-  static const String _defineRetificacaoExecucaoHabilitada = String.fromEnvironment('RETIFICACAO_EXECUCAO_HABILITADA');
-  static const String _defineImportacaoLoteExecucaoHabilitada = String.fromEnvironment(
-    'IMPORTACAO_LOTE_EXECUCAO_HABILITADA',
+  static const String _defineSupabaseEnv = String.fromEnvironment(
+    'SUPABASE_ENV',
   );
+  static const String _defineSupabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+  );
+  static const String _defineSupabasePublishableKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+  );
+  static const String _defineComparacaoExecucaoHabilitada =
+      String.fromEnvironment('COMPARACAO_EXECUCAO_HABILITADA');
+  static const String _defineRetificacaoExecucaoHabilitada =
+      String.fromEnvironment('RETIFICACAO_EXECUCAO_HABILITADA');
+  static const String _defineImportacaoLoteExecucaoHabilitada =
+      String.fromEnvironment('IMPORTACAO_LOTE_EXECUCAO_HABILITADA');
 
   /// true quando o ambiente foi selecionado explicitamente via
   /// `--dart-define-from-file` — nesse caso [supabaseUrl]/
@@ -83,7 +90,9 @@ class EnvConfig {
   /// credencial, mas ainda assim nunca é logado por inteiro; ver
   /// [resumoSeguroParaLog].
   static String? get supabaseProjectRef {
-    final match = RegExp(r'^https://([a-z0-9]+)\.supabase\.co').firstMatch(supabaseUrl);
+    final match = RegExp(
+      r'^https://([a-z0-9]+)\.supabase\.co',
+    ).firstMatch(supabaseUrl);
     return match?.group(1);
   }
 
@@ -103,7 +112,9 @@ class EnvConfig {
 
   static String get _comparacaoExecucaoHabilitadaDotenv {
     try {
-      return (dotenv.env['COMPARACAO_EXECUCAO_HABILITADA'] ?? '').trim().toLowerCase();
+      return (dotenv.env['COMPARACAO_EXECUCAO_HABILITADA'] ?? '')
+          .trim()
+          .toLowerCase();
     } catch (_) {
       return '';
     }
@@ -127,7 +138,9 @@ class EnvConfig {
 
   static String get _retificacaoExecucaoHabilitadaDotenv {
     try {
-      return (dotenv.env['RETIFICACAO_EXECUCAO_HABILITADA'] ?? '').trim().toLowerCase();
+      return (dotenv.env['RETIFICACAO_EXECUCAO_HABILITADA'] ?? '')
+          .trim()
+          .toLowerCase();
     } catch (_) {
       return '';
     }
@@ -156,7 +169,9 @@ class EnvConfig {
 
   static String get _importacaoLoteExecucaoHabilitadaDotenv {
     try {
-      return (dotenv.env['IMPORTACAO_LOTE_EXECUCAO_HABILITADA'] ?? '').trim().toLowerCase();
+      return (dotenv.env['IMPORTACAO_LOTE_EXECUCAO_HABILITADA'] ?? '')
+          .trim()
+          .toLowerCase();
     } catch (_) {
       return '';
     }
@@ -164,9 +179,13 @@ class EnvConfig {
 
   static String get resumoSeguroParaLog {
     final ref = supabaseProjectRef;
-    final ambiente = supabaseEnv.isEmpty ? 'AMBIENTE NÃO DECLARADO (SUPABASE_ENV ausente)' : supabaseEnv.toUpperCase();
+    final ambiente = supabaseEnv.isEmpty
+        ? 'AMBIENTE NÃO DECLARADO (SUPABASE_ENV ausente)'
+        : supabaseEnv.toUpperCase();
     final origem = usaDartDefine ? '--dart-define-from-file' : '.env (padrão)';
-    final refResumido = ref == null ? 'ref desconhecido' : '${ref.substring(0, 4)}…';
+    final refResumido = ref == null
+        ? 'ref desconhecido'
+        : '${ref.substring(0, 4)}…';
     return '$ambiente via $origem ($refResumido)';
   }
 }

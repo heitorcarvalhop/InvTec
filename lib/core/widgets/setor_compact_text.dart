@@ -36,9 +36,15 @@ class SetorCompactText extends StatelessWidget {
     // Só mostra tooltip quando o texto visível é de fato uma ABREVIAÇÃO do
     // nome (a sigla) — evitar um tooltip que repete o próprio texto já
     // visível (quando cai no fallback do nome completo).
-    final mostrandoSigla = texto != nomeAparado && nomeAparado != null && nomeAparado.isNotEmpty;
+    final mostrandoSigla =
+        texto != nomeAparado && nomeAparado != null && nomeAparado.isNotEmpty;
 
-    final textWidget = Text(texto, style: style, overflow: overflow, maxLines: maxLines);
+    final textWidget = Text(
+      texto,
+      style: style,
+      overflow: overflow,
+      maxLines: maxLines,
+    );
     if (!mostrandoSigla) return textWidget;
     return Tooltip(message: nomeAparado, child: textWidget);
   }

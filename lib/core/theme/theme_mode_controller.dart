@@ -13,7 +13,9 @@ class ThemeModeController extends AsyncNotifier<ThemeMode> {
   @override
   Future<ThemeMode> build() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_themeModeKey) == 'dark' ? ThemeMode.dark : ThemeMode.light;
+    return prefs.getString(_themeModeKey) == 'dark'
+        ? ThemeMode.dark
+        : ThemeMode.light;
   }
 
   Future<void> alternar() async {
@@ -27,10 +29,14 @@ class ThemeModeController extends AsyncNotifier<ThemeMode> {
   Future<void> definir(ThemeMode modo) async {
     state = AsyncData(modo);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_themeModeKey, modo == ThemeMode.dark ? 'dark' : 'light');
+    await prefs.setString(
+      _themeModeKey,
+      modo == ThemeMode.dark ? 'dark' : 'light',
+    );
   }
 }
 
-final themeModeControllerProvider = AsyncNotifierProvider<ThemeModeController, ThemeMode>(
-  ThemeModeController.new,
-);
+final themeModeControllerProvider =
+    AsyncNotifierProvider<ThemeModeController, ThemeMode>(
+      ThemeModeController.new,
+    );

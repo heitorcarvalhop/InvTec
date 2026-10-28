@@ -84,6 +84,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             name: 'dashboard',
             builder: (context, state) => const DashboardPage(),
           ),
+          // Aba própria da navegação inferior: irmã (e não filha) de
+          // '/patrimonios' para que `go` até ela NÃO empilhe a listagem por
+          // baixo — voltar do scanner nunca cai numa listagem que o usuário
+          // não abriu. Declarada antes de '/patrimonios' (ordem de match).
+          GoRoute(
+            path: '/patrimonios/escanear',
+            name: 'patrimonio-escanear',
+            builder: (context, state) => const PatrimonioScannerPage(),
+          ),
           GoRoute(
             path: '/patrimonios',
             name: 'patrimonios',
@@ -106,18 +115,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 // própria, só economiza digitação; revisão humana continua
                 // obrigatória antes de salvar.
                 builder: (context, state) => PatrimonioFormPage(
-                  numeroPatrimonioInicial: state.uri.queryParameters['tombamento'],
+                  numeroPatrimonioInicial:
+                      state.uri.queryParameters['tombamento'],
                 ),
               ),
               GoRoute(
                 path: 'importar',
                 name: 'patrimonio-importar',
                 builder: (context, state) => const PatrimonioImportPage(),
-              ),
-              GoRoute(
-                path: 'escanear',
-                name: 'patrimonio-escanear',
-                builder: (context, state) => const PatrimonioScannerPage(),
               ),
               GoRoute(
                 path: 'inventario-rapido',

@@ -15,20 +15,32 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: CompactIconButton(icon: const Icon(Icons.arrow_upward), onPressed: () {}),
+          body: CompactIconButton(
+            icon: const Icon(Icons.arrow_upward),
+            onPressed: () {},
+          ),
         ),
       ),
     );
 
     final shape = resolveStyle(tester)?.shape?.resolve({});
-    expect(shape, isA<CircleBorder>(), reason: 'destaque de hover/focus/splash deve ser um círculo');
+    expect(
+      shape,
+      isA<CircleBorder>(),
+      reason: 'destaque de hover/focus/splash deve ser um círculo',
+    );
   });
 
-  testWidgets('área de toque é compacta (32x32), nunca o padrão de 48x48', (tester) async {
+  testWidgets('área de toque é compacta (32x32), nunca o padrão de 48x48', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: CompactIconButton(icon: const Icon(Icons.close), onPressed: () {}),
+          body: CompactIconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () {},
+          ),
         ),
       ),
     );
@@ -53,27 +65,36 @@ void main() {
     expect(find.byTooltip('Fechar aviso'), findsOneWidget);
   });
 
-  testWidgets('aciona onPressed ao tocar, e fica desabilitado quando onPressed é null', (
-    tester,
-  ) async {
-    var cliques = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: CompactIconButton(icon: const Icon(Icons.add), onPressed: () => cliques++),
+  testWidgets(
+    'aciona onPressed ao tocar, e fica desabilitado quando onPressed é null',
+    (tester) async {
+      var cliques = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CompactIconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => cliques++,
+            ),
+          ),
         ),
-      ),
-    );
-    await tester.tap(find.byType(IconButton));
-    expect(cliques, 1);
+      );
+      await tester.tap(find.byType(IconButton));
+      expect(cliques, 1);
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: CompactIconButton(icon: Icon(Icons.add), onPressed: null)),
-      ),
-    );
-    expect(tester.widget<IconButton>(find.byType(IconButton)).onPressed, isNull);
-  });
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CompactIconButton(icon: Icon(Icons.add), onPressed: null),
+          ),
+        ),
+      );
+      expect(
+        tester.widget<IconButton>(find.byType(IconButton)).onPressed,
+        isNull,
+      );
+    },
+  );
 
   testWidgets('respeita iconSize e color quando informados', (tester) async {
     await tester.pumpWidget(

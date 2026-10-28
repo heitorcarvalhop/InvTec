@@ -5,7 +5,11 @@ import 'package:flutter/material.dart';
 /// `InputChip` só para o rótulo "chip de filtro ativo" não se repetir
 /// diferente em cada tela.
 class ActiveFilterChip extends StatelessWidget {
-  const ActiveFilterChip({super.key, required this.label, required this.onRemove});
+  const ActiveFilterChip({
+    super.key,
+    required this.label,
+    required this.onRemove,
+  });
 
   final String label;
   final VoidCallback onRemove;

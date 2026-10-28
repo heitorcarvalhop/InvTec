@@ -8,7 +8,11 @@ import '../../theme/app_spacing.dart';
 /// (superfície normal, [onDarkSurface] = false) quanto no topo do drawer
 /// mobile (fundo azul-marinho da navegação, [onDarkSurface] = true).
 class UserProfileHeader extends StatelessWidget {
-  const UserProfileHeader({super.key, required this.profile, this.onDarkSurface = false});
+  const UserProfileHeader({
+    super.key,
+    required this.profile,
+    this.onDarkSurface = false,
+  });
 
   final Profile profile;
   final bool onDarkSurface;
@@ -16,15 +20,23 @@ class UserProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final nameColor = onDarkSurface ? AppColors.sidebarForeground : theme.colorScheme.onSurface;
-    final roleColor = onDarkSurface ? AppColors.sidebarForegroundMuted : theme.colorScheme.onSurfaceVariant;
+    final nameColor = onDarkSurface
+        ? AppColors.sidebarForeground
+        : theme.colorScheme.onSurface;
+    final roleColor = onDarkSurface
+        ? AppColors.sidebarForegroundMuted
+        : theme.colorScheme.onSurfaceVariant;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         CircleAvatar(
-          backgroundColor: onDarkSurface ? AppColors.sidebarSelectedBackground : theme.colorScheme.primaryContainer,
-          foregroundColor: onDarkSurface ? AppColors.sidebarSelectedForeground : theme.colorScheme.onPrimaryContainer,
+          backgroundColor: onDarkSurface
+              ? AppColors.sidebarSelectedBackground
+              : theme.colorScheme.primaryContainer,
+          foregroundColor: onDarkSurface
+              ? AppColors.sidebarSelectedForeground
+              : theme.colorScheme.onPrimaryContainer,
           child: Text(_iniciais(profile.nome)),
         ),
         const SizedBox(width: AppSpacing.sm),

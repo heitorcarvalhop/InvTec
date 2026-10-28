@@ -14,7 +14,12 @@ enum SortIndicatorState { none, ascending, descending }
 /// seta: o estado também é anunciado via [Semantics]/[Tooltip] (acessível
 /// por leitor de tela e teclado).
 class SortableHeaderLabel extends StatelessWidget {
-  const SortableHeaderLabel({super.key, required this.label, required this.state, required this.onTap});
+  const SortableHeaderLabel({
+    super.key,
+    required this.label,
+    required this.state,
+    required this.onTap,
+  });
 
   final String label;
   final SortIndicatorState state;
@@ -44,7 +49,13 @@ class SortableHeaderLabel extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Flexible(child: Text(label, style: style, overflow: TextOverflow.ellipsis)),
+              Flexible(
+                child: Text(
+                  label,
+                  style: style,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               if (icon != null) ...[
                 const SizedBox(width: AppSpacing.xs),
                 Icon(icon, size: 14, color: style?.color),

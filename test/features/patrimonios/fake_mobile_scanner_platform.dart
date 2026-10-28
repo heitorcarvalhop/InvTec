@@ -22,6 +22,7 @@ class FakeMobileScannerPlatform extends MobileScannerPlatform {
 
   int startCallCount = 0;
   int stopCallCount = 0;
+  int disposeCallCount = 0;
   int toggleTorchCallCount = 0;
   TorchState _torch = TorchState.off;
 
@@ -64,6 +65,7 @@ class FakeMobileScannerPlatform extends MobileScannerPlatform {
 
   @override
   Future<void> dispose() async {
+    disposeCallCount++;
     await _barcodes.close();
     await _torchState.close();
   }

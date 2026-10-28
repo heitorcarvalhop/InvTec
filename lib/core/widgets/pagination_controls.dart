@@ -55,7 +55,8 @@ class PaginationControls extends StatelessWidget {
       spacing: AppSpacing.lg,
       runSpacing: AppSpacing.sm,
       children: [
-        if (resumo != null) Text(resumo, style: AppTypography.auxiliary(context)),
+        if (resumo != null)
+          Text(resumo, style: AppTypography.auxiliary(context)),
         Semantics(
           label: 'Página ${paginaAtual + 1} de $totalPaginas',
           child: Row(
@@ -70,7 +71,9 @@ class PaginationControls extends StatelessWidget {
               for (final pagina in _paginasVisiveis(paginaAtual, totalPaginas))
                 pagina == null
                     ? const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                        ),
                         child: Text('…'),
                       )
                     : _PageNumberButton(
@@ -81,7 +84,9 @@ class PaginationControls extends StatelessWidget {
               CompactIconButton(
                 key: const ValueKey('pagination-next'),
                 tooltip: 'Próxima página',
-                onPressed: podeAvancar ? () => onChanged(paginaAtual + 1) : null,
+                onPressed: podeAvancar
+                    ? () => onChanged(paginaAtual + 1)
+                    : null,
                 icon: const Icon(Icons.chevron_right),
               ),
             ],
@@ -93,7 +98,10 @@ class PaginationControls extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Itens por página: ', style: AppTypography.auxiliary(context)),
+              Text(
+                'Itens por página: ',
+                style: AppTypography.auxiliary(context),
+              ),
               DropdownButton<int>(
                 value: tamanhoPagina,
                 // Mesmo ajuste do "Ordenar por": sem `borderRadius`, o
@@ -115,7 +123,11 @@ class PaginationControls extends StatelessWidget {
 }
 
 class _PageNumberButton extends StatelessWidget {
-  const _PageNumberButton({required this.numero, required this.selecionada, required this.onPressed});
+  const _PageNumberButton({
+    required this.numero,
+    required this.selecionada,
+    required this.onPressed,
+  });
 
   final int numero;
   final bool selecionada;

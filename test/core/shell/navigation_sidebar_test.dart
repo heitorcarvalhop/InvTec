@@ -49,28 +49,42 @@ void main() {
       const Size(800, 600),
       const Size(1024, 150),
     ]) {
-      testWidgets('em ${tamanho.width.toInt()}x${tamanho.height.toInt()}: sem overflow, e "Sair" fica acessível '
-          'após rolar', (tester) async {
-        await pumpSidebar(tester, tamanho);
+      testWidgets(
+        'em ${tamanho.width.toInt()}x${tamanho.height.toInt()}: sem overflow, e "Sair" fica acessível '
+        'após rolar',
+        (tester) async {
+          await pumpSidebar(tester, tamanho);
 
-        // "Sair" precisa ficar ACESSÍVEL — rola até ele em vez de só
-        // procurar o widget na árvore (que existiria mesmo cortado).
-        await tester.dragUntilVisible(find.text('Sair'), find.byType(Scrollable).first, const Offset(0, -50));
-        await tester.pumpAndSettle();
-        expect(find.text('Sair'), findsOneWidget);
+          // "Sair" precisa ficar ACESSÍVEL — rola até ele em vez de só
+          // procurar o widget na árvore (que existiria mesmo cortado).
+          await tester.dragUntilVisible(
+            find.text('Sair'),
+            find.byType(Scrollable).first,
+            const Offset(0, -50),
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('Sair'), findsOneWidget);
 
-        final posicao = tester.getBottomRight(find.text('Sair'));
-        expect(posicao.dy, lessThanOrEqualTo(tamanho.height), reason: '"Sair" precisa estar dentro da viewport visível');
-        expect(tester.takeException(), isNull);
-      });
+          final posicao = tester.getBottomRight(find.text('Sair'));
+          expect(
+            posicao.dy,
+            lessThanOrEqualTo(tamanho.height),
+            reason: '"Sair" precisa estar dentro da viewport visível',
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
 
-    testWidgets('em altura confortável (1080px), nada precisa rolar e tudo já está visível', (tester) async {
-      await pumpSidebar(tester, const Size(1024, 1080));
+    testWidgets(
+      'em altura confortável (1080px), nada precisa rolar e tudo já está visível',
+      (tester) async {
+        await pumpSidebar(tester, const Size(1024, 1080));
 
-      expect(find.text('Movimentações'), findsOneWidget);
-      expect(find.text('Configurações'), findsOneWidget);
-      expect(find.text('Sair'), findsOneWidget);
-    });
+        expect(find.text('Movimentações'), findsOneWidget);
+        expect(find.text('Configurações'), findsOneWidget);
+        expect(find.text('Sair'), findsOneWidget);
+      },
+    );
   });
 }

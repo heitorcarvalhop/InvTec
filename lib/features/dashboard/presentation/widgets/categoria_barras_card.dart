@@ -71,7 +71,9 @@ class _BarraItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fracao = total <= 0 ? 0.0 : (item.quantidade / total).clamp(0.0, 1.0);
-    final percentual = total <= 0 ? 0 : (item.quantidade / total * 100).round();
+    final bruto = total <= 0 ? 0.0 : item.quantidade / total * 100;
+    // Setores muito pequenos não devem aparecer como "0%" (parece vazio).
+    final percentual = bruto > 0 && bruto < 1 ? '<1' : '${bruto.round()}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

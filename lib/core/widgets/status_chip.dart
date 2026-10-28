@@ -13,7 +13,12 @@ enum AppStatusKind { success, warning, error, info, neutral }
 /// componente compartilhado em vez de cada tela desenhar seu próprio pill
 /// com cores/raio/padding ligeiramente diferentes.
 class StatusChip extends StatelessWidget {
-  const StatusChip({super.key, required this.label, required this.kind, this.icon});
+  const StatusChip({
+    super.key,
+    required this.label,
+    required this.kind,
+    this.icon,
+  });
 
   final String label;
   final AppStatusKind kind;
@@ -23,16 +28,31 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).statusColors;
     final (background, foreground) = switch (kind) {
-      AppStatusKind.success => (colors.successBackground, colors.successForeground),
-      AppStatusKind.warning => (colors.warningBackground, colors.warningForeground),
+      AppStatusKind.success => (
+        colors.successBackground,
+        colors.successForeground,
+      ),
+      AppStatusKind.warning => (
+        colors.warningBackground,
+        colors.warningForeground,
+      ),
       AppStatusKind.error => (colors.errorBackground, colors.errorForeground),
       AppStatusKind.info => (colors.infoBackground, colors.infoForeground),
-      AppStatusKind.neutral => (colors.neutralBackground, colors.neutralForeground),
+      AppStatusKind.neutral => (
+        colors.neutralBackground,
+        colors.neutralForeground,
+      ),
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(AppRadius.pill)),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -44,9 +64,10 @@ class StatusChip extends StatelessWidget {
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: foreground, fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: foreground,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

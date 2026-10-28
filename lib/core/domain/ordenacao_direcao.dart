@@ -20,6 +20,7 @@ enum OrdenacaoDirecao { asc, desc }
   required T campoClicado,
 }) {
   if (campoAtual != campoClicado) return (campoClicado, OrdenacaoDirecao.asc);
-  if (direcaoAtual == OrdenacaoDirecao.asc) return (campoClicado, OrdenacaoDirecao.desc);
+  if (direcaoAtual == OrdenacaoDirecao.asc)
+    return (campoClicado, OrdenacaoDirecao.desc);
   return (null, null);
 }

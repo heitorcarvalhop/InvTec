@@ -22,7 +22,9 @@ class ThemeToggleButton extends ConsumerWidget {
       final ehEscuro = modo == ThemeMode.dark;
       return IconButton(
         tooltip: ehEscuro ? 'Mudar para tema claro' : 'Mudar para tema escuro',
-        icon: Icon(ehEscuro ? Icons.dark_mode_outlined : Icons.light_mode_outlined),
+        icon: Icon(
+          ehEscuro ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+        ),
         onPressed: notifier.alternar,
       );
     }
@@ -42,7 +44,8 @@ class ThemeToggleButton extends ConsumerWidget {
       ],
       selected: {modo},
       showSelectedIcon: false,
-      onSelectionChanged: (selecionados) => notifier.definir(selecionados.first),
+      onSelectionChanged: (selecionados) =>
+          notifier.definir(selecionados.first),
     );
   }
 }

@@ -30,25 +30,25 @@ class _FakePermissionsRepository implements PermissionsRepository {
   Future<Set<String>> minhasPermissoes() async => const {};
 
   @override
-  Future<List<PermissaoEfetiva>> obterPermissoesUsuario(String userId) => throw UnimplementedError();
+  Future<List<PermissaoEfetiva>> obterPermissoesUsuario(String userId) =>
+      throw UnimplementedError();
 
   @override
   Future<void> definirPermissaoUsuario({
     required String userId,
     required String permissionKey,
     required bool granted,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> removerOverridePermissaoUsuario({
     required String userId,
     required String permissionKey,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
-  Future<int> resetarPermissoesUsuario(String userId) => throw UnimplementedError();
+  Future<int> resetarPermissoesUsuario(String userId) =>
+      throw UnimplementedError();
 }
 
 Profile _profile({
@@ -73,7 +73,10 @@ Future<FakeAuthRepository> _pump(
   String? initialUserId,
   Profile? Function(String userId)? profileResolver,
 }) async {
-  final fakeAuth = FakeAuthRepository(initialUserId: initialUserId, profileResolver: profileResolver);
+  final fakeAuth = FakeAuthRepository(
+    initialUserId: initialUserId,
+    profileResolver: profileResolver,
+  );
   addTearDown(fakeAuth.dispose);
 
   // Janela explicitamente "desktop" (>= 1024 lógicos — ver
@@ -93,12 +96,22 @@ Future<FakeAuthRepository> _pump(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(fakeAuth),
-        permissionsRepositoryProvider.overrideWithValue(_FakePermissionsRepository()),
-        dashboardRepositoryProvider.overrideWithValue(FakeDashboardRepository()),
-        patrimonioRepositoryProvider.overrideWithValue(FakePatrimonioRepository()),
-        tipoPatrimonioRepositoryProvider.overrideWithValue(FakeTipoPatrimonioRepository()),
+        permissionsRepositoryProvider.overrideWithValue(
+          _FakePermissionsRepository(),
+        ),
+        dashboardRepositoryProvider.overrideWithValue(
+          FakeDashboardRepository(),
+        ),
+        patrimonioRepositoryProvider.overrideWithValue(
+          FakePatrimonioRepository(),
+        ),
+        tipoPatrimonioRepositoryProvider.overrideWithValue(
+          FakeTipoPatrimonioRepository(),
+        ),
         setorRepositoryProvider.overrideWithValue(FakeSetorRepository()),
-        appNotificationRepositoryProvider.overrideWithValue(FakeAppNotificationRepository()),
+        appNotificationRepositoryProvider.overrideWithValue(
+          FakeAppNotificationRepository(),
+        ),
       ],
       child: const InvTecApp(),
     ),
@@ -116,11 +129,14 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Entrar'), findsOneWidget);
     });
 
-    testWidgets('PENDING é redirecionado para a tela de acesso pendente', (tester) async {
+    testWidgets('PENDING é redirecionado para a tela de acesso pendente', (
+      tester,
+    ) async {
       await _pump(
         tester,
         initialUserId: 'fake-user-id',
-        profileResolver: (_) => _profile(accessStatus: ProfileAccessStatus.pending),
+        profileResolver: (_) =>
+            _profile(accessStatus: ProfileAccessStatus.pending),
       );
 
       // Título real de AcessoPendentePage (lib/features/auth/presentation/
@@ -131,22 +147,28 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Entrar'), findsNothing);
     });
 
-    testWidgets('REJECTED é redirecionado para a tela de acesso rejeitado', (tester) async {
+    testWidgets('REJECTED é redirecionado para a tela de acesso rejeitado', (
+      tester,
+    ) async {
       await _pump(
         tester,
         initialUserId: 'fake-user-id',
-        profileResolver: (_) => _profile(accessStatus: ProfileAccessStatus.rejected),
+        profileResolver: (_) =>
+            _profile(accessStatus: ProfileAccessStatus.rejected),
       );
 
       // Título real de AcessoRejeitadoPage.
       expect(find.text('Solicitação não aprovada'), findsOneWidget);
     });
 
-    testWidgets('BLOCKED é redirecionado para a tela de acesso bloqueado', (tester) async {
+    testWidgets('BLOCKED é redirecionado para a tela de acesso bloqueado', (
+      tester,
+    ) async {
       await _pump(
         tester,
         initialUserId: 'fake-user-id',
-        profileResolver: (_) => _profile(accessStatus: ProfileAccessStatus.blocked),
+        profileResolver: (_) =>
+            _profile(accessStatus: ProfileAccessStatus.blocked),
       );
 
       // Título real de AcessoBloqueadoPage.
@@ -157,7 +179,8 @@ void main() {
       await _pump(
         tester,
         initialUserId: 'fake-user-id',
-        profileResolver: (_) => _profile(accessStatus: ProfileAccessStatus.active),
+        profileResolver: (_) =>
+            _profile(accessStatus: ProfileAccessStatus.active),
       );
 
       // "InvTec" só é desenhado na sidebar expandida (AppShell, janela
@@ -166,59 +189,83 @@ void main() {
       expect(find.text('Solicitação enviada'), findsNothing);
     });
 
-    testWidgets('ACTIVE não-ADMIN tentando /administracao/usuarios é negado (fica no dashboard)', (tester) async {
+    testWidgets(
+      'ACTIVE não-ADMIN tentando /administracao/usuarios é negado (fica no dashboard)',
+      (tester) async {
+        await _pump(
+          tester,
+          initialUserId: 'fake-user-id',
+          profileResolver: (_) => _profile(
+            accessStatus: ProfileAccessStatus.active,
+            perfil: ProfilePerfil.operador,
+          ),
+        );
+
+        // Navegação direta por código (equivalente a digitar a URL) — o
+        // redirect central precisa negar mesmo assim, não só esconder o item
+        // "Administração" da sidebar.
+        //
+        // `tester.element(find.byType(MaterialApp))` captura o elemento do
+        // PRÓPRIO `MaterialApp.router` — isso fica ACIMA/fora de onde o
+        // `Router`/`InheritedGoRouter` é provido na árvore (`GoRouter.of`
+        // procura um ANCESTRAL `InheritedGoRouter`, e o `MaterialApp` é quem
+        // cria esse `Router`, não é descendente dele) — daí o "No GoRouter
+        // found in context". Em vez disso, captura-se o `GoRouter` a partir de
+        // um `Scaffold` (sempre presente dentro do `AppShell`, descendente do
+        // `Router`) e guarda-se a INSTÂNCIA (não o `BuildContext`, que fica
+        // potencialmente desmontado depois da navegação) para a asserção final.
+        final router = GoRouter.of(tester.element(find.byType(Scaffold).first));
+        router.go('/administracao/usuarios');
+        await tester.pumpAndSettle();
+
+        expect(
+          router.routerDelegate.currentConfiguration.uri.toString(),
+          '/dashboard',
+        );
+      },
+    );
+
+    testWidgets('ACTIVE ADMIN acessando /administracao/usuarios é permitido', (
+      tester,
+    ) async {
       await _pump(
         tester,
         initialUserId: 'fake-user-id',
-        profileResolver: (_) => _profile(accessStatus: ProfileAccessStatus.active, perfil: ProfilePerfil.operador),
+        profileResolver: (_) => _profile(
+          accessStatus: ProfileAccessStatus.active,
+          perfil: ProfilePerfil.admin,
+        ),
       );
 
-      // Navegação direta por código (equivalente a digitar a URL) — o
-      // redirect central precisa negar mesmo assim, não só esconder o item
-      // "Administração" da sidebar.
-      //
-      // `tester.element(find.byType(MaterialApp))` captura o elemento do
-      // PRÓPRIO `MaterialApp.router` — isso fica ACIMA/fora de onde o
-      // `Router`/`InheritedGoRouter` é provido na árvore (`GoRouter.of`
-      // procura um ANCESTRAL `InheritedGoRouter`, e o `MaterialApp` é quem
-      // cria esse `Router`, não é descendente dele) — daí o "No GoRouter
-      // found in context". Em vez disso, captura-se o `GoRouter` a partir de
-      // um `Scaffold` (sempre presente dentro do `AppShell`, descendente do
-      // `Router`) e guarda-se a INSTÂNCIA (não o `BuildContext`, que fica
-      // potencialmente desmontado depois da navegação) para a asserção final.
       final router = GoRouter.of(tester.element(find.byType(Scaffold).first));
       router.go('/administracao/usuarios');
       await tester.pumpAndSettle();
 
-      expect(router.routerDelegate.currentConfiguration.uri.toString(), '/dashboard');
-    });
-
-    testWidgets('ACTIVE ADMIN acessando /administracao/usuarios é permitido', (tester) async {
-      await _pump(
-        tester,
-        initialUserId: 'fake-user-id',
-        profileResolver: (_) => _profile(accessStatus: ProfileAccessStatus.active, perfil: ProfilePerfil.admin),
+      expect(
+        router.routerDelegate.currentConfiguration.uri.toString(),
+        '/administracao/usuarios',
       );
-
-      final router = GoRouter.of(tester.element(find.byType(Scaffold).first));
-      router.go('/administracao/usuarios');
-      await tester.pumpAndSettle();
-
-      expect(router.routerDelegate.currentConfiguration.uri.toString(), '/administracao/usuarios');
     });
 
-    testWidgets('ACTIVE tentando /login ou /cadastro é redirecionado para /dashboard', (tester) async {
-      await _pump(
-        tester,
-        initialUserId: 'fake-user-id',
-        profileResolver: (_) => _profile(accessStatus: ProfileAccessStatus.active),
-      );
+    testWidgets(
+      'ACTIVE tentando /login ou /cadastro é redirecionado para /dashboard',
+      (tester) async {
+        await _pump(
+          tester,
+          initialUserId: 'fake-user-id',
+          profileResolver: (_) =>
+              _profile(accessStatus: ProfileAccessStatus.active),
+        );
 
-      final router = GoRouter.of(tester.element(find.byType(Scaffold).first));
-      router.go('/login');
-      await tester.pumpAndSettle();
+        final router = GoRouter.of(tester.element(find.byType(Scaffold).first));
+        router.go('/login');
+        await tester.pumpAndSettle();
 
-      expect(router.routerDelegate.currentConfiguration.uri.toString(), '/dashboard');
-    });
+        expect(
+          router.routerDelegate.currentConfiguration.uri.toString(),
+          '/dashboard',
+        );
+      },
+    );
   });
 }

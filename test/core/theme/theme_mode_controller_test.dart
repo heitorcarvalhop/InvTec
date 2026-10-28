@@ -50,17 +50,24 @@ void main() {
     expect(container.read(themeModeControllerProvider).value, ThemeMode.light);
   });
 
-  test('definir() persiste a escolha para uma nova instância do provider (recriação do app)', () async {
-    final container1 = ProviderContainer();
-    await container1.read(themeModeControllerProvider.future);
-    await container1.read(themeModeControllerProvider.notifier).definir(ThemeMode.dark);
-    container1.dispose();
+  test(
+    'definir() persiste a escolha para uma nova instância do provider (recriação do app)',
+    () async {
+      final container1 = ProviderContainer();
+      await container1.read(themeModeControllerProvider.future);
+      await container1
+          .read(themeModeControllerProvider.notifier)
+          .definir(ThemeMode.dark);
+      container1.dispose();
 
-    // Simula reabrir o app: um container/provider totalmente novo.
-    final container2 = ProviderContainer();
-    addTearDown(container2.dispose);
-    final modoRestaurado = await container2.read(themeModeControllerProvider.future);
+      // Simula reabrir o app: um container/provider totalmente novo.
+      final container2 = ProviderContainer();
+      addTearDown(container2.dispose);
+      final modoRestaurado = await container2.read(
+        themeModeControllerProvider.future,
+      );
 
-    expect(modoRestaurado, ThemeMode.dark);
-  });
+      expect(modoRestaurado, ThemeMode.dark);
+    },
+  );
 }

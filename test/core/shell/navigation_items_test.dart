@@ -19,7 +19,11 @@ void main() {
       navigationItemsFor(ProfilePerfil.admin).map((i) => i.route),
       contains('/administracao/usuarios'),
     );
-    for (final perfil in [ProfilePerfil.gestor, ProfilePerfil.operador, ProfilePerfil.consulta]) {
+    for (final perfil in [
+      ProfilePerfil.gestor,
+      ProfilePerfil.operador,
+      ProfilePerfil.consulta,
+    ]) {
       expect(
         navigationItemsFor(perfil).map((i) => i.route),
         isNot(contains('/administracao/usuarios')),
@@ -28,11 +32,7 @@ void main() {
   });
 
   test('item sem perfisPermitidos é visível para qualquer perfil', () {
-    const item = NavigationItem(
-      route: '/x',
-      label: 'X',
-      icon: Icons.abc,
-    );
+    const item = NavigationItem(route: '/x', label: 'X', icon: Icons.abc);
     for (final perfil in ProfilePerfil.values) {
       expect(item.visivelPara(perfil), isTrue);
     }
@@ -53,7 +53,11 @@ void main() {
   });
 
   group('NavigationItem.ativoPara', () {
-    const item = NavigationItem(route: '/patrimonios', label: 'Patrimônios', icon: Icons.abc);
+    const item = NavigationItem(
+      route: '/patrimonios',
+      label: 'Patrimônios',
+      icon: Icons.abc,
+    );
 
     test('rota exatamente igual é ativa', () {
       expect(item.ativoPara('/patrimonios'), isTrue);
@@ -69,8 +73,11 @@ void main() {
       expect(item.ativoPara('/setores'), isFalse);
     });
 
-    test('rota que só começa parecido, sem ser filha de verdade, não é ativa', () {
-      expect(item.ativoPara('/patrimoniosx'), isFalse);
-    });
+    test(
+      'rota que só começa parecido, sem ser filha de verdade, não é ativa',
+      () {
+        expect(item.ativoPara('/patrimoniosx'), isFalse);
+      },
+    );
   });
 }

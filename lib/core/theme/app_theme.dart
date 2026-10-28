@@ -15,14 +15,20 @@ class AppTheme {
   AppTheme._();
 
   static ThemeData get light => _base(
-    colorScheme: ColorScheme.fromSeed(seedColor: AppColors.seed, brightness: Brightness.light),
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: AppColors.seed,
+      brightness: Brightness.light,
+    ),
     statusColors: AppStatusColors.light,
     surfaceColors: AppSurfaceColors.light,
     dataVizColors: AppDataVizColors.light,
   );
 
   static ThemeData get dark {
-    final colorScheme = ColorScheme.fromSeed(seedColor: AppColors.seed, brightness: Brightness.dark);
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.seed,
+      brightness: Brightness.dark,
+    );
     return _base(
       colorScheme: colorScheme,
       statusColors: AppStatusColors.dark,
@@ -67,51 +73,99 @@ class AppTheme {
         surfaceTintColor: colorScheme.surfaceTint,
         titleTextStyle: textTheme.titleLarge,
       ),
-      navigationDrawerTheme: NavigationDrawerThemeData(backgroundColor: surfaceColors.surface),
+      navigationDrawerTheme: NavigationDrawerThemeData(
+        backgroundColor: surfaceColors.surface,
+      ),
+      // Barra inferior (só montada no celular — ver AppShell): rótulos
+      // sempre visíveis e altura confortável para o polegar.
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surfaceColors.surface,
+        elevation: 0,
+        height: 64,
+        indicatorColor: colorScheme.primaryContainer,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        labelTextStyle: WidgetStatePropertyAll(textTheme.labelSmall),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: surfaceColors.surfaceElevated,
+        showDragHandle: true,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.lg),
+          ),
+        ),
+      ),
       dividerTheme: DividerThemeData(color: surfaceColors.border),
       inputDecorationTheme: InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
         filled: true,
         fillColor: surfaceColors.input,
+        // Campos mais altos que o padrão denso: alvo de toque >= 48dp.
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 14,
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(64, 44),
+          minimumSize: const Size(64, 48),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(64, 44),
+          minimumSize: const Size(64, 48),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
         ),
       ),
       chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
         side: BorderSide.none,
         labelStyle: textTheme.labelMedium,
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: surfaceColors.surfaceElevated,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        // Margem lateral menor que o padrão (40): em 360 px o diálogo ganha
+        // ~48 px de largura útil. Desktop não muda (diálogos têm maxWidth).
+        insetPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 24,
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: colorScheme.inverseSurface,
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
-        textStyle: textTheme.bodySmall?.copyWith(color: colorScheme.onInverseSurface),
+        textStyle: textTheme.bodySmall?.copyWith(
+          color: colorScheme.onInverseSurface,
+        ),
       ),
     );
   }

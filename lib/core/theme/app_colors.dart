@@ -112,16 +112,40 @@ class AppStatusColors extends ThemeExtension<AppStatusColors> {
   AppStatusColors lerp(ThemeExtension<AppStatusColors>? other, double t) {
     if (other is! AppStatusColors) return this;
     return AppStatusColors(
-      successBackground: Color.lerp(successBackground, other.successBackground, t)!,
-      successForeground: Color.lerp(successForeground, other.successForeground, t)!,
-      warningBackground: Color.lerp(warningBackground, other.warningBackground, t)!,
-      warningForeground: Color.lerp(warningForeground, other.warningForeground, t)!,
+      successBackground: Color.lerp(
+        successBackground,
+        other.successBackground,
+        t,
+      )!,
+      successForeground: Color.lerp(
+        successForeground,
+        other.successForeground,
+        t,
+      )!,
+      warningBackground: Color.lerp(
+        warningBackground,
+        other.warningBackground,
+        t,
+      )!,
+      warningForeground: Color.lerp(
+        warningForeground,
+        other.warningForeground,
+        t,
+      )!,
       errorBackground: Color.lerp(errorBackground, other.errorBackground, t)!,
       errorForeground: Color.lerp(errorForeground, other.errorForeground, t)!,
       infoBackground: Color.lerp(infoBackground, other.infoBackground, t)!,
       infoForeground: Color.lerp(infoForeground, other.infoForeground, t)!,
-      neutralBackground: Color.lerp(neutralBackground, other.neutralBackground, t)!,
-      neutralForeground: Color.lerp(neutralForeground, other.neutralForeground, t)!,
+      neutralBackground: Color.lerp(
+        neutralBackground,
+        other.neutralBackground,
+        t,
+      )!,
+      neutralForeground: Color.lerp(
+        neutralForeground,
+        other.neutralForeground,
+        t,
+      )!,
     );
   }
 }
@@ -238,7 +262,11 @@ extension AppSurfaceColorsContext on ThemeData {
 /// como fundo sólido atrás de texto, então não há par de contraste a
 /// recalcular por brilho.
 class AppDataVizColors extends ThemeExtension<AppDataVizColors> {
-  const AppDataVizColors({required this.cyan, required this.teal, required this.emerald});
+  const AppDataVizColors({
+    required this.cyan,
+    required this.teal,
+    required this.emerald,
+  });
 
   final Color cyan;
   final Color teal;

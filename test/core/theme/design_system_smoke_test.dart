@@ -11,10 +11,7 @@ import 'package:invtec/core/widgets/status_chip.dart';
 /// erro nos dois temas — não valida pixel a pixel, só que o widget
 /// constrói normalmente sob `AppTheme.light`/`AppTheme.dark`.
 void main() {
-  for (final tema in [
-    ('claro', AppTheme.light),
-    ('escuro', AppTheme.dark),
-  ]) {
+  for (final tema in [('claro', AppTheme.light), ('escuro', AppTheme.dark)]) {
     final (nome, themeData) = tema;
 
     testWidgets('StatusChip renderiza no tema $nome', (tester) async {
@@ -65,8 +62,14 @@ void main() {
           home: Scaffold(
             body: InvTecPageHeader(
               title: 'Patrimônios',
-              subtitle: 'Consulte e gerencie os equipamentos cadastrados no InvTec.',
-              actions: [FilledButton(onPressed: () {}, child: const Text('Novo patrimônio'))],
+              subtitle:
+                  'Consulte e gerencie os equipamentos cadastrados no InvTec.',
+              actions: [
+                FilledButton(
+                  onPressed: () {},
+                  child: const Text('Novo patrimônio'),
+                ),
+              ],
             ),
           ),
         ),
@@ -77,34 +80,40 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    test('AppDataVizColors está registrado no tema $nome e com cores não-nulas', () {
-      final dataViz = themeData.dataVizColors;
-      expect(dataViz.cyan, isNotNull);
-      expect(dataViz.teal, isNotNull);
-      expect(dataViz.emerald, isNotNull);
-      // As três cores precisam ser distintas entre si (senão o acento
-      // "decorativo" vira uma única cor disfarçada de três tokens).
-      expect({dataViz.cyan, dataViz.teal, dataViz.emerald}, hasLength(3));
-    });
+    test(
+      'AppDataVizColors está registrado no tema $nome e com cores não-nulas',
+      () {
+        final dataViz = themeData.dataVizColors;
+        expect(dataViz.cyan, isNotNull);
+        expect(dataViz.teal, isNotNull);
+        expect(dataViz.emerald, isNotNull);
+        // As três cores precisam ser distintas entre si (senão o acento
+        // "decorativo" vira uma única cor disfarçada de três tokens).
+        expect({dataViz.cyan, dataViz.teal, dataViz.emerald}, hasLength(3));
+      },
+    );
 
-    testWidgets('AppTypography.eyebrow resolve um TextStyle válido no tema $nome', (tester) async {
-      late BuildContext capturedContext;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: themeData,
-          home: Builder(
-            builder: (context) {
-              capturedContext = context;
-              return const Scaffold(body: SizedBox());
-            },
+    testWidgets(
+      'AppTypography.eyebrow resolve um TextStyle válido no tema $nome',
+      (tester) async {
+        late BuildContext capturedContext;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: themeData,
+            home: Builder(
+              builder: (context) {
+                capturedContext = context;
+                return const Scaffold(body: SizedBox());
+              },
+            ),
           ),
-        ),
-      );
+        );
 
-      final style = AppTypography.eyebrow(capturedContext);
-      expect(style, isNotNull);
-      expect(style!.letterSpacing, greaterThan(1));
-      expect(tester.takeException(), isNull);
-    });
+        final style = AppTypography.eyebrow(capturedContext);
+        expect(style, isNotNull);
+        expect(style!.letterSpacing, greaterThan(1));
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }

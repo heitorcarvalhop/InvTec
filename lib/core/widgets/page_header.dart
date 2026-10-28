@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../responsive/breakpoints.dart';
+import '../routing/nav_location.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'compact_icon_button.dart';
@@ -35,12 +36,24 @@ class InvTecPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Dentro do shell do celular, o título e o "voltar" já estão no
+    // cabeçalho compacto do app: aqui só sobra o que for adicional.
+    final noShell = ShellHeaderScope.maybeOf(context);
+    if (noShell != null && noShell.titulo == title) {
+      if (actions.isEmpty) return const SizedBox.shrink();
+      return Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
+        children: actions,
+      );
+    }
+    final VoidCallback? onBack = noShell != null ? null : this.onBack;
     final titulo = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         if (onBack != null) ...[
-          _BackButton(onBack: onBack!, label: backLabel),
+          _BackButton(onBack: onBack, label: backLabel),
           const SizedBox(height: AppSpacing.xs),
         ],
         Text(title, style: AppTypography.pageTitle(context)),

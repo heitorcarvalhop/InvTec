@@ -11,6 +11,15 @@ import 'list_view_mode.dart';
 /// mais folga para a busca nunca ficar espremida mesmo nesse caso.
 const _larguraUmaLinha = 1040.0;
 
+/// Abaixo disto (largura do próprio toolbar) vale o layout de celular.
+const _larguraCelular = 560.0;
+
+final _estiloAcaoCompacta = ButtonStyle(
+  minimumSize: const WidgetStatePropertyAll(Size(0, 40)),
+  padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14)),
+  visualDensity: VisualDensity.compact,
+);
+
 /// Barra de ações compartilhada por listagens paginadas do InvTec: busca +
 /// filtros + alternância Lista/Cards + ação principal (+ ações secundárias
 /// opcionais) — `[ Busca.......... ] [ Filtros ] [ Lista | Cards ] [ + Ação ]`.
@@ -129,7 +138,9 @@ class ListPageToolbar extends StatelessWidget {
         ),
         _ViewModeToggle(viewMode: viewMode, onChanged: onViewModeChanged),
         ...secondaryActions,
-        if (onPrimaryAction != null && primaryActionLabel != null && primaryActionIcon != null)
+        if (onPrimaryAction != null &&
+            primaryActionLabel != null &&
+            primaryActionIcon != null)
           FilledButton.icon(
             onPressed: onPrimaryAction,
             icon: Icon(primaryActionIcon),
@@ -156,6 +167,75 @@ class ListPageToolbar extends StatelessWidget {
           );
         }
 
+        // Celular: três faixas compactas e alinhadas — busca; Filtros
+        // (largura total) + alternância Lista/Cards; e uma única linha
+        // rolável na horizontal com a ação principal primeiro e as
+        // secundárias depois (sem quebrar em blocos soltos).
+        if (constraints.maxWidth < _larguraCelular) {
+          final temPrincipal =
+              onPrimaryAction != null &&
+              primaryActionLabel != null &&
+              primaryActionIcon != null;
+          final acoes = <Widget>[
+            if (temPrincipal)
+              FilledButton.icon(
+                onPressed: onPrimaryAction,
+                icon: Icon(primaryActionIcon, size: 18),
+                label: Text(primaryActionLabel!),
+              ),
+            ...secondaryActions,
+          ];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              busca,
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onFiltersPressed,
+                      icon: const Icon(Icons.filter_list, size: 18),
+                      label: Text(
+                        filterCount > 0 ? 'Filtros ($filterCount)' : 'Filtros',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  _ViewModeToggle(
+                    viewMode: viewMode,
+                    onChanged: onViewModeChanged,
+                  ),
+                ],
+              ),
+              if (acoes.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Theme(
+                  data: Theme.of(context).copyWith(
+                    filledButtonTheme: FilledButtonThemeData(
+                      style: _estiloAcaoCompacta,
+                    ),
+                    outlinedButtonTheme: OutlinedButtonThemeData(
+                      style: _estiloAcaoCompacta,
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < acoes.length; i++) ...[
+                          if (i > 0) const SizedBox(width: AppSpacing.sm),
+                          acoes[i],
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          );
+        }
+
         // Duas linhas DELIBERADAS: a busca ocupa a linha toda; os
         // controles recebem a largura TODA do toolbar na linha de baixo
         // (nunca ficam espremidos ao lado da busca) — é só aqui, em
@@ -163,7 +243,11 @@ class ListPageToolbar extends StatelessWidget {
         // pode precisar de mais de uma sublinha.
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [busca, const SizedBox(height: AppSpacing.sm), controles],
+          children: [
+            busca,
+            const SizedBox(height: AppSpacing.sm),
+            controles,
+          ],
         );
       },
     );
@@ -180,8 +264,16 @@ class _ViewModeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return SegmentedButton<ListViewMode>(
       segments: const [
-        ButtonSegment(value: ListViewMode.list, icon: Icon(Icons.view_list_outlined), tooltip: 'Lista'),
-        ButtonSegment(value: ListViewMode.cards, icon: Icon(Icons.grid_view_outlined), tooltip: 'Cards'),
+        ButtonSegment(
+          value: ListViewMode.list,
+          icon: Icon(Icons.view_list_outlined),
+          tooltip: 'Lista',
+        ),
+        ButtonSegment(
+          value: ListViewMode.cards,
+          icon: Icon(Icons.grid_view_outlined),
+          tooltip: 'Cards',
+        ),
       ],
       selected: {viewMode},
       showSelectedIcon: false,

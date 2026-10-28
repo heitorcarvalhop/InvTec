@@ -79,7 +79,8 @@ String _traduzirPostgrestException(PostgrestException error) {
 
 String _traduzirAuthException(AuthException error) {
   final mensagem = error.message.toLowerCase();
-  if (mensagem.contains('already registered') || mensagem.contains('already exists')) {
+  if (mensagem.contains('already registered') ||
+      mensagem.contains('already exists')) {
     return _mensagemCadastroDuplicado;
   }
   return _mensagemFallbackGenerica;

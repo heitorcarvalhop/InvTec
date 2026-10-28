@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/routing/nav_location.dart';
 
 import '../../../core/config/platform_info.dart';
 import '../../../core/domain/ordenacao_direcao.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/active_filter_chip.dart';
 import '../../../core/widgets/compact_icon_button.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -62,6 +65,15 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
       // Mesmo método/debounce que o usuário digitando dispararia — nunca
       // uma segunda busca/consulta paralela (seção 6 do pedido).
       ref.read(patrimoniosControllerProvider.notifier).buscar(buscaInicial);
+    } else {
+      // Voltando a esta aba: o controller (que sobrevive à troca de aba)
+      // ainda filtra pela busca anterior — o campo precisa mostrá-la, senão
+      // a lista parece filtrada "sem motivo". Sem nova requisição.
+      final salvo = ref.read(patrimoniosControllerProvider).value?.filtro;
+      if (salvo != null && salvo.busca.isNotEmpty) {
+        _searchController.text = salvo.busca;
+        _campoBusca = salvo.campoBusca;
+      }
     }
     // Só para atualizar o texto do estado vazio (busca/filtro x cadastro
     // vazio); a consulta em si é disparada com debounce pelo controller.
@@ -91,15 +103,15 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
     ref.read(patrimoniosControllerProvider.notifier).limparFiltros();
   }
 
-  void _novoPatrimonio() => context.push('/patrimonios/novo');
+  void _novoPatrimonio() => context.pushUnico('/patrimonios/novo');
 
-  void _importarPlanilha() => context.push('/patrimonios/importar');
+  void _importarPlanilha() => context.pushUnico('/patrimonios/importar');
 
-  void _escanearPatrimonio() => context.push('/patrimonios/escanear');
+  void _escanearPatrimonio() => context.pushUnico('/patrimonios/escanear');
 
-  void _inventarioRapido() => context.push('/patrimonios/inventario-rapido');
+  void _inventarioRapido() => context.pushUnico('/patrimonios/inventario-rapido');
 
-  void _retificarUnidade() => context.push('/patrimonios/retificar-unidade');
+  void _retificarUnidade() => context.pushUnico('/patrimonios/retificar-unidade');
 
   void _abrirDetalhe(String id) => context.push('/patrimonios/$id');
 
@@ -263,14 +275,18 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
               data: (state) {
                 final itens = state.resultado.itens;
                 if (itens.isEmpty) {
-                  if (state.resultado.correspondenciasPorTombamentoAnterior.isNotEmpty) {
+                  if (state
+                      .resultado
+                      .correspondenciasPorTombamentoAnterior
+                      .isNotEmpty) {
                     // Fase 3: nenhum bem corresponde ao tombamento ATUAL
                     // pesquisado, mas pelo menos um corresponde pelo
                     // ANTERIOR — mostrado como resultado de verdade (não
                     // só uma dica), já que é exatamente o que foi
                     // pesquisado.
                     return _CorrespondenciasPorTombamentoAnterior(
-                      correspondencias: state.resultado.correspondenciasPorTombamentoAnterior,
+                      correspondencias:
+                          state.resultado.correspondenciasPorTombamentoAnterior,
                       onTap: (id) => _abrirDetalhe(id),
                     );
                   }
@@ -339,10 +355,15 @@ class _PatrimoniosPageState extends ConsumerState<PatrimoniosPage> {
                     // Fase 4: "não ocultar outros resultados válidos" — um
                     // resultado encontrado pelo tombamento ATUAL nunca
                     // esconde uma correspondência por tombamento ANTERIOR.
-                    if (state.resultado.correspondenciasPorTombamentoAnterior.isNotEmpty) ...[
+                    if (state
+                        .resultado
+                        .correspondenciasPorTombamentoAnterior
+                        .isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.lg),
                       _CorrespondenciasPorTombamentoAnterior(
-                        correspondencias: state.resultado.correspondenciasPorTombamentoAnterior,
+                        correspondencias: state
+                            .resultado
+                            .correspondenciasPorTombamentoAnterior,
                         onTap: (id) => _abrirDetalhe(id),
                       ),
                     ],
@@ -464,40 +485,76 @@ class _OrdenarPorControl extends StatelessWidget {
         ? 'Ordem crescente — clique para inverter'
         : 'Ordem decrescente — clique para inverter';
 
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: AppSpacing.sm,
-      children: [
-        Text('Ordenar por:', style: AppTypography.auxiliary(context)),
-        DropdownButton<PatrimonioOrdenacaoCampo?>(
-          value: ordenarPor,
-          hint: const Text('Padrão'),
-          underline: const SizedBox.shrink(),
-          // Sem isto, o destaque de hover/focus/toque do próprio botão
-          // (não só do menu) sai com cantos retos, cobrindo toda a área do
-          // texto + seta — destoando de um controle sem borda visível.
-          borderRadius: BorderRadius.circular(8),
-          items: [
-            for (final campo in PatrimonioOrdenacaoCampo.values)
-              DropdownMenuItem(value: campo, child: Text(campo.label)),
-          ],
-          onChanged: (campo) {
-            if (campo != null) onOrdenarPor(campo);
-          },
-        ),
-        CompactIconButton(
-          tooltip: direcaoDescricao,
-          iconSize: 18,
-          icon: Icon(
-            ordenacaoDirecao == OrdenacaoDirecao.asc
-                ? Icons.arrow_upward
-                : Icons.arrow_downward,
+    final mobile = context.screenSize == ScreenSize.mobile;
+    final cores = Theme.of(context).surfaceColors;
+
+    final dropdown = DropdownButton<PatrimonioOrdenacaoCampo?>(
+      // Só no celular o campo ocupa a largura restante (com reticências);
+      // no desktop segue com largura natural.
+      isExpanded: mobile,
+      value: ordenarPor,
+      hint: const Text('Padrão', overflow: TextOverflow.ellipsis),
+      underline: const SizedBox.shrink(),
+      isDense: true,
+      // Sem isto, o destaque de hover/focus/toque do próprio botão sai com
+      // cantos retos, destoando de um controle sem borda visível.
+      borderRadius: BorderRadius.circular(8),
+      items: [
+        for (final campo in PatrimonioOrdenacaoCampo.values)
+          DropdownMenuItem(
+            value: campo,
+            child: Text(campo.label, overflow: TextOverflow.ellipsis),
           ),
-          onPressed: ordenarPor == null
-              ? null
-              : () => onOrdenarPor(ordenarPor!),
-        ),
       ],
+      onChanged: (campo) {
+        if (campo != null) onOrdenarPor(campo);
+      },
+    );
+
+    // "Pílula" única — ícone, rótulo, campo e direção no mesmo contêiner,
+    // com a mesma superfície/borda dos campos de busca e botões da tela.
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.only(left: AppSpacing.md, right: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: cores.input,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: cores.border),
+      ),
+      child: Row(
+        mainAxisSize: mobile ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          if (!mobile) ...[
+            Icon(
+              Icons.swap_vert,
+              size: 18,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          Text(
+            mobile ? 'Ordenar:' : 'Ordenar por:',
+            style: AppTypography.auxiliary(context),
+            maxLines: 1,
+            overflow: TextOverflow.fade,
+            softWrap: false,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          if (mobile) Expanded(child: dropdown) else dropdown,
+          CompactIconButton(
+            tooltip: direcaoDescricao,
+            iconSize: 18,
+            icon: Icon(
+              ordenacaoDirecao == OrdenacaoDirecao.asc
+                  ? Icons.arrow_upward
+                  : Icons.arrow_downward,
+            ),
+            onPressed: ordenarPor == null
+                ? null
+                : () => onOrdenarPor(ordenarPor!),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -775,7 +832,10 @@ class _CorrespondenciasPorTombamentoAnterior extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.history, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.history,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
@@ -794,13 +854,16 @@ class _CorrespondenciasPorTombamentoAnterior extends StatelessWidget {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final c = correspondencias[index];
-              final ambiguo = (contagemPorChave[c.numeroAnteriorEncontrado] ?? 0) > 1;
+              final ambiguo =
+                  (contagemPorChave[c.numeroAnteriorEncontrado] ?? 0) > 1;
               return ListTile(
                 leading: Icon(
                   ambiguo ? Icons.warning_amber : Icons.history,
                   color: ambiguo ? Theme.of(context).colorScheme.error : null,
                 ),
-                title: Text('Patrimônio ${c.patrimonio.patrimonio.numeroPatrimonio ?? '(sem número)'}'),
+                title: Text(
+                  'Patrimônio ${c.patrimonio.patrimonio.numeroPatrimonio ?? '(sem número)'}',
+                ),
                 subtitle: Text(
                   '${c.patrimonio.tipoNome} — ${c.patrimonio.patrimonio.descricao ?? 'sem descrição'}\n'
                   'Encontrado pelo tombamento anterior: ${c.numeroAnteriorEncontrado}'

@@ -26,7 +26,8 @@ void main() {
         home: Scaffold(
           body: ListPageToolbar(
             searchController: TextEditingController(),
-            searchHint: 'Buscar por patrimônio, equipamento, documento, chamado, responsável...',
+            searchHint:
+                'Buscar por patrimônio, equipamento, documento, chamado, responsável...',
             onSearchChanged: (_) {},
             searchLeading: searchLeading,
             filterCount: filterCount,
@@ -55,44 +56,62 @@ void main() {
   const larguras = [1440.0, 1280.0, 1024.0, 900.0, 800.0, 390.0];
 
   for (final largura in larguras) {
-    testWidgets('${largura}px: sem overflow, ação principal e "Filtros" sempre visíveis', (
-      tester,
-    ) async {
-      final erros = <String>[];
-      final anterior = FlutterError.onError;
-      FlutterError.onError = (details) => erros.add(details.toString());
+    testWidgets(
+      '${largura}px: sem overflow, ação principal e "Filtros" sempre visíveis',
+      (tester) async {
+        final erros = <String>[];
+        final anterior = FlutterError.onError;
+        FlutterError.onError = (details) => erros.add(details.toString());
 
-      await pumpToolbar(tester, largura: largura, filterCount: 2);
+        await pumpToolbar(tester, largura: largura, filterCount: 2);
 
-      FlutterError.onError = anterior;
+        FlutterError.onError = anterior;
 
-      expect(
-        erros.where((e) => e.toLowerCase().contains('overflow')),
-        isEmpty,
-        reason: 'overflow em ${largura}px: ${erros.join('\n')}',
-      );
-      expect(tester.takeException(), isNull, reason: 'exceção em ${largura}px');
+        expect(
+          erros.where((e) => e.toLowerCase().contains('overflow')),
+          isEmpty,
+          reason: 'overflow em ${largura}px: ${erros.join('\n')}',
+        );
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'exceção em ${largura}px',
+        );
 
-      // Nenhuma largura pode esconder a ação principal nem o botão de
-      // filtros — só reposicionar (1 ou 2 linhas), nunca omitir.
-      expect(find.text('Nova movimentação'), findsOneWidget, reason: 'em ${largura}px');
-      expect(find.text('Importar documento SEI'), findsOneWidget, reason: 'em ${largura}px');
-      expect(find.text('Filtros (2)'), findsOneWidget, reason: 'em ${largura}px');
-    });
+        // Nenhuma largura pode esconder a ação principal nem o botão de
+        // filtros — só reposicionar (1 ou 2 linhas), nunca omitir.
+        expect(
+          find.text('Nova movimentação'),
+          findsOneWidget,
+          reason: 'em ${largura}px',
+        );
+        expect(
+          find.text('Importar documento SEI'),
+          findsOneWidget,
+          reason: 'em ${largura}px',
+        );
+        expect(
+          find.text('Filtros (2)'),
+          findsOneWidget,
+          reason: 'em ${largura}px',
+        );
+      },
+    );
   }
 
-  testWidgets('seletor "Buscar em" aparece por extenso, nunca truncado a uma letra', (
-    tester,
-  ) async {
-    await pumpToolbar(
-      tester,
-      largura: 390,
-      searchLeading: const Tooltip(message: 'Buscar em', child: Text('Tudo')),
-    );
+  testWidgets(
+    'seletor "Buscar em" aparece por extenso, nunca truncado a uma letra',
+    (tester) async {
+      await pumpToolbar(
+        tester,
+        largura: 390,
+        searchLeading: const Tooltip(message: 'Buscar em', child: Text('Tudo')),
+      );
 
-    expect(find.text('Tudo'), findsOneWidget);
-    expect(find.text('T'), findsNothing);
-  });
+      expect(find.text('Tudo'), findsOneWidget);
+      expect(find.text('T'), findsNothing);
+    },
+  );
 
   testWidgets(
     'largura generosa cabe tudo numa linha; largura estreita empilha deliberadamente em duas',
@@ -102,17 +121,42 @@ void main() {
       // — só a altura TOTAL do toolbar, que só pode ser maior quando ele
       // decide empilhar busca e controles em duas linhas.
       await pumpToolbar(tester, largura: 1440);
-      final alturaUmaLinha = tester.getSize(find.byType(ListPageToolbar)).height;
+      final alturaUmaLinha = tester
+          .getSize(find.byType(ListPageToolbar))
+          .height;
 
       await pumpToolbar(tester, largura: 760);
-      final alturaEmpilhada = tester.getSize(find.byType(ListPageToolbar)).height;
+      final alturaEmpilhada = tester
+          .getSize(find.byType(ListPageToolbar))
+          .height;
 
       expect(
         alturaEmpilhada,
         greaterThan(alturaUmaLinha),
-        reason: 'em 760px a composição deve empilhar busca e controles em duas linhas, '
+        reason:
+            'em 760px a composição deve empilhar busca e controles em duas linhas, '
             'nunca espremer os dois lado a lado',
       );
     },
   );
+
+  for (final largura in [360.0, 390.0, 412.0]) {
+    testWidgets('${largura}px celular: Filtros e alternância na mesma faixa, '
+        'ação principal antes das secundárias na linha rolável', (
+      tester,
+    ) async {
+      await pumpToolbar(tester, largura: largura);
+      expect(tester.takeException(), isNull);
+
+      final filtros = tester.getTopLeft(find.text('Filtros'));
+      final toggle = tester.getTopLeft(find.byIcon(Icons.view_list_outlined));
+      expect((filtros.dy - toggle.dy).abs(), lessThan(24));
+
+      final principal = tester.getTopLeft(find.text('Nova movimentação'));
+      final secundaria = tester.getTopLeft(find.text('Importar documento SEI'));
+      expect(principal.dy, greaterThan(filtros.dy));
+      expect(principal.dy, secundaria.dy);
+      expect(principal.dx, lessThan(secundaria.dx));
+    });
+  }
 }

@@ -15,7 +15,9 @@ class SidebarController extends AsyncNotifier<bool?> {
   @override
   Future<bool?> build() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_sidebarCollapsedKey) ? prefs.getBool(_sidebarCollapsedKey) : null;
+    return prefs.containsKey(_sidebarCollapsedKey)
+        ? prefs.getBool(_sidebarCollapsedKey)
+        : null;
   }
 
   Future<void> definir(bool collapsed) async {
@@ -25,6 +27,5 @@ class SidebarController extends AsyncNotifier<bool?> {
   }
 }
 
-final sidebarControllerProvider = AsyncNotifierProvider<SidebarController, bool?>(
-  SidebarController.new,
-);
+final sidebarControllerProvider =
+    AsyncNotifierProvider<SidebarController, bool?>(SidebarController.new);
